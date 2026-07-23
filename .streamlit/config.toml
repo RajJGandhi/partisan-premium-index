@@ -1,0 +1,10 @@
+[theme]
+primaryColor = "#7C3AED"
+font = "sans serif"
+
+[server]
+headless = true
+maxUploadSize = 20
+
+[browser]
+gatherUsageStats = false

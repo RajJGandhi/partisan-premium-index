@@ -1,0 +1,92 @@
+{
+  "timestamp_utc": "2026-06-29T18:13:31Z",
+  "signals_input": "data/signals/signal_comparison_latest.csv",
+  "markouts_input": "data/markouts/markouts_latest.csv",
+  "row_output": "data/analysis/error_taxonomy_latest.csv",
+  "summary_output": "data/analysis/error_taxonomy_summary_latest.csv",
+  "rows_total": 188,
+  "diagnostic_class_counts": {
+    "no_signal": 64,
+    "clean_binary_disagreement": 11,
+    "use_group_prompt_or_normalized_only": 76,
+    "diagnostic_only_incomplete_market": 6,
+    "standard_signal": 8,
+    "multi_option_interpretable_with_normalization": 21,
+    "liquidity_caution": 2
+  },
+  "tag_counts": {
+    "binary_clean": 34,
+    "no_material_signal": 132,
+    "large_gap": 24,
+    "probability_mass_incoherence": 82,
+    "multi_option_market": 154,
+    "range_or_bucket_market": 25,
+    "incomplete_market_group": 6,
+    "ask_only_price": 6
+  },
+  "summary": [
+    {
+      "timestamp_utc": "2026-06-29T18:13:31Z",
+      "diagnostic_class": "clean_binary_disagreement",
+      "count": "11",
+      "avg_selected_abs_gap": "0.34468182",
+      "positive_markout_rate": "",
+      "avg_directional_markout": "",
+      "recommended_action": "Track as priority candidate."
+    },
+    {
+      "timestamp_utc": "2026-06-29T18:13:31Z",
+      "diagnostic_class": "diagnostic_only_incomplete_market",
+      "count": "6",
+      "avg_selected_abs_gap": "0.17209417",
+      "positive_markout_rate": "",
+      "avg_directional_markout": "",
+      "recommended_action": "Exclude from headline analysis."
+    },
+    {
+      "timestamp_utc": "2026-06-29T18:13:31Z",
+      "diagnostic_class": "liquidity_caution",
+      "count": "2",
+      "avg_selected_abs_gap": "0.008009",
+      "positive_markout_rate": "",
+      "avg_directional_markout": "",
+      "recommended_action": "Downweight and monitor book depth."
+    },
+    {
+      "timestamp_utc": "2026-06-29T18:13:31Z",
+      "diagnostic_class": "multi_option_interpretable_with_normalization",
+      "count": "21",
+      "avg_selected_abs_gap": "0.23262171",
+      "positive_markout_rate": "",
+      "avg_directional_markout": "",
+      "recommended_action": "Use normalized/group-prompt estimate."
+    },
+    {
+      "timestamp_utc": "2026-06-29T18:13:31Z",
+      "diagnostic_class": "no_signal",
+      "count": "64",
+      "avg_selected_abs_gap": "0.03831845",
+      "positive_markout_rate": "",
+      "avg_directional_markout": "",
+      "recommended_action": "Retain for calibration only."
+    },
+    {
+      "timestamp_utc": "2026-06-29T18:13:31Z",
+      "diagnostic_class": "standard_signal",
+      "count": "8",
+      "avg_selected_abs_gap": "0.169375",
+      "positive_markout_rate": "",
+      "avg_directional_markout": "",
+      "recommended_action": "Track normally."
+    },
+    {
+      "timestamp_utc": "2026-06-29T18:13:31Z",
+      "diagnostic_class": "use_group_prompt_or_normalized_only",
+      "count": "76",
+      "avg_selected_abs_gap": "0.0672943",
+      "positive_markout_rate": "",
+      "avg_directional_markout": "",
+      "recommended_action": "Use normalized/group-prompt only."
+    }
+  ]
+}

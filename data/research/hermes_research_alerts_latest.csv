@@ -1,0 +1,2 @@
+severity,area,message,recommended_action
+INFO,relevance,17 targets had no strong recent source hits.,Use broad context only; preserve existing evidence for low-news markets.

@@ -1,0 +1,14 @@
+{
+  "timestamp_utc": "2026-06-29T18:13:31Z",
+  "signals_input": "data/snapshots/signal_comparison_snapshots.csv",
+  "prices_input": "data/snapshots/signal_input_snapshots.csv",
+  "latest_output": "data/markouts/markouts_latest.csv",
+  "snapshot_output": "data/markouts/markouts_20260629T181331Z.csv",
+  "rows_total": 0,
+  "status_counts": {},
+  "status_by_horizon": {},
+  "avg_directional_markout_ready": null,
+  "positive_directional_markout_rate": null,
+  "sample_ready": [],
+  "sample_pending": []
+}

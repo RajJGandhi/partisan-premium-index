@@ -1,0 +1,18 @@
+[tool.ruff]
+target-version = "py311"
+line-length = 120
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+ignore = ["E501", "UP017", "UP035", "UP045", "B904"]
+
+[tool.mypy]
+python_version = "3.11"
+ignore_missing_imports = true
+check_untyped_defs = true
+no_implicit_optional = true
+warn_unused_ignores = true
+exclude = [
+  "scripts/(run_llm|resolve_market_ids|retry_issue_rows|fix_v6_market_universe|build_|compare_estimate_modes|run_hermes_research_agent|create_evidence_skeletons|run_research_layer).*",
+  "app/dashboard/streamlit_app.py",
+]

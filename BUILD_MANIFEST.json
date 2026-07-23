@@ -1,0 +1,84 @@
+{
+  "artifact": "Partisan Premium Index production MVP",
+  "built_at_utc": "2026-07-20T17:07:53Z",
+  "source_repository": "reality-spread.zip supplied by user",
+  "stack": [
+    "Python",
+    "Streamlit",
+    "SQLAlchemy",
+    "SQLite/PostgreSQL",
+    "APScheduler",
+    "Ollama/OpenAI-compatible optional LLM"
+  ],
+  "validation": {
+    "ruff": "passed",
+    "mypy": "passed (16 source files)",
+    "pytest": "33 passed",
+    "compileall": "passed",
+    "streamlit_health": "passed",
+    "docker_build": "not run; Docker unavailable in sandbox",
+    "live_external_api": "not run successfully; sandbox DNS unavailable"
+  },
+  "clean_database_counts": {
+    "markets": 12,
+    "enabled_markets": 12,
+    "market_sources": 48,
+    "snapshots": 0,
+    "evidence_items": 0,
+    "fair_value_components": 0,
+    "job_runs": 0
+  },
+  "production_seed": {
+    "market_count": 12,
+    "source_count": 48,
+    "contains_demo_fair_values": false
+  },
+  "security": {
+    "env_file_included": false,
+    "wallet_or_trading_execution": false,
+    "admin_verification": "server-side bcrypt",
+    "external_url_guard": "HTTPS, credential rejection, private-address rejection, allowlists, redirect revalidation"
+  },
+  "features": {
+    "public_pages": [
+      "overview",
+      "market directory",
+      "market detail",
+      "track record",
+      "methodology",
+      "system status"
+    ],
+    "admin_workflows": [
+      "markets",
+      "sources",
+      "components",
+      "evidence review",
+      "fair-value approvals",
+      "pipeline retries",
+      "resolutions",
+      "failures"
+    ],
+    "daily_pipeline": [
+      "Polymarket metadata/order books",
+      "evidence adapters",
+      "structured classification",
+      "approval queue",
+      "canonical snapshots",
+      "prediction ledger",
+      "daily digest"
+    ],
+    "deployment": [
+      "Docker",
+      "Docker Compose",
+      "Render Blueprint",
+      "PostgreSQL",
+      "APScheduler worker",
+      "GitHub Actions CI"
+    ]
+  },
+  "durability": {
+    "database": "SQLite locally; PostgreSQL in production",
+    "reports": "shared Docker volume plus full daily digest preserved in job metadata",
+    "history": "immutable fair-value revisions and prediction ledger"
+  }
+}

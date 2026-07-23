@@ -1,0 +1,88 @@
+{
+  "snapshot_id": "20260626T151548Z",
+  "timestamp_utc": "2026-06-26T15:15:48Z",
+  "input_path": "data/orderbook_check.csv",
+  "latest_output_path": "data/signal_inputs/signal_input_latest.csv",
+  "snapshot_output_path": "data/signal_inputs/signal_input_20260626T151548Z.csv",
+  "append_output_path": "data/snapshots/signal_input_snapshots.csv",
+  "wide_spread_threshold": 0.1,
+  "thin_depth_threshold": 10.0,
+  "rows_total": 188,
+  "signal_ready_count": 188,
+  "skipped_count": 0,
+  "signal_ready_rate": 1.0,
+  "source_orderbook_status_counts": {
+    "OK": 182,
+    "NO_BIDS": 6
+  },
+  "price_type_counts": {
+    "mid": 182,
+    "ask_only": 6
+  },
+  "liquidity_flag_counts": {
+    "no_bids": 6,
+    "thin_bid": 1
+  },
+  "avg_comparison_price": 0.176596,
+  "min_comparison_price": 0.001,
+  "max_comparison_price": 0.945,
+  "sample_skipped_rows": [],
+  "sample_flagged_rows": [
+    {
+      "tracking_id": "RSO-0012",
+      "parent_market_name": "Republican House seats after 2026 midterms",
+      "outcome": "220-224",
+      "comparison_price": "0.001",
+      "price_type": "ask_only",
+      "flags": "no_bids"
+    },
+    {
+      "tracking_id": "RSO-0033",
+      "parent_market_name": "Alaska Senate Election Winner",
+      "outcome": "Ann Diener",
+      "comparison_price": "0.001",
+      "price_type": "ask_only",
+      "flags": "no_bids"
+    },
+    {
+      "tracking_id": "RSO-0036",
+      "parent_market_name": "Nebraska Senate Election Winner",
+      "outcome": "Independent",
+      "comparison_price": "0.001",
+      "price_type": "ask_only",
+      "flags": "no_bids"
+    },
+    {
+      "tracking_id": "RSO-0042",
+      "parent_market_name": "North Carolina Senate Election Winner",
+      "outcome": "Roy Cooper (D)",
+      "comparison_price": "0.001",
+      "price_type": "ask_only",
+      "flags": "no_bids"
+    },
+    {
+      "tracking_id": "RSO-0060",
+      "parent_market_name": "PA-10 House Election Winner",
+      "outcome": "Republican Party",
+      "comparison_price": "0.001",
+      "price_type": "ask_only",
+      "flags": "no_bids"
+    },
+    {
+      "tracking_id": "RSO-0232",
+      "parent_market_name": "Next Prime Minister of New Zealand",
+      "outcome": "Christopher Luxon",
+      "comparison_price": "0.001",
+      "price_type": "ask_only",
+      "flags": "no_bids"
+    },
+    {
+      "tracking_id": "RSO-0239",
+      "parent_market_name": "New Zealand legislative election winner",
+      "outcome": "National Party",
+      "comparison_price": "0.22",
+      "price_type": "mid",
+      "flags": "thin_bid"
+    }
+  ]
+}

@@ -1,0 +1,70 @@
+{
+  "snapshot_id": "20260626T151548Z",
+  "timestamp_utc": "2026-06-26T15:15:48Z",
+  "input_path": "data/tracked_markets_final.csv",
+  "output_path": "data/orderbook_check.csv",
+  "include_no": false,
+  "source_market_rows": 188,
+  "snapshot_token_rows": 188,
+  "unique_token_ids": 188,
+  "status_counts": {
+    "OK": 182,
+    "NO_BIDS": 6
+  },
+  "ok_rate": 0.9681,
+  "avg_spread": 0.009121,
+  "max_spread": 0.06,
+  "wide_spread_count_ge_10c": 0,
+  "thin_ask_depth_3c_lt_10_count": 0,
+  "thin_bid_depth_3c_lt_10_count": 1,
+  "sample_problem_rows": [
+    {
+      "tracking_id": "RSO-0012",
+      "parent_market_name": "Republican House seats after 2026 midterms",
+      "outcome": "220-224",
+      "token_label": "YES",
+      "status": "NO_BIDS",
+      "error": "missing_bids"
+    },
+    {
+      "tracking_id": "RSO-0033",
+      "parent_market_name": "Alaska Senate Election Winner",
+      "outcome": "Ann Diener",
+      "token_label": "YES",
+      "status": "NO_BIDS",
+      "error": "missing_bids"
+    },
+    {
+      "tracking_id": "RSO-0036",
+      "parent_market_name": "Nebraska Senate Election Winner",
+      "outcome": "Independent",
+      "token_label": "YES",
+      "status": "NO_BIDS",
+      "error": "missing_bids"
+    },
+    {
+      "tracking_id": "RSO-0042",
+      "parent_market_name": "North Carolina Senate Election Winner",
+      "outcome": "Roy Cooper (D)",
+      "token_label": "YES",
+      "status": "NO_BIDS",
+      "error": "missing_bids"
+    },
+    {
+      "tracking_id": "RSO-0060",
+      "parent_market_name": "PA-10 House Election Winner",
+      "outcome": "Republican Party",
+      "token_label": "YES",
+      "status": "NO_BIDS",
+      "error": "missing_bids"
+    },
+    {
+      "tracking_id": "RSO-0232",
+      "parent_market_name": "Next Prime Minister of New Zealand",
+      "outcome": "Christopher Luxon",
+      "token_label": "YES",
+      "status": "NO_BIDS",
+      "error": "missing_bids"
+    }
+  ]
+}

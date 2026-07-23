@@ -1,0 +1,58 @@
+{
+  "timestamp_utc": "2026-07-06T17:51:47Z",
+  "run_date": "2026-07-06",
+  "status": "WARNINGS",
+  "markets_input": "data/tracked_markets_final.csv",
+  "scope": "parents",
+  "target_rows": 34,
+  "results_total": 197,
+  "errors_total": 0,
+  "brief_dir": "data/research/daily/2026-07-06/parent_briefings",
+  "index_path": "data/research/daily/2026-07-06/parent_briefings/index.md",
+  "latest_csv": "data/research/hermes_research_latest.csv",
+  "latest_errors_csv": "data/research/hermes_research_errors_latest.csv",
+  "alerts_csv": "data/research/hermes_research_alerts_latest.csv",
+  "relevance_bucket_counts": {
+    "weak": 118,
+    "strong": 47,
+    "broad": 32
+  },
+  "source_counts_top": {
+    "The New York Times": 42,
+    "CNN": 8,
+    "Encyclopedia Britannica": 8,
+    "The Guardian": 6,
+    "The Hill": 5,
+    "Fox News": 5,
+    "The Economist": 3,
+    "PBS": 3,
+    "The Washington Post": 3,
+    "VoteHub": 3,
+    "CAWP": 3,
+    "Reuters": 3,
+    "Anadolu Ajansı": 3,
+    "AS/COA": 2,
+    "NBC News": 2,
+    "ABC News - Breaking News, Latest News and Videos": 2,
+    "WLWT": 2,
+    "FOX 8 News": 2,
+    "WJCL": 2,
+    "Savannah Morning News": 2
+  },
+  "alerts": [
+    {
+      "severity": "INFO",
+      "area": "relevance",
+      "message": "17 targets had no strong recent source hits.",
+      "recommended_action": "Use broad context only; preserve existing evidence for low-news markets."
+    }
+  ],
+  "settings": {
+    "days": 7,
+    "max_results_per_query": 6,
+    "disable_gdelt": true,
+    "sleep_seconds": 0.25,
+    "gdelt_sleep_seconds": 1.0,
+    "write_evidence_overlay": false
+  }
+}

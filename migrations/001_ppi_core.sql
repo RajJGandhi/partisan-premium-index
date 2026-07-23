@@ -1,0 +1,8 @@
+-- PPI core migration reference.
+-- The executable migration is scripts/migrate_db.py so the same repository supports SQLite and PostgreSQL.
+-- New installations should run:
+--   python scripts/migrate_db.py
+-- This creates/adds: market_sources, raw_market_responses, evidence_items,
+-- fair_value_components, fair_value_proposals, fair_value_revisions, predictions,
+-- market_resolutions, daily_index, job_runs, source_runs and admin_users,
+-- plus canonical daily snapshot and tracked-market columns.

@@ -1,0 +1,16 @@
+{
+  "timestamp_utc": "2026-06-29T18:37:41Z",
+  "signals_input": "data/snapshots/signal_comparison_snapshots.csv",
+  "prices_input": "data/snapshots/signal_input_snapshots.csv",
+  "latest_output": "data/markouts/markouts_latest.csv",
+  "snapshot_output": "data/markouts/markouts_20260629T183741Z.csv",
+  "signal_rows_input": 376,
+  "price_rows_input": 564,
+  "rows_total": 0,
+  "status_counts": {},
+  "status_by_horizon": {},
+  "avg_directional_markout_ready": null,
+  "positive_directional_markout_rate": null,
+  "sample_ready": [],
+  "sample_pending": []
+}

@@ -1,0 +1,1106 @@
+{
+  "RSO-0001": {
+    "queries": [
+      "Will the Republican Party control the Senate after the 2026 Midterm elections?",
+      "Senate control, 2026"
+    ],
+    "aliases": [
+      "Republican",
+      "Senate control, 2026",
+      "Senate control, 2026 — Republican Party"
+    ],
+    "resolution_criteria": "This market will resolve according to the party that controls the Senate following the 2026 U.S. Senate elections scheduled for November 3, 2026.\n\nSenate control is defined as having more than half of the voting Senate members, or half of the voting Senate members and the Vice Presidency.\n\nIf the outcome of this election is ambiguous given the above rules, this market will remain open until the Majority Leader of the US Senate is selected following the 2026 US general election, at which point it will resolve to the party the majority leader is affiliated with at the time of their election to that position. If the elected majority leader does not caucus with any listed party this market will resolve “Other”.\n\nDetermination of which party controls the Senate after the 2026 US Senate elections will be based on a consensus of credible reporting, or if there is ambiguity, final federal and/or state election authority certification or other final official determination of the 2026 election results.",
+    "polling_sources": [
+      {
+        "name": "Race-specific public polling",
+        "mode": "rss_json_or_manual",
+        "status": "configure_per_market"
+      },
+      {
+        "name": "Official poll releases and pollster methodology",
+        "mode": "manual",
+        "status": "human_review_required"
+      }
+    ],
+    "forecast_or_fundamentals_sources": [
+      {
+        "name": "Election fundamentals and national environment",
+        "mode": "manual_component"
+      },
+      {
+        "name": "Incumbency, candidate quality and historical baseline",
+        "mode": "manual_component"
+      }
+    ],
+    "comparable_external_market_sources": [
+      {
+        "name": "External prediction-market observation",
+        "mode": "manual",
+        "status": "no_unverified_api_assumed"
+      }
+    ],
+    "expert_or_race_rating_sources": [
+      {
+        "name": "Cook Political Report",
+        "mode": "manual",
+        "status": "subscription_may_be_required"
+      },
+      {
+        "name": "Inside Elections",
+        "mode": "manual"
+      },
+      {
+        "name": "Sabato’s Crystal Ball",
+        "mode": "rss_or_manual"
+      }
+    ],
+    "official_sources": [
+      {
+        "name": "Applicable state/federal election authority",
+        "url": null,
+        "mode": "manual"
+      },
+      {
+        "name": "Associated Press race call",
+        "url": "https://apnews.com/hub/election-2026",
+        "mode": "rss_or_manual"
+      },
+      {
+        "name": "NBC News race call",
+        "url": "https://www.nbcnews.com/politics/2026-elections",
+        "mode": "rss_or_manual"
+      },
+      {
+        "name": "Fox News race call",
+        "url": "https://www.foxnews.com/elections",
+        "mode": "rss_or_manual"
+      }
+    ],
+    "news_queries": [
+      "Will the Republican Party control the Senate after the 2026 Midterm elections?",
+      "Senate control, 2026"
+    ],
+    "preferred_domains": [
+      "reuters.com",
+      "apnews.com",
+      "nytimes.com",
+      "washingtonpost.com",
+      "cnn.com",
+      "foxnews.com",
+      "nbcnews.com"
+    ],
+    "notes": "Production source pack. Automated discovery supplies leads; objective inputs and substantive judgment require provenance and approval."
+  },
+  "RSO-0003": {
+    "queries": [
+      "Will the Republican Party control the House after the 2026 Midterm elections?",
+      "House control, 2026"
+    ],
+    "aliases": [
+      "Republican",
+      "House control, 2026",
+      "House control, 2026 — Republican Party"
+    ],
+    "resolution_criteria": "This market will resolve according to the party that controls the House of Representatives following the 2026 U.S. House elections scheduled for November 3, 2026.\n\nHouse control is defined as having more than half of the voting members of the U.S. House of Representatives.\n\nIf the outcome of this election is ambiguous given the above rules, this market will remain open until the Speaker of the House is selected following the 2026 U.S. general election, at which point it will resolve to the party the Speaker is affiliated with at the time of their election to that position. If the elected Speaker does not caucus with any listed party this market will resolve “Other”.\n\nDetermination of which party controls the House after the 2026 U.S. House elections will be based on a consensus of credible reporting, or if there is ambiguity, final federal and/or state election authority certification or other final official determination of the 2026 election results.",
+    "polling_sources": [
+      {
+        "name": "Race-specific public polling",
+        "mode": "rss_json_or_manual",
+        "status": "configure_per_market"
+      },
+      {
+        "name": "Official poll releases and pollster methodology",
+        "mode": "manual",
+        "status": "human_review_required"
+      }
+    ],
+    "forecast_or_fundamentals_sources": [
+      {
+        "name": "Election fundamentals and national environment",
+        "mode": "manual_component"
+      },
+      {
+        "name": "Incumbency, candidate quality and historical baseline",
+        "mode": "manual_component"
+      }
+    ],
+    "comparable_external_market_sources": [
+      {
+        "name": "External prediction-market observation",
+        "mode": "manual",
+        "status": "no_unverified_api_assumed"
+      }
+    ],
+    "expert_or_race_rating_sources": [
+      {
+        "name": "Cook Political Report",
+        "mode": "manual",
+        "status": "subscription_may_be_required"
+      },
+      {
+        "name": "Inside Elections",
+        "mode": "manual"
+      },
+      {
+        "name": "Sabato’s Crystal Ball",
+        "mode": "rss_or_manual"
+      }
+    ],
+    "official_sources": [
+      {
+        "name": "Applicable state/federal election authority",
+        "url": null,
+        "mode": "manual"
+      },
+      {
+        "name": "Associated Press race call",
+        "url": "https://apnews.com/hub/election-2026",
+        "mode": "rss_or_manual"
+      },
+      {
+        "name": "NBC News race call",
+        "url": "https://www.nbcnews.com/politics/2026-elections",
+        "mode": "rss_or_manual"
+      },
+      {
+        "name": "Fox News race call",
+        "url": "https://www.foxnews.com/elections",
+        "mode": "rss_or_manual"
+      }
+    ],
+    "news_queries": [
+      "Will the Republican Party control the House after the 2026 Midterm elections?",
+      "House control, 2026"
+    ],
+    "preferred_domains": [
+      "reuters.com",
+      "apnews.com",
+      "nytimes.com",
+      "washingtonpost.com",
+      "cnn.com",
+      "foxnews.com",
+      "nbcnews.com"
+    ],
+    "notes": "Production source pack. Automated discovery supplies leads; objective inputs and substantive judgment require provenance and approval."
+  },
+  "RSO-0026": {
+    "queries": [
+      "Will the Democrats win the Maine Senate race in 2026?",
+      "Maine Senate Election Winner"
+    ],
+    "aliases": [
+      "Democrat",
+      "Maine",
+      "Maine Senate Election Winner",
+      "Maine Senate Election Winner — Democrat"
+    ],
+    "resolution_criteria": "This market will resolve according to the winner of the 2026 midterm Maine U.S. Senate election, inclusive of any run-offs.\n\nA candidate shall be considered to represent a party in the event that he or she is the nominee of the party in question. Candidates other than the Democratic or Republican nominee (e.g., Greens, Libertarian, independent) may be added at a later date.\n\nCandidates who run as independents will not be encompassed by the “Democrat” or “Republican” options regardless of any affiliation they may have with the party.\n\nThe resolution source for this market is the Associated Press, Fox News, and NBC. This market will resolve once all three sources call the race for the same candidate. If all three sources haven’t called the race in this state for the same candidate, this market will resolve based on the official certification.",
+    "polling_sources": [
+      {
+        "name": "Race-specific public polling",
+        "mode": "rss_json_or_manual",
+        "status": "configure_per_market"
+      },
+      {
+        "name": "Official poll releases and pollster methodology",
+        "mode": "manual",
+        "status": "human_review_required"
+      }
+    ],
+    "forecast_or_fundamentals_sources": [
+      {
+        "name": "Election fundamentals and national environment",
+        "mode": "manual_component"
+      },
+      {
+        "name": "Incumbency, candidate quality and historical baseline",
+        "mode": "manual_component"
+      }
+    ],
+    "comparable_external_market_sources": [
+      {
+        "name": "External prediction-market observation",
+        "mode": "manual",
+        "status": "no_unverified_api_assumed"
+      }
+    ],
+    "expert_or_race_rating_sources": [
+      {
+        "name": "Cook Political Report",
+        "mode": "manual",
+        "status": "subscription_may_be_required"
+      },
+      {
+        "name": "Inside Elections",
+        "mode": "manual"
+      },
+      {
+        "name": "Sabato’s Crystal Ball",
+        "mode": "rss_or_manual"
+      }
+    ],
+    "official_sources": [
+      {
+        "name": "Applicable state/federal election authority",
+        "url": null,
+        "mode": "manual"
+      },
+      {
+        "name": "Associated Press race call",
+        "url": "https://apnews.com/hub/election-2026",
+        "mode": "rss_or_manual"
+      },
+      {
+        "name": "NBC News race call",
+        "url": "https://www.nbcnews.com/politics/2026-elections",
+        "mode": "rss_or_manual"
+      },
+      {
+        "name": "Fox News race call",
+        "url": "https://www.foxnews.com/elections",
+        "mode": "rss_or_manual"
+      }
+    ],
+    "news_queries": [
+      "Will the Democrats win the Maine Senate race in 2026?",
+      "Maine Senate Election Winner"
+    ],
+    "preferred_domains": [
+      "reuters.com",
+      "apnews.com",
+      "nytimes.com",
+      "washingtonpost.com",
+      "cnn.com",
+      "foxnews.com",
+      "nbcnews.com"
+    ],
+    "notes": "Production source pack. Automated discovery supplies leads; objective inputs and substantive judgment require provenance and approval."
+  },
+  "RSO-0028": {
+    "queries": [
+      "Will the Republicans win the Texas Senate race in 2026?",
+      "Texas Senate Election Winner"
+    ],
+    "aliases": [
+      "Republican",
+      "Texas",
+      "Texas Senate Election Winner",
+      "Texas Senate Election Winner — Ken Paxton (R)"
+    ],
+    "resolution_criteria": "This market will resolve according to the winner of the 2026 midterm Texas U.S. Senate election, inclusive of any run-offs.\n\nA candidate shall be considered to represent a party in the event that he or she is the nominee of the party in question. Candidates other than the Democratic or Republican nominee (e.g., Greens, Libertarian, independent) may be added at a later date.\n\nCandidates who run as independents will not be encompassed by the “Democrat” or “Republican” options regardless of any affiliation they may have with the party.\n\nThe resolution source for this market is the Associated Press, Fox News, and NBC. This market will resolve once all three sources call the race for the same candidate. If all three sources haven’t called the race in this state for the same candidate, this market will resolve based on the official certification.",
+    "polling_sources": [
+      {
+        "name": "Race-specific public polling",
+        "mode": "rss_json_or_manual",
+        "status": "configure_per_market"
+      },
+      {
+        "name": "Official poll releases and pollster methodology",
+        "mode": "manual",
+        "status": "human_review_required"
+      }
+    ],
+    "forecast_or_fundamentals_sources": [
+      {
+        "name": "Election fundamentals and national environment",
+        "mode": "manual_component"
+      },
+      {
+        "name": "Incumbency, candidate quality and historical baseline",
+        "mode": "manual_component"
+      }
+    ],
+    "comparable_external_market_sources": [
+      {
+        "name": "External prediction-market observation",
+        "mode": "manual",
+        "status": "no_unverified_api_assumed"
+      }
+    ],
+    "expert_or_race_rating_sources": [
+      {
+        "name": "Cook Political Report",
+        "mode": "manual",
+        "status": "subscription_may_be_required"
+      },
+      {
+        "name": "Inside Elections",
+        "mode": "manual"
+      },
+      {
+        "name": "Sabato’s Crystal Ball",
+        "mode": "rss_or_manual"
+      }
+    ],
+    "official_sources": [
+      {
+        "name": "Applicable state/federal election authority",
+        "url": null,
+        "mode": "manual"
+      },
+      {
+        "name": "Associated Press race call",
+        "url": "https://apnews.com/hub/election-2026",
+        "mode": "rss_or_manual"
+      },
+      {
+        "name": "NBC News race call",
+        "url": "https://www.nbcnews.com/politics/2026-elections",
+        "mode": "rss_or_manual"
+      },
+      {
+        "name": "Fox News race call",
+        "url": "https://www.foxnews.com/elections",
+        "mode": "rss_or_manual"
+      }
+    ],
+    "news_queries": [
+      "Will the Republicans win the Texas Senate race in 2026?",
+      "Texas Senate Election Winner"
+    ],
+    "preferred_domains": [
+      "reuters.com",
+      "apnews.com",
+      "nytimes.com",
+      "washingtonpost.com",
+      "cnn.com",
+      "foxnews.com",
+      "nbcnews.com"
+    ],
+    "notes": "Production source pack. Automated discovery supplies leads; objective inputs and substantive judgment require provenance and approval."
+  },
+  "RSO-0038": {
+    "queries": [
+      "Will the Democrats win the Michigan Senate race in 2026?",
+      "Michigan Senate Election Winner"
+    ],
+    "aliases": [
+      "Democrat",
+      "Michigan",
+      "Michigan Senate Election Winner",
+      "Michigan Senate Election Winner — Democrat"
+    ],
+    "resolution_criteria": "This market will resolve according to the winner of the 2026 midterm Michigan U.S. Senate election, inclusive of any run-offs.\n\nA candidate shall be considered to represent a party in the event that he or she is the nominee of the party in question. Candidates other than the Democratic or Republican nominee (e.g., Greens, Libertarian, independent) may be added at a later date.\n\nCandidates who run as independents will not be encompassed by the “Democrat” or “Republican” options regardless of any affiliation they may have with the party.\n\nThe resolution source for this market is the Associated Press, Fox News, and NBC. This market will resolve once all three sources call the race for the same candidate. If all three sources haven’t called the race in this state for the same candidate, this market will resolve based on the official certification.",
+    "polling_sources": [
+      {
+        "name": "Race-specific public polling",
+        "mode": "rss_json_or_manual",
+        "status": "configure_per_market"
+      },
+      {
+        "name": "Official poll releases and pollster methodology",
+        "mode": "manual",
+        "status": "human_review_required"
+      }
+    ],
+    "forecast_or_fundamentals_sources": [
+      {
+        "name": "Election fundamentals and national environment",
+        "mode": "manual_component"
+      },
+      {
+        "name": "Incumbency, candidate quality and historical baseline",
+        "mode": "manual_component"
+      }
+    ],
+    "comparable_external_market_sources": [
+      {
+        "name": "External prediction-market observation",
+        "mode": "manual",
+        "status": "no_unverified_api_assumed"
+      }
+    ],
+    "expert_or_race_rating_sources": [
+      {
+        "name": "Cook Political Report",
+        "mode": "manual",
+        "status": "subscription_may_be_required"
+      },
+      {
+        "name": "Inside Elections",
+        "mode": "manual"
+      },
+      {
+        "name": "Sabato’s Crystal Ball",
+        "mode": "rss_or_manual"
+      }
+    ],
+    "official_sources": [
+      {
+        "name": "Applicable state/federal election authority",
+        "url": null,
+        "mode": "manual"
+      },
+      {
+        "name": "Associated Press race call",
+        "url": "https://apnews.com/hub/election-2026",
+        "mode": "rss_or_manual"
+      },
+      {
+        "name": "NBC News race call",
+        "url": "https://www.nbcnews.com/politics/2026-elections",
+        "mode": "rss_or_manual"
+      },
+      {
+        "name": "Fox News race call",
+        "url": "https://www.foxnews.com/elections",
+        "mode": "rss_or_manual"
+      }
+    ],
+    "news_queries": [
+      "Will the Democrats win the Michigan Senate race in 2026?",
+      "Michigan Senate Election Winner"
+    ],
+    "preferred_domains": [
+      "reuters.com",
+      "apnews.com",
+      "nytimes.com",
+      "washingtonpost.com",
+      "cnn.com",
+      "foxnews.com",
+      "nbcnews.com"
+    ],
+    "notes": "Production source pack. Automated discovery supplies leads; objective inputs and substantive judgment require provenance and approval."
+  },
+  "RSO-0040": {
+    "queries": [
+      "Will the Democrats win the Ohio Senate race in 2026?",
+      "Ohio Senate Election Winner"
+    ],
+    "aliases": [
+      "Democrat",
+      "Ohio",
+      "Ohio Senate Election Winner",
+      "Ohio Senate Election Winner — Sherrod Brown (D)"
+    ],
+    "resolution_criteria": "This market will resolve according to the winner of the 2026 Ohio U.S. Senate special election currently scheduled for November 3, inclusive of any run-offs.\n\nA candidate shall be considered to represent a party in the event that he or she is the nominee of the party in question. Candidates other than the Democratic or Republican nominee (e.g., Greens, Libertarian, independent) may be added at a later date.\n\nCandidates who run as independents will not be encompassed by the “Democrat” or “Republican” options regardless of any affiliation they may have with the party.\n\nThe resolution source for this market is the Associated Press, Fox News, and NBC. This market will resolve once all three sources call the race for the same candidate. If all three sources haven’t called the race in this state for the same candidate, this market will resolve based on the official certification.",
+    "polling_sources": [
+      {
+        "name": "Race-specific public polling",
+        "mode": "rss_json_or_manual",
+        "status": "configure_per_market"
+      },
+      {
+        "name": "Official poll releases and pollster methodology",
+        "mode": "manual",
+        "status": "human_review_required"
+      }
+    ],
+    "forecast_or_fundamentals_sources": [
+      {
+        "name": "Election fundamentals and national environment",
+        "mode": "manual_component"
+      },
+      {
+        "name": "Incumbency, candidate quality and historical baseline",
+        "mode": "manual_component"
+      }
+    ],
+    "comparable_external_market_sources": [
+      {
+        "name": "External prediction-market observation",
+        "mode": "manual",
+        "status": "no_unverified_api_assumed"
+      }
+    ],
+    "expert_or_race_rating_sources": [
+      {
+        "name": "Cook Political Report",
+        "mode": "manual",
+        "status": "subscription_may_be_required"
+      },
+      {
+        "name": "Inside Elections",
+        "mode": "manual"
+      },
+      {
+        "name": "Sabato’s Crystal Ball",
+        "mode": "rss_or_manual"
+      }
+    ],
+    "official_sources": [
+      {
+        "name": "Applicable state/federal election authority",
+        "url": null,
+        "mode": "manual"
+      },
+      {
+        "name": "Associated Press race call",
+        "url": "https://apnews.com/hub/election-2026",
+        "mode": "rss_or_manual"
+      },
+      {
+        "name": "NBC News race call",
+        "url": "https://www.nbcnews.com/politics/2026-elections",
+        "mode": "rss_or_manual"
+      },
+      {
+        "name": "Fox News race call",
+        "url": "https://www.foxnews.com/elections",
+        "mode": "rss_or_manual"
+      }
+    ],
+    "news_queries": [
+      "Will the Democrats win the Ohio Senate race in 2026?",
+      "Ohio Senate Election Winner"
+    ],
+    "preferred_domains": [
+      "reuters.com",
+      "apnews.com",
+      "nytimes.com",
+      "washingtonpost.com",
+      "cnn.com",
+      "foxnews.com",
+      "nbcnews.com"
+    ],
+    "notes": "Production source pack. Automated discovery supplies leads; objective inputs and substantive judgment require provenance and approval."
+  },
+  "RSO-0042": {
+    "queries": [
+      "Will the Democrats win the North Carolina Senate race in 2026?",
+      "North Carolina Senate Election Winner"
+    ],
+    "aliases": [
+      "Democrat",
+      "North Carolina",
+      "North Carolina Senate Election Winner",
+      "North Carolina Senate Election Winner — Roy Cooper (D)"
+    ],
+    "resolution_criteria": "This market will resolve according to the winner of the 2026 midterm North Carolina U.S. Senate election, inclusive of any run-offs.\n\nA candidate shall be considered to represent a party in the event that he or she is the nominee of the party in question. Candidates other than the Democratic or Republican nominee (e.g., Greens, Libertarian, independent) may be added at a later date.\n\nCandidates who run as independents will not be encompassed by the “Democrat” or “Republican” options regardless of any affiliation they may have with the party.\n\nThe resolution source for this market is the Associated Press, Fox News, and NBC. This market will resolve once all three sources call the race for the same candidate. If all three sources haven’t called the race in this state for the same candidate, this market will resolve based on the official certification.",
+    "polling_sources": [
+      {
+        "name": "Race-specific public polling",
+        "mode": "rss_json_or_manual",
+        "status": "configure_per_market"
+      },
+      {
+        "name": "Official poll releases and pollster methodology",
+        "mode": "manual",
+        "status": "human_review_required"
+      }
+    ],
+    "forecast_or_fundamentals_sources": [
+      {
+        "name": "Election fundamentals and national environment",
+        "mode": "manual_component"
+      },
+      {
+        "name": "Incumbency, candidate quality and historical baseline",
+        "mode": "manual_component"
+      }
+    ],
+    "comparable_external_market_sources": [
+      {
+        "name": "External prediction-market observation",
+        "mode": "manual",
+        "status": "no_unverified_api_assumed"
+      }
+    ],
+    "expert_or_race_rating_sources": [
+      {
+        "name": "Cook Political Report",
+        "mode": "manual",
+        "status": "subscription_may_be_required"
+      },
+      {
+        "name": "Inside Elections",
+        "mode": "manual"
+      },
+      {
+        "name": "Sabato’s Crystal Ball",
+        "mode": "rss_or_manual"
+      }
+    ],
+    "official_sources": [
+      {
+        "name": "Applicable state/federal election authority",
+        "url": null,
+        "mode": "manual"
+      },
+      {
+        "name": "Associated Press race call",
+        "url": "https://apnews.com/hub/election-2026",
+        "mode": "rss_or_manual"
+      },
+      {
+        "name": "NBC News race call",
+        "url": "https://www.nbcnews.com/politics/2026-elections",
+        "mode": "rss_or_manual"
+      },
+      {
+        "name": "Fox News race call",
+        "url": "https://www.foxnews.com/elections",
+        "mode": "rss_or_manual"
+      }
+    ],
+    "news_queries": [
+      "Will the Democrats win the North Carolina Senate race in 2026?",
+      "North Carolina Senate Election Winner"
+    ],
+    "preferred_domains": [
+      "reuters.com",
+      "apnews.com",
+      "nytimes.com",
+      "washingtonpost.com",
+      "cnn.com",
+      "foxnews.com",
+      "nbcnews.com"
+    ],
+    "notes": "Production source pack. Automated discovery supplies leads; objective inputs and substantive judgment require provenance and approval."
+  },
+  "RSO-0044": {
+    "queries": [
+      "Will the Democrats win the Georgia Senate race in 2026?",
+      "Georgia Senate Election Winner"
+    ],
+    "aliases": [
+      "Democrat",
+      "Georgia",
+      "Georgia Senate Election Winner",
+      "Georgia Senate Election Winner — Democrat"
+    ],
+    "resolution_criteria": "This market will resolve according to the winner of the 2026 midterm Georgia U.S. Senate election, inclusive of any run-offs.\n\nA candidate shall be considered to represent a party in the event that he or she is the nominee of the party in question. Candidates other than the Democratic or Republican nominee (e.g., Greens, Libertarian, independent) may be added at a later date.\n\nCandidates who run as independents will not be encompassed by the “Democrat” or “Republican” options regardless of any affiliation they may have with the party.\n\nThe resolution source for this market is the Associated Press, Fox News, and NBC. This market will resolve once all three sources call the race for the same candidate. If all three sources haven’t called the race in this state for the same candidate, this market will resolve based on the official certification.",
+    "polling_sources": [
+      {
+        "name": "Race-specific public polling",
+        "mode": "rss_json_or_manual",
+        "status": "configure_per_market"
+      },
+      {
+        "name": "Official poll releases and pollster methodology",
+        "mode": "manual",
+        "status": "human_review_required"
+      }
+    ],
+    "forecast_or_fundamentals_sources": [
+      {
+        "name": "Election fundamentals and national environment",
+        "mode": "manual_component"
+      },
+      {
+        "name": "Incumbency, candidate quality and historical baseline",
+        "mode": "manual_component"
+      }
+    ],
+    "comparable_external_market_sources": [
+      {
+        "name": "External prediction-market observation",
+        "mode": "manual",
+        "status": "no_unverified_api_assumed"
+      }
+    ],
+    "expert_or_race_rating_sources": [
+      {
+        "name": "Cook Political Report",
+        "mode": "manual",
+        "status": "subscription_may_be_required"
+      },
+      {
+        "name": "Inside Elections",
+        "mode": "manual"
+      },
+      {
+        "name": "Sabato’s Crystal Ball",
+        "mode": "rss_or_manual"
+      }
+    ],
+    "official_sources": [
+      {
+        "name": "Applicable state/federal election authority",
+        "url": null,
+        "mode": "manual"
+      },
+      {
+        "name": "Associated Press race call",
+        "url": "https://apnews.com/hub/election-2026",
+        "mode": "rss_or_manual"
+      },
+      {
+        "name": "NBC News race call",
+        "url": "https://www.nbcnews.com/politics/2026-elections",
+        "mode": "rss_or_manual"
+      },
+      {
+        "name": "Fox News race call",
+        "url": "https://www.foxnews.com/elections",
+        "mode": "rss_or_manual"
+      }
+    ],
+    "news_queries": [
+      "Will the Democrats win the Georgia Senate race in 2026?",
+      "Georgia Senate Election Winner"
+    ],
+    "preferred_domains": [
+      "reuters.com",
+      "apnews.com",
+      "nytimes.com",
+      "washingtonpost.com",
+      "cnn.com",
+      "foxnews.com",
+      "nbcnews.com"
+    ],
+    "notes": "Production source pack. Automated discovery supplies leads; objective inputs and substantive judgment require provenance and approval."
+  },
+  "RSO-0052": {
+    "queries": [
+      "Will the Democrats win the Michigan governor race in 2026?",
+      "Michigan Governor Election Winner"
+    ],
+    "aliases": [
+      "Democrat",
+      "Michigan",
+      "Michigan Governor Election Winner",
+      "Michigan Governor Election Winner — Democrat"
+    ],
+    "resolution_criteria": "This market will resolve according to the winner of the 2026 Michigan gubernatorial election.\n\nA candidate shall be considered to represent a party in the event that he or she is the nominee of the party in question. Candidates other than the Democratic or Republican nominee (e.g., Greens, Libertarian, independent) may be added at a later date.\n\nCandidates who run as independents will not be encompassed by the “Democrat” or “Republican” options regardless of any affiliation they may have with the party.\n\nThe resolution source for this market is the Associated Press, Fox News, and NBC. This market will resolve once all three sources call the race for the same candidate. If all three sources haven’t called the race in this state for the same candidate, this market will resolve based on the official certification.",
+    "polling_sources": [
+      {
+        "name": "Race-specific public polling",
+        "mode": "rss_json_or_manual",
+        "status": "configure_per_market"
+      },
+      {
+        "name": "Official poll releases and pollster methodology",
+        "mode": "manual",
+        "status": "human_review_required"
+      }
+    ],
+    "forecast_or_fundamentals_sources": [
+      {
+        "name": "Election fundamentals and national environment",
+        "mode": "manual_component"
+      },
+      {
+        "name": "Incumbency, candidate quality and historical baseline",
+        "mode": "manual_component"
+      }
+    ],
+    "comparable_external_market_sources": [
+      {
+        "name": "External prediction-market observation",
+        "mode": "manual",
+        "status": "no_unverified_api_assumed"
+      }
+    ],
+    "expert_or_race_rating_sources": [
+      {
+        "name": "Cook Political Report",
+        "mode": "manual",
+        "status": "subscription_may_be_required"
+      },
+      {
+        "name": "Inside Elections",
+        "mode": "manual"
+      },
+      {
+        "name": "Sabato’s Crystal Ball",
+        "mode": "rss_or_manual"
+      }
+    ],
+    "official_sources": [
+      {
+        "name": "Applicable state/federal election authority",
+        "url": null,
+        "mode": "manual"
+      },
+      {
+        "name": "Associated Press race call",
+        "url": "https://apnews.com/hub/election-2026",
+        "mode": "rss_or_manual"
+      },
+      {
+        "name": "NBC News race call",
+        "url": "https://www.nbcnews.com/politics/2026-elections",
+        "mode": "rss_or_manual"
+      },
+      {
+        "name": "Fox News race call",
+        "url": "https://www.foxnews.com/elections",
+        "mode": "rss_or_manual"
+      }
+    ],
+    "news_queries": [
+      "Will the Democrats win the Michigan governor race in 2026?",
+      "Michigan Governor Election Winner"
+    ],
+    "preferred_domains": [
+      "reuters.com",
+      "apnews.com",
+      "nytimes.com",
+      "washingtonpost.com",
+      "cnn.com",
+      "foxnews.com",
+      "nbcnews.com"
+    ],
+    "notes": "Production source pack. Automated discovery supplies leads; objective inputs and substantive judgment require provenance and approval."
+  },
+  "RSO-0061": {
+    "queries": [
+      "Will the Republicans win the Ohio governor race in 2026?",
+      "Ohio Governor Election Winner"
+    ],
+    "aliases": [
+      "Republican",
+      "Ohio",
+      "Ohio Governor Election Winner",
+      "Ohio Governor Election Winner — Republican"
+    ],
+    "resolution_criteria": "This market will resolve according to the winner of the 2026 Ohio gubernatorial election.\n\nA candidate shall be considered to represent a party in the event that he or she is the nominee of the party in question. Candidates other than the Democratic or Republican nominee (e.g., Greens, Libertarian, independent) may be added at a later date.\n\nCandidates who run as independents will not be encompassed by the “Democrat” or “Republican” options regardless of any affiliation they may have with the party.\n\nThe resolution source for this market is the Associated Press, Fox News, and NBC. This market will resolve once all three sources call the race for the same candidate. If all three sources haven’t called the race in this state for the same candidate, this market will resolve based on the official certification.",
+    "polling_sources": [
+      {
+        "name": "Race-specific public polling",
+        "mode": "rss_json_or_manual",
+        "status": "configure_per_market"
+      },
+      {
+        "name": "Official poll releases and pollster methodology",
+        "mode": "manual",
+        "status": "human_review_required"
+      }
+    ],
+    "forecast_or_fundamentals_sources": [
+      {
+        "name": "Election fundamentals and national environment",
+        "mode": "manual_component"
+      },
+      {
+        "name": "Incumbency, candidate quality and historical baseline",
+        "mode": "manual_component"
+      }
+    ],
+    "comparable_external_market_sources": [
+      {
+        "name": "External prediction-market observation",
+        "mode": "manual",
+        "status": "no_unverified_api_assumed"
+      }
+    ],
+    "expert_or_race_rating_sources": [
+      {
+        "name": "Cook Political Report",
+        "mode": "manual",
+        "status": "subscription_may_be_required"
+      },
+      {
+        "name": "Inside Elections",
+        "mode": "manual"
+      },
+      {
+        "name": "Sabato’s Crystal Ball",
+        "mode": "rss_or_manual"
+      }
+    ],
+    "official_sources": [
+      {
+        "name": "Applicable state/federal election authority",
+        "url": null,
+        "mode": "manual"
+      },
+      {
+        "name": "Associated Press race call",
+        "url": "https://apnews.com/hub/election-2026",
+        "mode": "rss_or_manual"
+      },
+      {
+        "name": "NBC News race call",
+        "url": "https://www.nbcnews.com/politics/2026-elections",
+        "mode": "rss_or_manual"
+      },
+      {
+        "name": "Fox News race call",
+        "url": "https://www.foxnews.com/elections",
+        "mode": "rss_or_manual"
+      }
+    ],
+    "news_queries": [
+      "Will the Republicans win the Ohio governor race in 2026?",
+      "Ohio Governor Election Winner"
+    ],
+    "preferred_domains": [
+      "reuters.com",
+      "apnews.com",
+      "nytimes.com",
+      "washingtonpost.com",
+      "cnn.com",
+      "foxnews.com",
+      "nbcnews.com"
+    ],
+    "notes": "Production source pack. Automated discovery supplies leads; objective inputs and substantive judgment require provenance and approval."
+  },
+  "RSO-0063": {
+    "queries": [
+      "Will the Democrats win the Georgia governor race in 2026?",
+      "Georgia Governor Election Winner"
+    ],
+    "aliases": [
+      "Democrat",
+      "Georgia",
+      "Georgia Governor Election Winner",
+      "Georgia Governor Election Winner — Democrat"
+    ],
+    "resolution_criteria": "This market will resolve according to the winner of the 2026 Georgia gubernatorial election.\n\nA candidate shall be considered to represent a party in the event that he or she is the nominee of the party in question. Candidates other than the Democratic or Republican nominee (e.g., Greens, Libertarian, independent) may be added at a later date.\n\nCandidates who run as independents will not be encompassed by the “Democrat” or “Republican” options regardless of any affiliation they may have with the party.\n\nThe resolution source for this market is the Associated Press, Fox News, and NBC. This market will resolve once all three sources call the race for the same candidate. If all three sources haven’t called the race in this state for the same candidate, this market will resolve based on the official certification.",
+    "polling_sources": [
+      {
+        "name": "Race-specific public polling",
+        "mode": "rss_json_or_manual",
+        "status": "configure_per_market"
+      },
+      {
+        "name": "Official poll releases and pollster methodology",
+        "mode": "manual",
+        "status": "human_review_required"
+      }
+    ],
+    "forecast_or_fundamentals_sources": [
+      {
+        "name": "Election fundamentals and national environment",
+        "mode": "manual_component"
+      },
+      {
+        "name": "Incumbency, candidate quality and historical baseline",
+        "mode": "manual_component"
+      }
+    ],
+    "comparable_external_market_sources": [
+      {
+        "name": "External prediction-market observation",
+        "mode": "manual",
+        "status": "no_unverified_api_assumed"
+      }
+    ],
+    "expert_or_race_rating_sources": [
+      {
+        "name": "Cook Political Report",
+        "mode": "manual",
+        "status": "subscription_may_be_required"
+      },
+      {
+        "name": "Inside Elections",
+        "mode": "manual"
+      },
+      {
+        "name": "Sabato’s Crystal Ball",
+        "mode": "rss_or_manual"
+      }
+    ],
+    "official_sources": [
+      {
+        "name": "Applicable state/federal election authority",
+        "url": null,
+        "mode": "manual"
+      },
+      {
+        "name": "Associated Press race call",
+        "url": "https://apnews.com/hub/election-2026",
+        "mode": "rss_or_manual"
+      },
+      {
+        "name": "NBC News race call",
+        "url": "https://www.nbcnews.com/politics/2026-elections",
+        "mode": "rss_or_manual"
+      },
+      {
+        "name": "Fox News race call",
+        "url": "https://www.foxnews.com/elections",
+        "mode": "rss_or_manual"
+      }
+    ],
+    "news_queries": [
+      "Will the Democrats win the Georgia governor race in 2026?",
+      "Georgia Governor Election Winner"
+    ],
+    "preferred_domains": [
+      "reuters.com",
+      "apnews.com",
+      "nytimes.com",
+      "washingtonpost.com",
+      "cnn.com",
+      "foxnews.com",
+      "nbcnews.com"
+    ],
+    "notes": "Production source pack. Automated discovery supplies leads; objective inputs and substantive judgment require provenance and approval."
+  },
+  "RSO-0076": {
+    "queries": [
+      "Will Luiz Inácio Lula da Silva win the 2026 Brazilian presidential election?",
+      "Brazil Presidential Election"
+    ],
+    "aliases": [
+      "Brazil",
+      "Lula",
+      "Brazil Presidential Election",
+      "Brazil Presidential Election — Luiz Inácio Lula da Silva"
+    ],
+    "resolution_criteria": "A presidential election is scheduled to take place in Brazil on October 4, 2026.\n\nThis market will resolve according to the listed candidate that wins this election.\n\nThis market includes any potential second round. If the result of this election isn't known by June 30, 2027, 11:59 PM ET, the market will resolve to \"Other\".\n\nThis market will resolve based on the result of the election as indicated by a consensus of credible reporting. If there is ambiguity, this market will resolve based solely on the official results as reported by the Brazilian government, specifically the Superior Electoral Court (Tribunal Superior Eleitoral, TSE) (e.g., https://dadosabertos.tse.jus.br/).",
+    "polling_sources": [
+      {
+        "name": "Race-specific public polling",
+        "mode": "rss_json_or_manual",
+        "status": "configure_per_market"
+      },
+      {
+        "name": "Official poll releases and pollster methodology",
+        "mode": "manual",
+        "status": "human_review_required"
+      }
+    ],
+    "forecast_or_fundamentals_sources": [
+      {
+        "name": "Election fundamentals and national environment",
+        "mode": "manual_component"
+      },
+      {
+        "name": "Incumbency, candidate quality and historical baseline",
+        "mode": "manual_component"
+      }
+    ],
+    "comparable_external_market_sources": [
+      {
+        "name": "External prediction-market observation",
+        "mode": "manual",
+        "status": "no_unverified_api_assumed"
+      }
+    ],
+    "expert_or_race_rating_sources": [
+      {
+        "name": "Cook Political Report",
+        "mode": "manual",
+        "status": "subscription_may_be_required"
+      },
+      {
+        "name": "Inside Elections",
+        "mode": "manual"
+      },
+      {
+        "name": "Sabato’s Crystal Ball",
+        "mode": "rss_or_manual"
+      }
+    ],
+    "official_sources": [
+      {
+        "name": "Tribunal Superior Eleitoral (TSE)",
+        "url": "https://www.tse.jus.br/",
+        "mode": "manual_or_json_adapter"
+      },
+      {
+        "name": "TSE Open Data",
+        "url": "https://dadosabertos.tse.jus.br/",
+        "mode": "manual_or_json_adapter"
+      }
+    ],
+    "news_queries": [
+      "Will Luiz Inácio Lula da Silva win the 2026 Brazilian presidential election?",
+      "Brazil Presidential Election"
+    ],
+    "preferred_domains": [
+      "reuters.com",
+      "apnews.com",
+      "nytimes.com",
+      "washingtonpost.com",
+      "cnn.com",
+      "foxnews.com",
+      "nbcnews.com"
+    ],
+    "notes": "Production source pack. Automated discovery supplies leads; objective inputs and substantive judgment require provenance and approval."
+  }
+}

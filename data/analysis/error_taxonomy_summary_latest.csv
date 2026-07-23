@@ -1,0 +1,8 @@
+timestamp_utc,diagnostic_class,count,avg_selected_abs_gap,positive_markout_rate,avg_directional_markout,recommended_action
+2026-06-29T18:44:28Z,clean_binary_disagreement,11,0.34468182,,,Track as priority candidate.
+2026-06-29T18:44:28Z,diagnostic_only_incomplete_market,6,0.17209417,,,Exclude from headline analysis.
+2026-06-29T18:44:28Z,liquidity_caution,2,0.008009,,,Downweight and monitor book depth.
+2026-06-29T18:44:28Z,multi_option_interpretable_with_normalization,21,0.23262171,,,Use normalized/group-prompt estimate.
+2026-06-29T18:44:28Z,no_signal,64,0.03831845,,,Retain for calibration only.
+2026-06-29T18:44:28Z,standard_signal,8,0.169375,,,Track normally.
+2026-06-29T18:44:28Z,use_group_prompt_or_normalized_only,76,0.0672943,,,Use normalized/group-prompt only.

@@ -1,0 +1,10 @@
+{
+  "timestamp_utc": "2026-06-29T18:23:26Z",
+  "mode": "soft",
+  "signals_input": "data/signals/signal_comparison_latest.csv",
+  "scores_output": "data/scoring/calibration_scores_latest.csv",
+  "summary_output": "data/scoring/calibration_summary_latest.csv",
+  "rows_scored": 0,
+  "summary_rows": 0,
+  "note": "soft mode uses future market price as a proxy target; resolution mode uses final 0/1 outcomes."
+}

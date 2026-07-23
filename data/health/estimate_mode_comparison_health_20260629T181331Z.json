@@ -1,0 +1,16 @@
+{
+  "timestamp_utc": "2026-06-29T18:13:31Z",
+  "signals_input": "data/signals/signal_comparison_latest.csv",
+  "group_estimates_input": "data/llm_group_estimates/llm_group_estimates_latest.csv",
+  "row_output": "data/analysis/estimate_mode_comparison_latest.csv",
+  "group_output": "data/analysis/estimate_mode_group_summary_latest.csv",
+  "rows_total": 188,
+  "groups_total": 34,
+  "group_prompt_rows_available": 22,
+  "raw_signal_count": 81,
+  "normalized_signal_count": 56,
+  "group_prompt_signal_count": 8,
+  "avg_raw_abs_gap": "0.12558511",
+  "avg_normalized_abs_gap": "0.09764855",
+  "avg_group_prompt_abs_gap": "0.14066673"
+}

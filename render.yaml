@@ -1,0 +1,91 @@
+databases:
+  - name: ppi-postgres
+    plan: basic-256mb
+
+services:
+  - type: web
+    name: partisan-premium-index
+    runtime: docker
+    plan: starter
+    healthCheckPath: /_stcore/health
+    autoDeployTrigger: checksPass
+    preDeployCommand: >-
+      PYTHONPATH=. python scripts/migrate_db.py &&
+      PYTHONPATH=. python scripts/seed_production_markets.py
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: ppi-postgres
+          property: connectionString
+      - key: APP_ENV
+        value: production
+      - key: APP_BASE_URL
+        sync: false
+      - key: SESSION_SECRET
+        generateValue: true
+      - key: PPI_ADMIN_USERNAME
+        value: admin
+      - key: PPI_ADMIN_PASSWORD_HASH
+        sync: false
+      - key: LLM_PROVIDER
+        value: deterministic
+      - key: LLM_BASE_URL
+        sync: false
+      - key: LLM_MODEL
+        value: qwen3:8b
+      - key: LLM_API_KEY
+        sync: false
+      - key: DISCORD_WEBHOOK_URL
+        sync: false
+
+  - type: cron
+    name: ppi-daily-primary
+    runtime: docker
+    plan: starter
+    schedule: "0 10 * * *"
+    dockerCommand: PYTHONPATH=. python scripts/run_ppi_daily.py --trigger render-primary
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: ppi-postgres
+          property: connectionString
+      - key: APP_ENV
+        value: production
+      - key: APP_BASE_URL
+        sync: false
+      - key: LLM_PROVIDER
+        value: deterministic
+      - key: LLM_BASE_URL
+        sync: false
+      - key: LLM_MODEL
+        value: qwen3:8b
+      - key: LLM_API_KEY
+        sync: false
+      - key: DISCORD_WEBHOOK_URL
+        sync: false
+
+  - type: cron
+    name: ppi-daily-backup
+    runtime: docker
+    plan: starter
+    schedule: "0 18 * * *"
+    dockerCommand: PYTHONPATH=. python scripts/run_ppi_daily.py --trigger render-backup
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: ppi-postgres
+          property: connectionString
+      - key: APP_ENV
+        value: production
+      - key: APP_BASE_URL
+        sync: false
+      - key: LLM_PROVIDER
+        value: deterministic
+      - key: LLM_BASE_URL
+        sync: false
+      - key: LLM_MODEL
+        value: qwen3:8b
+      - key: LLM_API_KEY
+        sync: false
+      - key: DISCORD_WEBHOOK_URL
+        sync: false

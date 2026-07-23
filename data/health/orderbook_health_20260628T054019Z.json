@@ -1,0 +1,70 @@
+{
+  "snapshot_id": "20260628T054019Z",
+  "timestamp_utc": "2026-06-28T05:40:19Z",
+  "input_path": "data/tracked_markets_final.csv",
+  "output_path": "data/orderbook_check.csv",
+  "include_no": false,
+  "source_market_rows": 188,
+  "snapshot_token_rows": 188,
+  "unique_token_ids": 188,
+  "status_counts": {
+    "OK": 182,
+    "NO_BIDS": 6
+  },
+  "ok_rate": 0.9681,
+  "avg_spread": 0.008198,
+  "max_spread": 0.09,
+  "wide_spread_count_ge_10c": 0,
+  "thin_ask_depth_3c_lt_10_count": 0,
+  "thin_bid_depth_3c_lt_10_count": 0,
+  "sample_problem_rows": [
+    {
+      "tracking_id": "RSO-0032",
+      "parent_market_name": "Alaska Senate Election Winner",
+      "outcome": "Dustin Darden",
+      "token_label": "YES",
+      "status": "NO_BIDS",
+      "error": "missing_bids"
+    },
+    {
+      "tracking_id": "RSO-0033",
+      "parent_market_name": "Alaska Senate Election Winner",
+      "outcome": "Ann Diener",
+      "token_label": "YES",
+      "status": "NO_BIDS",
+      "error": "missing_bids"
+    },
+    {
+      "tracking_id": "RSO-0034",
+      "parent_market_name": "Alaska Senate Election Winner",
+      "outcome": "Richard Grayson",
+      "token_label": "YES",
+      "status": "NO_BIDS",
+      "error": "missing_bids"
+    },
+    {
+      "tracking_id": "RSO-0091",
+      "parent_market_name": "Brazil Presidential Election",
+      "outcome": "Ratinho Júnior",
+      "token_label": "YES",
+      "status": "NO_BIDS",
+      "error": "missing_bids"
+    },
+    {
+      "tracking_id": "RSO-0092",
+      "parent_market_name": "Brazil Presidential Election",
+      "outcome": "Eduardo Leite",
+      "token_label": "YES",
+      "status": "NO_BIDS",
+      "error": "missing_bids"
+    },
+    {
+      "tracking_id": "RSO-0137",
+      "parent_market_name": "Brazil Presidential Election First Round: 2nd Place",
+      "outcome": "Helder Barbalho",
+      "token_label": "YES",
+      "status": "NO_BIDS",
+      "error": "missing_bids"
+    }
+  ]
+}

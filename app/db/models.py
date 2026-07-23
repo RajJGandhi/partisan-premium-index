@@ -1,0 +1,532 @@
+from __future__ import annotations
+
+from datetime import date, datetime, timezone
+from typing import Optional
+
+from sqlalchemy import (
+    Boolean,
+    Date,
+    DateTime,
+    Float,
+    ForeignKey,
+    Index,
+    Integer,
+    String,
+    Text,
+    UniqueConstraint,
+)
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+
+from app.db.database import Base
+
+
+def utcnow() -> datetime:
+    return datetime.now(timezone.utc)
+
+
+class Market(Base):
+    __tablename__ = "markets"
+    __table_args__ = (
+        UniqueConstraint("platform", "platform_market_id", name="uq_market_platform_id"),
+        UniqueConstraint("tracking_id", name="uq_market_tracking_id"),
+        Index("ix_markets_enabled_active", "enabled", "active", "closed"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    tracking_id: Mapped[Optional[str]] = mapped_column(String(64), nullable=True, index=True)
+    platform: Mapped[str] = mapped_column(String(50), default="polymarket", index=True)
+    platform_market_id: Mapped[str] = mapped_column(String(255), index=True)
+    event_id: Mapped[Optional[str]] = mapped_column(String(255), nullable=True, index=True)
+    condition_id: Mapped[Optional[str]] = mapped_column(String(255), nullable=True, index=True)
+    slug: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
+    question: Mapped[str] = mapped_column(Text)
+    description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    rules: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    resolution_source: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    outcomes_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    clob_token_ids_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    yes_token_id: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    no_token_id: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    category: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    region: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    tags_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    end_date: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    active: Mapped[bool] = mapped_column(Boolean, default=True)
+    closed: Mapped[bool] = mapped_column(Boolean, default=False)
+    enabled: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
+    status: Mapped[str] = mapped_column(String(50), default="TRACKED", index=True)
+    enable_order_book: Mapped[Optional[bool]] = mapped_column(Boolean, nullable=True)
+    volume: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    liquidity: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    source_pack_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    preferred_domains_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    current_thesis: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    methodology_notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    polling_weight: Mapped[float] = mapped_column(Float, default=0.35)
+    forecast_weight: Mapped[float] = mapped_column(Float, default=0.25)
+    comparable_weight: Mapped[float] = mapped_column(Float, default=0.20)
+    expert_weight: Mapped[float] = mapped_column(Float, default=0.10)
+    news_weight: Mapped[float] = mapped_column(Float, default=0.10)
+    created_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    updated_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    first_seen_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    last_seen_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
+    last_market_sync_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    last_evidence_sync_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    raw_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
+    snapshots: Mapped[list[MarketSnapshot]] = relationship(back_populates="market")
+
+
+class MarketSource(Base):
+    __tablename__ = "market_sources"
+    __table_args__ = (
+        UniqueConstraint("market_id", "source_type", "name", name="uq_market_source_name"),
+        Index("ix_market_sources_enabled", "market_id", "enabled"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    market_id: Mapped[int] = mapped_column(ForeignKey("markets.id", ondelete="CASCADE"), index=True)
+    source_type: Mapped[str] = mapped_column(String(50), index=True)  # rss, gdelt, json_api, manual, external_market
+    name: Mapped[str] = mapped_column(String(200))
+    url: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    query: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    config_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    allowed_domains_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    enabled: Mapped[bool] = mapped_column(Boolean, default=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
+
+
+class MarketSnapshot(Base):
+    __tablename__ = "market_snapshots"
+    __table_args__ = (
+        UniqueConstraint("market_id", "snapshot_date", "snapshot_kind", name="uq_market_daily_snapshot"),
+        Index("ix_market_snapshots_market_date", "market_id", "snapshot_date"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    market_id: Mapped[int] = mapped_column(ForeignKey("markets.id", ondelete="CASCADE"), index=True)
+    timestamp: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, index=True)
+    snapshot_date: Mapped[Optional[date]] = mapped_column(Date, nullable=True, index=True)
+    snapshot_kind: Mapped[str] = mapped_column(String(30), default="intraday")
+    yes_price_displayed: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    no_price_displayed: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    yes_best_bid: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    yes_best_ask: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    no_best_bid: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    no_best_ask: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    yes_midpoint: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    no_midpoint: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    last_trade_price: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    comparison_price: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    price_type: Mapped[Optional[str]] = mapped_column(String(30), nullable=True)
+    executable_buy_price: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    executable_sell_price: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    spread: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    depth_1c: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    depth_3c: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    depth_5c: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    volume: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    liquidity: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    fair_value: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    partisan_premium: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    component_inputs_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    component_weights_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    effective_weights_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    evidence_ids_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    pending_proposal_ids_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    freshness_status: Mapped[str] = mapped_column(String(30), default="UNKNOWN", index=True)
+    pipeline_status: Mapped[str] = mapped_column(String(30), default="PENDING", index=True)
+    status_message: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    is_stale: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
+    raw_orderbook_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
+    market: Mapped[Market] = relationship(back_populates="snapshots")
+
+
+class RawMarketResponse(Base):
+    __tablename__ = "raw_market_responses"
+    __table_args__ = (Index("ix_raw_market_source_time", "source", "fetched_at"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    market_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("markets.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    source: Mapped[str] = mapped_column(String(100), index=True)
+    endpoint: Mapped[str] = mapped_column(Text)
+    fetched_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, index=True)
+    upstream_timestamp: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    request_params_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    response_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    status_code: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    response_hash: Mapped[Optional[str]] = mapped_column(String(64), nullable=True, index=True)
+    is_stale: Mapped[bool] = mapped_column(Boolean, default=False)
+    error_message: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
+
+class EvidenceItem(Base):
+    __tablename__ = "evidence_items"
+    __table_args__ = (
+        UniqueConstraint("market_id", "content_hash", name="uq_evidence_market_hash"),
+        Index("ix_evidence_market_published", "market_id", "published_at"),
+        Index("ix_evidence_review", "review_status", "relevant"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    market_id: Mapped[int] = mapped_column(ForeignKey("markets.id", ondelete="CASCADE"), index=True)
+    market_source_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("market_sources.id", ondelete="SET NULL"), nullable=True
+    )
+    source_type: Mapped[str] = mapped_column(String(50), index=True)
+    source_name: Mapped[Optional[str]] = mapped_column(String(250), nullable=True)
+    title: Mapped[str] = mapped_column(Text)
+    canonical_url: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    original_url: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    published_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True, index=True)
+    discovered_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, index=True)
+    content_text: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    normalized_title: Mapped[str] = mapped_column(Text)
+    content_hash: Mapped[str] = mapped_column(String(64), index=True)
+    raw_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    relevant: Mapped[Optional[bool]] = mapped_column(Boolean, nullable=True)
+    relevance_score: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    source_quality: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    changes_probability: Mapped[Optional[bool]] = mapped_column(Boolean, nullable=True)
+    direction: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
+    estimated_magnitude: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    category: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+    summary: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    reason: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    needs_human_review: Mapped[bool] = mapped_column(Boolean, default=False)
+    classifier_provider: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+    classifier_model: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    classifier_raw_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    review_status: Mapped[str] = mapped_column(String(30), default="PENDING", index=True)
+    reviewed_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    review_notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
+
+class FairValue(Base):
+    __tablename__ = "fair_values"
+    __table_args__ = (UniqueConstraint("market_id", name="uq_fair_value_market"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    market_id: Mapped[int] = mapped_column(ForeignKey("markets.id", ondelete="CASCADE"), index=True)
+    polling_prob: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    forecast_prob: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    other_markets_prob: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    expert_prob: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    news_campaign_prob: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    manual_fair_yes: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    computed_fair_yes: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    published_fair_yes: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    confidence: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    source_notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    last_updated: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    last_published_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
+
+
+class FairValueComponent(Base):
+    __tablename__ = "fair_value_components"
+    __table_args__ = (
+        UniqueConstraint("market_id", "component_type", name="uq_market_component"),
+        Index("ix_fv_component_market", "market_id", "component_type"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    market_id: Mapped[int] = mapped_column(ForeignKey("markets.id", ondelete="CASCADE"), index=True)
+    component_type: Mapped[str] = mapped_column(String(40))
+    probability: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    weight: Mapped[float] = mapped_column(Float)
+    eligible_for_redistribution: Mapped[bool] = mapped_column(Boolean, default=True)
+    source_label: Mapped[Optional[str]] = mapped_column(String(250), nullable=True)
+    source_url: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    observed_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    ingestion_method: Mapped[str] = mapped_column(String(30), default="manual")
+    notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
+
+
+class FairValueProposal(Base):
+    __tablename__ = "fair_value_proposals"
+    __table_args__ = (Index("ix_fv_proposals_queue", "status", "created_at"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    market_id: Mapped[int] = mapped_column(ForeignKey("markets.id", ondelete="CASCADE"), index=True)
+    proposed_fair_value: Mapped[float] = mapped_column(Float)
+    current_published_fair_value: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    proposed_components_json: Mapped[str] = mapped_column(Text)
+    proposed_weights_json: Mapped[str] = mapped_column(Text)
+    effective_weights_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    evidence_ids_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    rationale: Mapped[str] = mapped_column(Text)
+    confidence: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    proposed_by: Mapped[str] = mapped_column(String(100), default="pipeline")
+    status: Mapped[str] = mapped_column(String(30), default="PENDING", index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    reviewed_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    reviewed_by: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    review_notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
+
+class FairValueRevision(Base):
+    __tablename__ = "fair_value_revisions"
+    __table_args__ = (Index("ix_fv_revision_market_time", "market_id", "published_at"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    market_id: Mapped[int] = mapped_column(ForeignKey("markets.id", ondelete="CASCADE"), index=True)
+    proposal_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("fair_value_proposals.id", ondelete="SET NULL"), nullable=True
+    )
+    revision_number: Mapped[int] = mapped_column(Integer)
+    fair_value: Mapped[float] = mapped_column(Float)
+    previous_fair_value: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    components_json: Mapped[str] = mapped_column(Text)
+    weights_json: Mapped[str] = mapped_column(Text)
+    effective_weights_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    evidence_ids_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    thesis: Mapped[str] = mapped_column(Text)
+    justification: Mapped[str] = mapped_column(Text)
+    published_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, index=True)
+    published_by: Mapped[str] = mapped_column(String(100), default="admin")
+    correction_of_revision_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("fair_value_revisions.id"), nullable=True
+    )
+
+
+class Prediction(Base):
+    __tablename__ = "predictions"
+    __table_args__ = (UniqueConstraint("market_id", "initial_revision_id", name="uq_prediction_initial_revision"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    market_id: Mapped[int] = mapped_column(ForeignKey("markets.id", ondelete="CASCADE"), index=True)
+    initial_revision_id: Mapped[int] = mapped_column(ForeignKey("fair_value_revisions.id"), index=True)
+    initial_publication_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    initial_fair_value: Mapped[float] = mapped_column(Float)
+    initial_market_probability: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    initial_thesis: Mapped[str] = mapped_column(Text)
+    supporting_evidence_ids_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    status: Mapped[str] = mapped_column(String(30), default="OPEN", index=True)
+    final_outcome: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    resolved_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    ppi_brier_score: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    market_brier_score: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    performance_difference: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+
+
+class MarketResolution(Base):
+    __tablename__ = "market_resolutions"
+    __table_args__ = (UniqueConstraint("market_id", name="uq_market_resolution"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    market_id: Mapped[int] = mapped_column(ForeignKey("markets.id", ondelete="CASCADE"), index=True)
+    resolved_outcome: Mapped[float] = mapped_column(Float)
+    resolved_label: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    resolved_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    source_url: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    recorded_by: Mapped[str] = mapped_column(String(100), default="admin")
+
+
+class DailyIndex(Base):
+    __tablename__ = "daily_index"
+    __table_args__ = (UniqueConstraint("index_date", name="uq_daily_index_date"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    index_date: Mapped[date] = mapped_column(Date, index=True)
+    tracked_market_count: Mapped[int] = mapped_column(Integer, default=0)
+    fresh_market_count: Mapped[int] = mapped_column(Integer, default=0)
+    average_signed_premium: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    average_absolute_premium: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    liquidity_weighted_premium: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    share_above_fair_value: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    methodology_label: Mapped[str] = mapped_column(String(100), default="provisional_equal_weight")
+    generated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    status: Mapped[str] = mapped_column(String(30), default="OK")
+
+
+class JobRun(Base):
+    __tablename__ = "job_runs"
+    __table_args__ = (Index("ix_job_runs_name_started", "job_name", "started_at"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    run_key: Mapped[str] = mapped_column(String(150), unique=True, index=True)
+    job_name: Mapped[str] = mapped_column(String(100), index=True)
+    trigger_type: Mapped[str] = mapped_column(String(30), default="manual")
+    started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    finished_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    status: Mapped[str] = mapped_column(String(30), default="RUNNING", index=True)
+    markets_attempted: Mapped[int] = mapped_column(Integer, default=0)
+    markets_succeeded: Mapped[int] = mapped_column(Integer, default=0)
+    evidence_discovered: Mapped[int] = mapped_column(Integer, default=0)
+    evidence_relevant: Mapped[int] = mapped_column(Integer, default=0)
+    proposals_created: Mapped[int] = mapped_column(Integer, default=0)
+    snapshots_written: Mapped[int] = mapped_column(Integer, default=0)
+    error_count: Mapped[int] = mapped_column(Integer, default=0)
+    sanitized_error: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    metadata_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
+
+class SourceRun(Base):
+    __tablename__ = "source_runs"
+    __table_args__ = (Index("ix_source_runs_job_source", "job_run_id", "source_name"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    job_run_id: Mapped[int] = mapped_column(ForeignKey("job_runs.id", ondelete="CASCADE"), index=True)
+    market_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("markets.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    market_source_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("market_sources.id", ondelete="SET NULL"), nullable=True
+    )
+    source_name: Mapped[str] = mapped_column(String(200))
+    started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    finished_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    status: Mapped[str] = mapped_column(String(30), default="RUNNING")
+    items_discovered: Mapped[int] = mapped_column(Integer, default=0)
+    items_inserted: Mapped[int] = mapped_column(Integer, default=0)
+    retry_count: Mapped[int] = mapped_column(Integer, default=0)
+    sanitized_error: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
+
+class AdminUser(Base):
+    __tablename__ = "admin_users"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    username: Mapped[str] = mapped_column(String(100), unique=True, index=True)
+    password_hash: Mapped[str] = mapped_column(Text)
+    active: Mapped[bool] = mapped_column(Boolean, default=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    last_login_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+# Existing research/paper-trading tables are preserved for backward compatibility.
+class LLMClassification(Base):
+    __tablename__ = "llm_classifications"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    market_id: Mapped[int] = mapped_column(ForeignKey("markets.id"), index=True)
+    timestamp: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    model: Mapped[str] = mapped_column(String(100))
+    market_category: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    emotional_side: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
+    ideological_coding: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    identity_intensity: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    institutional_friction: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    deadline_decay_relevance: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    classification_confidence: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    summary: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    warnings_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    raw_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
+
+class ResolutionRisk(Base):
+    __tablename__ = "resolution_risks"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    market_id: Mapped[int] = mapped_column(ForeignKey("markets.id"), index=True)
+    timestamp: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    model: Mapped[str] = mapped_column(String(100))
+    resolution_risk: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    ambiguous_terms_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    source_dependency: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    implementation_vs_announcement_risk: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    date_boundary_risk: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    summary: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    warnings_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    raw_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
+
+class ExternalMarketMapping(Base):
+    __tablename__ = "external_market_mappings"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    market_id: Mapped[int] = mapped_column(ForeignKey("markets.id"), index=True)
+    platform: Mapped[str] = mapped_column(String(50))
+    external_market_id: Mapped[str] = mapped_column(String(255))
+    external_question: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    external_url: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    same_underlying_event: Mapped[Optional[bool]] = mapped_column(Boolean, nullable=True)
+    matching_confidence: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    safe_to_compare_prices: Mapped[Optional[bool]] = mapped_column(Boolean, nullable=True)
+    material_differences_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    last_checked_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    raw_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
+
+class ExternalMarketSnapshot(Base):
+    __tablename__ = "external_market_snapshots"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    mapping_id: Mapped[int] = mapped_column(ForeignKey("external_market_mappings.id"), index=True)
+    timestamp: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    yes_price: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    no_price: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    best_bid: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    best_ask: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    midpoint: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    spread: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    volume: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    open_interest: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    raw_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
+
+class PPISignal(Base):
+    __tablename__ = "ppi_signals"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    market_id: Mapped[int] = mapped_column(ForeignKey("markets.id"), index=True)
+    timestamp: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, index=True)
+    polymarket_yes: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    fair_yes: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    premium: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    ppi_score: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    action: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+    paper_side: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
+    score_breakdown_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    explanation: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    warnings_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    status: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+
+
+class PaperTrade(Base):
+    __tablename__ = "paper_trades"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    signal_id: Mapped[int] = mapped_column(ForeignKey("ppi_signals.id"), index=True)
+    market_id: Mapped[int] = mapped_column(ForeignKey("markets.id"), index=True)
+    side: Mapped[str] = mapped_column(String(20))
+    entry_timestamp: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    entry_price: Mapped[float] = mapped_column(Float)
+    size: Mapped[float] = mapped_column(Float)
+    current_price: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    current_pnl: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    max_favorable_excursion: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    max_adverse_excursion: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    exit_timestamp: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    exit_price: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    realized_pnl: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    status: Mapped[str] = mapped_column(String(50), default="open")
+    resolution_result: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
+
+class Alert(Base):
+    __tablename__ = "alerts"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    signal_id: Mapped[int] = mapped_column(ForeignKey("ppi_signals.id"), index=True)
+    market_id: Mapped[int] = mapped_column(ForeignKey("markets.id"), index=True)
+    timestamp: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    channel: Mapped[str] = mapped_column(String(50))
+    message: Mapped[str] = mapped_column(Text)
+    sent_successfully: Mapped[bool] = mapped_column(Boolean, default=False)
+    error_message: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
+
+class RawAPIResponse(Base):
+    __tablename__ = "raw_api_responses"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    source: Mapped[str] = mapped_column(String(100), index=True)
+    endpoint: Mapped[str] = mapped_column(Text)
+    timestamp: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    request_params_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    response_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    status_code: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    error_message: Mapped[Optional[str]] = mapped_column(Text, nullable=True)

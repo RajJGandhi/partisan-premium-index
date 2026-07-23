@@ -1,0 +1,159 @@
+{
+  "run_id": "20260629T165750Z",
+  "timestamp_utc": "2026-06-29T16:57:50Z",
+  "input_path": "data/signal_inputs/signal_input_latest.csv",
+  "latest_output": "data/llm_group_estimates/llm_group_estimates_latest.csv",
+  "snapshot_output": "data/llm_group_estimates/llm_group_estimates_20260629T165750Z.csv",
+  "append_output": "data/snapshots/llm_group_estimate_snapshots.csv",
+  "prompt_version": "group_fair_value_v0.1",
+  "model_backend": "ollama",
+  "model_name": "qwen3:8b",
+  "mock": false,
+  "groups_total": 17,
+  "rows_total": 154,
+  "parse_status_counts": {
+    "OK": 137,
+    "INVALID:missing_allocations=1": 17
+  },
+  "normalization_applied_rows": 110,
+  "group_keys": [
+    "Alaska Senate Election Winner",
+    "Brazil Presidential Election",
+    "Brazil Presidential Election First Round: 2nd Place",
+    "Brazil Presidential Election First Round: 3rd Place",
+    "Brazil Presidential Election First Round: Margin of Victory",
+    "Israeli Legislative Election Winner",
+    "Michigan Governor Election Winner",
+    "Nebraska Senate Election Winner",
+    "New Zealand legislative election winner",
+    "Next Prime Minister of Israel after next election",
+    "Next Prime Minister of New Zealand",
+    "Next Prime Minister of Sweden",
+    "Quebec General Election Winner",
+    "Republican House seats after 2026 midterms",
+    "Republican Senate seats after 2026 midterms",
+    "Sweden Parliamentary Election Winner",
+    "Vancouver Mayoral Election Winner"
+  ],
+  "sample_errors": [
+    {
+      "group_key": "Brazil Presidential Election First Round: 3rd Place",
+      "tracking_id": "RSO-0138",
+      "parse_status": "INVALID:missing_allocations=1",
+      "error": "INVALID:missing_allocations=1",
+      "raw_response": "{\"group_confidence\":0.6,\"group_rationale_short\":\"Based on current polling and candidate dynamics, third place is likely to be among right-wing contenders or centrist figures. Lula's lead is not guaranteed, and fragmentation could elevate multiple candidates. However, uncertainties around candidate viability and polling accuracy limit confidence.\",\"key_uncertainties\":[\"Lula's first-round viability\",\"Right-wing consolidation\",\"Polling accuracy\",\"Candidate exits/entries\",\"Long-tail support\",\"Runoff"
+    },
+    {
+      "group_key": "Brazil Presidential Election First Round: 3rd Place",
+      "tracking_id": "RSO-0139",
+      "parse_status": "INVALID:missing_allocations=1",
+      "error": "INVALID:missing_allocations=1",
+      "raw_response": "{\"group_confidence\":0.6,\"group_rationale_short\":\"Based on current polling and candidate dynamics, third place is likely to be among right-wing contenders or centrist figures. Lula's lead is not guaranteed, and fragmentation could elevate multiple candidates. However, uncertainties around candidate viability and polling accuracy limit confidence.\",\"key_uncertainties\":[\"Lula's first-round viability\",\"Right-wing consolidation\",\"Polling accuracy\",\"Candidate exits/entries\",\"Long-tail support\",\"Runoff"
+    },
+    {
+      "group_key": "Brazil Presidential Election First Round: 3rd Place",
+      "tracking_id": "RSO-0140",
+      "parse_status": "INVALID:missing_allocations=1",
+      "error": "INVALID:missing_allocations=1",
+      "raw_response": "{\"group_confidence\":0.6,\"group_rationale_short\":\"Based on current polling and candidate dynamics, third place is likely to be among right-wing contenders or centrist figures. Lula's lead is not guaranteed, and fragmentation could elevate multiple candidates. However, uncertainties around candidate viability and polling accuracy limit confidence.\",\"key_uncertainties\":[\"Lula's first-round viability\",\"Right-wing consolidation\",\"Polling accuracy\",\"Candidate exits/entries\",\"Long-tail support\",\"Runoff"
+    },
+    {
+      "group_key": "Brazil Presidential Election First Round: 3rd Place",
+      "tracking_id": "RSO-0141",
+      "parse_status": "INVALID:missing_allocations=1",
+      "error": "INVALID:missing_allocations=1",
+      "raw_response": "{\"group_confidence\":0.6,\"group_rationale_short\":\"Based on current polling and candidate dynamics, third place is likely to be among right-wing contenders or centrist figures. Lula's lead is not guaranteed, and fragmentation could elevate multiple candidates. However, uncertainties around candidate viability and polling accuracy limit confidence.\",\"key_uncertainties\":[\"Lula's first-round viability\",\"Right-wing consolidation\",\"Polling accuracy\",\"Candidate exits/entries\",\"Long-tail support\",\"Runoff"
+    },
+    {
+      "group_key": "Brazil Presidential Election First Round: 3rd Place",
+      "tracking_id": "RSO-0142",
+      "parse_status": "INVALID:missing_allocations=1",
+      "error": "INVALID:missing_allocations=1",
+      "raw_response": "{\"group_confidence\":0.6,\"group_rationale_short\":\"Based on current polling and candidate dynamics, third place is likely to be among right-wing contenders or centrist figures. Lula's lead is not guaranteed, and fragmentation could elevate multiple candidates. However, uncertainties around candidate viability and polling accuracy limit confidence.\",\"key_uncertainties\":[\"Lula's first-round viability\",\"Right-wing consolidation\",\"Polling accuracy\",\"Candidate exits/entries\",\"Long-tail support\",\"Runoff"
+    },
+    {
+      "group_key": "Brazil Presidential Election First Round: 3rd Place",
+      "tracking_id": "RSO-0143",
+      "parse_status": "INVALID:missing_allocations=1",
+      "error": "INVALID:missing_allocations=1",
+      "raw_response": "{\"group_confidence\":0.6,\"group_rationale_short\":\"Based on current polling and candidate dynamics, third place is likely to be among right-wing contenders or centrist figures. Lula's lead is not guaranteed, and fragmentation could elevate multiple candidates. However, uncertainties around candidate viability and polling accuracy limit confidence.\",\"key_uncertainties\":[\"Lula's first-round viability\",\"Right-wing consolidation\",\"Polling accuracy\",\"Candidate exits/entries\",\"Long-tail support\",\"Runoff"
+    },
+    {
+      "group_key": "Brazil Presidential Election First Round: 3rd Place",
+      "tracking_id": "RSO-0144",
+      "parse_status": "INVALID:missing_allocations=1",
+      "error": "INVALID:missing_allocations=1",
+      "raw_response": "{\"group_confidence\":0.6,\"group_rationale_short\":\"Based on current polling and candidate dynamics, third place is likely to be among right-wing contenders or centrist figures. Lula's lead is not guaranteed, and fragmentation could elevate multiple candidates. However, uncertainties around candidate viability and polling accuracy limit confidence.\",\"key_uncertainties\":[\"Lula's first-round viability\",\"Right-wing consolidation\",\"Polling accuracy\",\"Candidate exits/entries\",\"Long-tail support\",\"Runoff"
+    },
+    {
+      "group_key": "Brazil Presidential Election First Round: 3rd Place",
+      "tracking_id": "RSO-0145",
+      "parse_status": "INVALID:missing_allocations=1",
+      "error": "INVALID:missing_allocations=1",
+      "raw_response": "{\"group_confidence\":0.6,\"group_rationale_short\":\"Based on current polling and candidate dynamics, third place is likely to be among right-wing contenders or centrist figures. Lula's lead is not guaranteed, and fragmentation could elevate multiple candidates. However, uncertainties around candidate viability and polling accuracy limit confidence.\",\"key_uncertainties\":[\"Lula's first-round viability\",\"Right-wing consolidation\",\"Polling accuracy\",\"Candidate exits/entries\",\"Long-tail support\",\"Runoff"
+    },
+    {
+      "group_key": "Brazil Presidential Election First Round: 3rd Place",
+      "tracking_id": "RSO-0146",
+      "parse_status": "INVALID:missing_allocations=1",
+      "error": "INVALID:missing_allocations=1",
+      "raw_response": "{\"group_confidence\":0.6,\"group_rationale_short\":\"Based on current polling and candidate dynamics, third place is likely to be among right-wing contenders or centrist figures. Lula's lead is not guaranteed, and fragmentation could elevate multiple candidates. However, uncertainties around candidate viability and polling accuracy limit confidence.\",\"key_uncertainties\":[\"Lula's first-round viability\",\"Right-wing consolidation\",\"Polling accuracy\",\"Candidate exits/entries\",\"Long-tail support\",\"Runoff"
+    },
+    {
+      "group_key": "Brazil Presidential Election First Round: 3rd Place",
+      "tracking_id": "RSO-0147",
+      "parse_status": "INVALID:missing_allocations=1",
+      "error": "INVALID:missing_allocations=1",
+      "raw_response": "{\"group_confidence\":0.6,\"group_rationale_short\":\"Based on current polling and candidate dynamics, third place is likely to be among right-wing contenders or centrist figures. Lula's lead is not guaranteed, and fragmentation could elevate multiple candidates. However, uncertainties around candidate viability and polling accuracy limit confidence.\",\"key_uncertainties\":[\"Lula's first-round viability\",\"Right-wing consolidation\",\"Polling accuracy\",\"Candidate exits/entries\",\"Long-tail support\",\"Runoff"
+    },
+    {
+      "group_key": "Brazil Presidential Election First Round: 3rd Place",
+      "tracking_id": "RSO-0148",
+      "parse_status": "INVALID:missing_allocations=1",
+      "error": "INVALID:missing_allocations=1",
+      "raw_response": "{\"group_confidence\":0.6,\"group_rationale_short\":\"Based on current polling and candidate dynamics, third place is likely to be among right-wing contenders or centrist figures. Lula's lead is not guaranteed, and fragmentation could elevate multiple candidates. However, uncertainties around candidate viability and polling accuracy limit confidence.\",\"key_uncertainties\":[\"Lula's first-round viability\",\"Right-wing consolidation\",\"Polling accuracy\",\"Candidate exits/entries\",\"Long-tail support\",\"Runoff"
+    },
+    {
+      "group_key": "Brazil Presidential Election First Round: 3rd Place",
+      "tracking_id": "RSO-0149",
+      "parse_status": "INVALID:missing_allocations=1",
+      "error": "INVALID:missing_allocations=1",
+      "raw_response": "{\"group_confidence\":0.6,\"group_rationale_short\":\"Based on current polling and candidate dynamics, third place is likely to be among right-wing contenders or centrist figures. Lula's lead is not guaranteed, and fragmentation could elevate multiple candidates. However, uncertainties around candidate viability and polling accuracy limit confidence.\",\"key_uncertainties\":[\"Lula's first-round viability\",\"Right-wing consolidation\",\"Polling accuracy\",\"Candidate exits/entries\",\"Long-tail support\",\"Runoff"
+    },
+    {
+      "group_key": "Brazil Presidential Election First Round: 3rd Place",
+      "tracking_id": "RSO-0150",
+      "parse_status": "INVALID:missing_allocations=1",
+      "error": "INVALID:missing_allocations=1",
+      "raw_response": "{\"group_confidence\":0.6,\"group_rationale_short\":\"Based on current polling and candidate dynamics, third place is likely to be among right-wing contenders or centrist figures. Lula's lead is not guaranteed, and fragmentation could elevate multiple candidates. However, uncertainties around candidate viability and polling accuracy limit confidence.\",\"key_uncertainties\":[\"Lula's first-round viability\",\"Right-wing consolidation\",\"Polling accuracy\",\"Candidate exits/entries\",\"Long-tail support\",\"Runoff"
+    },
+    {
+      "group_key": "Brazil Presidential Election First Round: 3rd Place",
+      "tracking_id": "RSO-0151",
+      "parse_status": "INVALID:missing_allocations=1",
+      "error": "INVALID:missing_allocations=1",
+      "raw_response": "{\"group_confidence\":0.6,\"group_rationale_short\":\"Based on current polling and candidate dynamics, third place is likely to be among right-wing contenders or centrist figures. Lula's lead is not guaranteed, and fragmentation could elevate multiple candidates. However, uncertainties around candidate viability and polling accuracy limit confidence.\",\"key_uncertainties\":[\"Lula's first-round viability\",\"Right-wing consolidation\",\"Polling accuracy\",\"Candidate exits/entries\",\"Long-tail support\",\"Runoff"
+    },
+    {
+      "group_key": "Brazil Presidential Election First Round: 3rd Place",
+      "tracking_id": "RSO-0152",
+      "parse_status": "INVALID:missing_allocations=1",
+      "error": "INVALID:missing_allocations=1",
+      "raw_response": "{\"group_confidence\":0.6,\"group_rationale_short\":\"Based on current polling and candidate dynamics, third place is likely to be among right-wing contenders or centrist figures. Lula's lead is not guaranteed, and fragmentation could elevate multiple candidates. However, uncertainties around candidate viability and polling accuracy limit confidence.\",\"key_uncertainties\":[\"Lula's first-round viability\",\"Right-wing consolidation\",\"Polling accuracy\",\"Candidate exits/entries\",\"Long-tail support\",\"Runoff"
+    },
+    {
+      "group_key": "Brazil Presidential Election First Round: 3rd Place",
+      "tracking_id": "RSO-0153",
+      "parse_status": "INVALID:missing_allocations=1",
+      "error": "INVALID:missing_allocations=1",
+      "raw_response": "{\"group_confidence\":0.6,\"group_rationale_short\":\"Based on current polling and candidate dynamics, third place is likely to be among right-wing contenders or centrist figures. Lula's lead is not guaranteed, and fragmentation could elevate multiple candidates. However, uncertainties around candidate viability and polling accuracy limit confidence.\",\"key_uncertainties\":[\"Lula's first-round viability\",\"Right-wing consolidation\",\"Polling accuracy\",\"Candidate exits/entries\",\"Long-tail support\",\"Runoff"
+    },
+    {
+      "group_key": "Brazil Presidential Election First Round: 3rd Place",
+      "tracking_id": "RSO-0154",
+      "parse_status": "INVALID:missing_allocations=1",
+      "error": "INVALID:missing_allocations=1",
+      "raw_response": "{\"group_confidence\":0.6,\"group_rationale_short\":\"Based on current polling and candidate dynamics, third place is likely to be among right-wing contenders or centrist figures. Lula's lead is not guaranteed, and fragmentation could elevate multiple candidates. However, uncertainties around candidate viability and polling accuracy limit confidence.\",\"key_uncertainties\":[\"Lula's first-round viability\",\"Right-wing consolidation\",\"Polling accuracy\",\"Candidate exits/entries\",\"Long-tail support\",\"Runoff"
+    }
+  ]
+}

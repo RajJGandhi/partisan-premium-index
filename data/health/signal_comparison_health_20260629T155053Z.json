@@ -1,0 +1,623 @@
+{
+  "run_id": "20260629T155053Z",
+  "timestamp_utc": "2026-06-29T15:50:53Z",
+  "input_path": "data/llm_estimates/llm_estimates_latest.csv",
+  "latest_output": "data/signals/signal_comparison_latest.csv",
+  "snapshot_output": "data/signals/signal_comparison_20260629T155053Z.csv",
+  "append_output": "data/snapshots/signal_comparison_snapshots.csv",
+  "rows_total": 188,
+  "min_abs_gap": 0.1,
+  "raw_direction_counts": {
+    "NO_SIGNAL": 107,
+    "LLM_HIGHER": 52,
+    "MARKET_HIGHER": 29
+  },
+  "normalized_direction_counts": {
+    "NO_SIGNAL": 132,
+    "LLM_HIGHER": 28,
+    "MARKET_HIGHER": 28
+  },
+  "raw_strength_counts": {
+    "weak": 14,
+    "strong": 16,
+    "medium": 37,
+    "extreme": 28,
+    "none": 93
+  },
+  "normalized_strength_counts": {
+    "weak": 44,
+    "strong": 13,
+    "none": 88,
+    "medium": 25,
+    "extreme": 18
+  },
+  "group_mass_flag_counts": {
+    "": 106,
+    "llm_mass_too_high": 76,
+    "llm_mass_too_high|market_mass_low": 6
+  },
+  "use_normalized_counts": {
+    "false": 34,
+    "true": 154
+  },
+  "avg_raw_abs_gap": 0.125585,
+  "max_raw_abs_gap": 0.5365,
+  "avg_normalized_abs_gap": 0.097649,
+  "max_normalized_abs_gap": 0.476111,
+  "flagged_groups": [
+    [
+      "Alaska Senate Election Winner",
+      {
+        "group_n": "5",
+        "group_fair_sum": "1.65",
+        "group_market_sum": "1.003",
+        "group_mass_flag": "llm_mass_too_high",
+        "use_normalized_for_analysis": "true"
+      }
+    ],
+    [
+      "Brazil Presidential Election First Round: 2nd Place",
+      {
+        "group_n": "17",
+        "group_fair_sum": "1.41",
+        "group_market_sum": "0.9995",
+        "group_mass_flag": "llm_mass_too_high",
+        "use_normalized_for_analysis": "true"
+      }
+    ],
+    [
+      "Brazil Presidential Election First Round: 3rd Place",
+      {
+        "group_n": "17",
+        "group_fair_sum": "1.96",
+        "group_market_sum": "0.957",
+        "group_mass_flag": "llm_mass_too_high",
+        "use_normalized_for_analysis": "true"
+      }
+    ],
+    [
+      "Brazil Presidential Election First Round: Margin of Victory",
+      {
+        "group_n": "9",
+        "group_fair_sum": "1.41",
+        "group_market_sum": "0.9555",
+        "group_mass_flag": "llm_mass_too_high",
+        "use_normalized_for_analysis": "true"
+      }
+    ],
+    [
+      "Next Prime Minister of Israel after next election",
+      {
+        "group_n": "18",
+        "group_fair_sum": "1.59",
+        "group_market_sum": "0.9805",
+        "group_mass_flag": "llm_mass_too_high",
+        "use_normalized_for_analysis": "true"
+      }
+    ],
+    [
+      "Republican House seats after 2026 midterms",
+      {
+        "group_n": "10",
+        "group_fair_sum": "4",
+        "group_market_sum": "1.035",
+        "group_mass_flag": "llm_mass_too_high",
+        "use_normalized_for_analysis": "true"
+      }
+    ],
+    [
+      "Republican Senate seats after 2026 midterms",
+      {
+        "group_n": "6",
+        "group_fair_sum": "2.3",
+        "group_market_sum": "0.347",
+        "group_mass_flag": "llm_mass_too_high|market_mass_low",
+        "use_normalized_for_analysis": "true"
+      }
+    ]
+  ],
+  "top_raw_abs_gaps": [
+    {
+      "tracking_id": "RSO-0025",
+      "parent_market_name": "Republican Senate seats after 2026 midterms",
+      "outcome": "57+",
+      "fair_value": "0.55",
+      "comparison_price": "0.0135",
+      "raw_gap": "0.5365",
+      "raw_abs_gap": "0.5365",
+      "group_mass_flag": "llm_mass_too_high|market_mass_low"
+    },
+    {
+      "tracking_id": "RSO-0021",
+      "parent_market_name": "Republican Senate seats after 2026 midterms",
+      "outcome": "53",
+      "fair_value": "0.55",
+      "comparison_price": "0.036",
+      "raw_gap": "0.514",
+      "raw_abs_gap": "0.514",
+      "group_mass_flag": "llm_mass_too_high|market_mass_low"
+    },
+    {
+      "tracking_id": "RSO-0055",
+      "parent_market_name": "WA-04 House Election Winner",
+      "outcome": "Republican Party",
+      "fair_value": "0.35",
+      "comparison_price": "0.86",
+      "raw_gap": "-0.51",
+      "raw_abs_gap": "0.51",
+      "group_mass_flag": ""
+    },
+    {
+      "tracking_id": "RSO-0170",
+      "parent_market_name": "Sweden Parliamentary Election Winner",
+      "outcome": "Swedish Social Democratic Party (S)",
+      "fair_value": "0.45",
+      "comparison_price": "0.945",
+      "raw_gap": "-0.495",
+      "raw_abs_gap": "0.495",
+      "group_mass_flag": ""
+    },
+    {
+      "tracking_id": "RSO-0014",
+      "parent_market_name": "Republican House seats after 2026 midterms",
+      "outcome": "230+",
+      "fair_value": "0.45",
+      "comparison_price": "0.0185",
+      "raw_gap": "0.4315",
+      "raw_abs_gap": "0.4315",
+      "group_mass_flag": "llm_mass_too_high"
+    },
+    {
+      "tracking_id": "RSO-0037",
+      "parent_market_name": "Nebraska Senate Election Winner",
+      "outcome": "Democrat",
+      "fair_value": "0.45",
+      "comparison_price": "0.0235",
+      "raw_gap": "0.4265",
+      "raw_abs_gap": "0.4265",
+      "group_mass_flag": ""
+    },
+    {
+      "tracking_id": "RSO-0056",
+      "parent_market_name": "WA-04 House Election Winner",
+      "outcome": "Democratic Party",
+      "fair_value": "0.55",
+      "comparison_price": "0.135",
+      "raw_gap": "0.415",
+      "raw_abs_gap": "0.415",
+      "group_mass_flag": ""
+    },
+    {
+      "tracking_id": "RSO-0238",
+      "parent_market_name": "New Zealand legislative election winner",
+      "outcome": "Labour Party",
+      "fair_value": "0.25",
+      "comparison_price": "0.665",
+      "raw_gap": "-0.415",
+      "raw_abs_gap": "0.415",
+      "group_mass_flag": ""
+    },
+    {
+      "tracking_id": "RSO-0013",
+      "parent_market_name": "Republican House seats after 2026 midterms",
+      "outcome": "225-229",
+      "fair_value": "0.45",
+      "comparison_price": "0.0395",
+      "raw_gap": "0.4105",
+      "raw_abs_gap": "0.4105",
+      "group_mass_flag": "llm_mass_too_high"
+    },
+    {
+      "tracking_id": "RSO-0044",
+      "parent_market_name": "Georgia Senate Election Winner",
+      "outcome": "Democrat",
+      "fair_value": "0.45",
+      "comparison_price": "0.855",
+      "raw_gap": "-0.405",
+      "raw_abs_gap": "0.405",
+      "group_mass_flag": ""
+    },
+    {
+      "tracking_id": "RSO-0046",
+      "parent_market_name": "New Hampshire Senate Election Winner",
+      "outcome": "Democrat",
+      "fair_value": "0.45",
+      "comparison_price": "0.845",
+      "raw_gap": "-0.395",
+      "raw_abs_gap": "0.395",
+      "group_mass_flag": ""
+    },
+    {
+      "tracking_id": "RSO-0010",
+      "parent_market_name": "Republican House seats after 2026 midterms",
+      "outcome": "210-214",
+      "fair_value": "0.45",
+      "comparison_price": "0.0575",
+      "raw_gap": "0.3925",
+      "raw_abs_gap": "0.3925",
+      "group_mass_flag": "llm_mass_too_high"
+    },
+    {
+      "tracking_id": "RSO-0052",
+      "parent_market_name": "Michigan Governor Election Winner",
+      "outcome": "Democrat",
+      "fair_value": "0.45",
+      "comparison_price": "0.84",
+      "raw_gap": "-0.39",
+      "raw_abs_gap": "0.39",
+      "group_mass_flag": ""
+    },
+    {
+      "tracking_id": "RSO-0009",
+      "parent_market_name": "Republican House seats after 2026 midterms",
+      "outcome": "205-209",
+      "fair_value": "0.45",
+      "comparison_price": "0.064",
+      "raw_gap": "0.386",
+      "raw_abs_gap": "0.386",
+      "group_mass_flag": "llm_mass_too_high"
+    },
+    {
+      "tracking_id": "RSO-0195",
+      "parent_market_name": "Vancouver Mayoral Election Winner",
+      "outcome": "Kareem Allam",
+      "fair_value": "0.12",
+      "comparison_price": "0.505",
+      "raw_gap": "-0.385",
+      "raw_abs_gap": "0.385",
+      "group_mass_flag": ""
+    },
+    {
+      "tracking_id": "RSO-0231",
+      "parent_market_name": "Next Prime Minister of New Zealand",
+      "outcome": "Chris Hipkins",
+      "fair_value": "0.15",
+      "comparison_price": "0.535",
+      "raw_gap": "-0.385",
+      "raw_abs_gap": "0.385",
+      "group_mass_flag": ""
+    },
+    {
+      "tracking_id": "RSO-0008",
+      "parent_market_name": "Republican House seats after 2026 midterms",
+      "outcome": "200-204",
+      "fair_value": "0.45",
+      "comparison_price": "0.086",
+      "raw_gap": "0.364",
+      "raw_abs_gap": "0.364",
+      "group_mass_flag": "llm_mass_too_high"
+    },
+    {
+      "tracking_id": "RSO-0011",
+      "parent_market_name": "Republican House seats after 2026 midterms",
+      "outcome": "215-219",
+      "fair_value": "0.45",
+      "comparison_price": "0.0975",
+      "raw_gap": "0.3525",
+      "raw_abs_gap": "0.3525",
+      "group_mass_flag": "llm_mass_too_high"
+    },
+    {
+      "tracking_id": "RSO-0138",
+      "parent_market_name": "Brazil Presidential Election First Round: 3rd Place",
+      "outcome": "Renan Santos",
+      "fair_value": "0.15",
+      "comparison_price": "0.5",
+      "raw_gap": "-0.35",
+      "raw_abs_gap": "0.35",
+      "group_mass_flag": "llm_mass_too_high"
+    },
+    {
+      "tracking_id": "RSO-0024",
+      "parent_market_name": "Republican Senate seats after 2026 midterms",
+      "outcome": "56",
+      "fair_value": "0.35",
+      "comparison_price": "0.0105",
+      "raw_gap": "0.3395",
+      "raw_abs_gap": "0.3395",
+      "group_mass_flag": "llm_mass_too_high|market_mass_low"
+    },
+    {
+      "tracking_id": "RSO-0022",
+      "parent_market_name": "Republican Senate seats after 2026 midterms",
+      "outcome": "54",
+      "fair_value": "0.35",
+      "comparison_price": "0.0155",
+      "raw_gap": "0.3345",
+      "raw_abs_gap": "0.3345",
+      "group_mass_flag": "llm_mass_too_high|market_mass_low"
+    },
+    {
+      "tracking_id": "RSO-0023",
+      "parent_market_name": "Republican Senate seats after 2026 midterms",
+      "outcome": "55",
+      "fair_value": "0.35",
+      "comparison_price": "0.0165",
+      "raw_gap": "0.3335",
+      "raw_abs_gap": "0.3335",
+      "group_mass_flag": "llm_mass_too_high|market_mass_low"
+    },
+    {
+      "tracking_id": "RSO-0042",
+      "parent_market_name": "North Carolina Senate Election Winner",
+      "outcome": "Roy Cooper (D)",
+      "fair_value": "0.55",
+      "comparison_price": "0.865",
+      "raw_gap": "-0.315",
+      "raw_abs_gap": "0.315",
+      "group_mass_flag": ""
+    },
+    {
+      "tracking_id": "RSO-0047",
+      "parent_market_name": "New Hampshire Senate Election Winner",
+      "outcome": "Republican",
+      "fair_value": "0.45",
+      "comparison_price": "0.135",
+      "raw_gap": "0.315",
+      "raw_abs_gap": "0.315",
+      "group_mass_flag": ""
+    },
+    {
+      "tracking_id": "RSO-0121",
+      "parent_market_name": "Brazil Presidential Election First Round: 2nd Place",
+      "outcome": "Flávio Bolsonaro",
+      "fair_value": "0.45",
+      "comparison_price": "0.76",
+      "raw_gap": "-0.31",
+      "raw_abs_gap": "0.31",
+      "group_mass_flag": "llm_mass_too_high"
+    }
+  ],
+  "top_normalized_abs_gaps": [
+    {
+      "tracking_id": "RSO-0056",
+      "parent_market_name": "WA-04 House Election Winner",
+      "outcome": "Democratic Party",
+      "fair_value_group_norm": "0.611111",
+      "comparison_price": "0.135",
+      "normalized_gap": "0.476111",
+      "normalized_abs_gap": "0.476111",
+      "group_mass_flag": ""
+    },
+    {
+      "tracking_id": "RSO-0055",
+      "parent_market_name": "WA-04 House Election Winner",
+      "outcome": "Republican Party",
+      "fair_value_group_norm": "0.388889",
+      "comparison_price": "0.86",
+      "normalized_gap": "-0.471111",
+      "normalized_abs_gap": "0.471111",
+      "group_mass_flag": ""
+    },
+    {
+      "tracking_id": "RSO-0121",
+      "parent_market_name": "Brazil Presidential Election First Round: 2nd Place",
+      "outcome": "Flávio Bolsonaro",
+      "fair_value_group_norm": "0.319149",
+      "comparison_price": "0.76",
+      "normalized_gap": "-0.440851",
+      "normalized_abs_gap": "0.440851",
+      "group_mass_flag": "llm_mass_too_high"
+    },
+    {
+      "tracking_id": "RSO-0138",
+      "parent_market_name": "Brazil Presidential Election First Round: 3rd Place",
+      "outcome": "Renan Santos",
+      "fair_value_group_norm": "0.076531",
+      "comparison_price": "0.5",
+      "normalized_gap": "-0.423469",
+      "normalized_abs_gap": "0.423469",
+      "group_mass_flag": "llm_mass_too_high"
+    },
+    {
+      "tracking_id": "RSO-0030",
+      "parent_market_name": "Alaska Senate Election Winner",
+      "outcome": "Mary Peltola",
+      "fair_value_group_norm": "0.272727",
+      "comparison_price": "0.695",
+      "normalized_gap": "-0.422273",
+      "normalized_abs_gap": "0.422273",
+      "group_mass_flag": "llm_mass_too_high"
+    },
+    {
+      "tracking_id": "RSO-0052",
+      "parent_market_name": "Michigan Governor Election Winner",
+      "outcome": "Democrat",
+      "fair_value_group_norm": "0.441176",
+      "comparison_price": "0.84",
+      "normalized_gap": "-0.398824",
+      "normalized_abs_gap": "0.398824",
+      "group_mass_flag": ""
+    },
+    {
+      "tracking_id": "RSO-0231",
+      "parent_market_name": "Next Prime Minister of New Zealand",
+      "outcome": "Chris Hipkins",
+      "fair_value_group_norm": "0.147059",
+      "comparison_price": "0.535",
+      "normalized_gap": "-0.387941",
+      "normalized_abs_gap": "0.387941",
+      "group_mass_flag": ""
+    },
+    {
+      "tracking_id": "RSO-0037",
+      "parent_market_name": "Nebraska Senate Election Winner",
+      "outcome": "Democrat",
+      "fair_value_group_norm": "0.391304",
+      "comparison_price": "0.0235",
+      "normalized_gap": "0.367804",
+      "normalized_abs_gap": "0.367804",
+      "group_mass_flag": ""
+    },
+    {
+      "tracking_id": "RSO-0047",
+      "parent_market_name": "New Hampshire Senate Election Winner",
+      "outcome": "Republican",
+      "fair_value_group_norm": "0.5",
+      "comparison_price": "0.135",
+      "normalized_gap": "0.365",
+      "normalized_abs_gap": "0.365",
+      "group_mass_flag": ""
+    },
+    {
+      "tracking_id": "RSO-0170",
+      "parent_market_name": "Sweden Parliamentary Election Winner",
+      "outcome": "Swedish Social Democratic Party (S)",
+      "fair_value_group_norm": "0.584416",
+      "comparison_price": "0.945",
+      "normalized_gap": "-0.360584",
+      "normalized_abs_gap": "0.360584",
+      "group_mass_flag": ""
+    },
+    {
+      "tracking_id": "RSO-0195",
+      "parent_market_name": "Vancouver Mayoral Election Winner",
+      "outcome": "Kareem Allam",
+      "fair_value_group_norm": "0.146341",
+      "comparison_price": "0.505",
+      "normalized_gap": "-0.358659",
+      "normalized_abs_gap": "0.358659",
+      "group_mass_flag": ""
+    },
+    {
+      "tracking_id": "RSO-0044",
+      "parent_market_name": "Georgia Senate Election Winner",
+      "outcome": "Democrat",
+      "fair_value_group_norm": "0.5",
+      "comparison_price": "0.855",
+      "normalized_gap": "-0.355",
+      "normalized_abs_gap": "0.355",
+      "group_mass_flag": ""
+    },
+    {
+      "tracking_id": "RSO-0238",
+      "parent_market_name": "New Zealand legislative election winner",
+      "outcome": "Labour Party",
+      "fair_value_group_norm": "0.3125",
+      "comparison_price": "0.665",
+      "normalized_gap": "-0.3525",
+      "normalized_abs_gap": "0.3525",
+      "group_mass_flag": ""
+    },
+    {
+      "tracking_id": "RSO-0045",
+      "parent_market_name": "Georgia Senate Election Winner",
+      "outcome": "Republican",
+      "fair_value_group_norm": "0.5",
+      "comparison_price": "0.1485",
+      "normalized_gap": "0.3515",
+      "normalized_abs_gap": "0.3515",
+      "group_mass_flag": ""
+    },
+    {
+      "tracking_id": "RSO-0046",
+      "parent_market_name": "New Hampshire Senate Election Winner",
+      "outcome": "Democrat",
+      "fair_value_group_norm": "0.5",
+      "comparison_price": "0.845",
+      "normalized_gap": "-0.345",
+      "normalized_abs_gap": "0.345",
+      "group_mass_flag": ""
+    },
+    {
+      "tracking_id": "RSO-0207",
+      "parent_market_name": "Next Prime Minister of Israel after next election",
+      "outcome": "Gadi Eizenkot",
+      "fair_value_group_norm": "0.09434",
+      "comparison_price": "0.416",
+      "normalized_gap": "-0.32166",
+      "normalized_abs_gap": "0.32166",
+      "group_mass_flag": "llm_mass_too_high"
+    },
+    {
+      "tracking_id": "RSO-0042",
+      "parent_market_name": "North Carolina Senate Election Winner",
+      "outcome": "Roy Cooper (D)",
+      "fair_value_group_norm": "0.55",
+      "comparison_price": "0.865",
+      "normalized_gap": "-0.315",
+      "normalized_abs_gap": "0.315",
+      "group_mass_flag": ""
+    },
+    {
+      "tracking_id": "RSO-0043",
+      "parent_market_name": "North Carolina Senate Election Winner",
+      "outcome": "Michael Whatley (R)",
+      "fair_value_group_norm": "0.45",
+      "comparison_price": "0.145",
+      "normalized_gap": "0.305",
+      "normalized_abs_gap": "0.305",
+      "group_mass_flag": ""
+    },
+    {
+      "tracking_id": "RSO-0181",
+      "parent_market_name": "Quebec General Election Winner",
+      "outcome": "PQ",
+      "fair_value_group_norm": "0.327103",
+      "comparison_price": "0.625",
+      "normalized_gap": "-0.297897",
+      "normalized_abs_gap": "0.297897",
+      "group_mass_flag": ""
+    },
+    {
+      "tracking_id": "RSO-0053",
+      "parent_market_name": "Michigan Governor Election Winner",
+      "outcome": "Republican",
+      "fair_value_group_norm": "0.441176",
+      "comparison_price": "0.145",
+      "normalized_gap": "0.296176",
+      "normalized_abs_gap": "0.296176",
+      "group_mass_flag": ""
+    },
+    {
+      "tracking_id": "RSO-0004",
+      "parent_market_name": "House control, 2026",
+      "outcome": "Democratic Party",
+      "fair_value_group_norm": "0.55",
+      "comparison_price": "0.835",
+      "normalized_gap": "-0.285",
+      "normalized_abs_gap": "0.285",
+      "group_mass_flag": ""
+    },
+    {
+      "tracking_id": "RSO-0003",
+      "parent_market_name": "House control, 2026",
+      "outcome": "Republican Party",
+      "fair_value_group_norm": "0.45",
+      "comparison_price": "0.175",
+      "normalized_gap": "0.275",
+      "normalized_abs_gap": "0.275",
+      "group_mass_flag": ""
+    },
+    {
+      "tracking_id": "RSO-0005",
+      "parent_market_name": "Republican House seats after 2026 midterms",
+      "outcome": "Below 190",
+      "fair_value_group_norm": "0.0375",
+      "comparison_price": "0.305",
+      "normalized_gap": "-0.2675",
+      "normalized_abs_gap": "0.2675",
+      "group_mass_flag": "llm_mass_too_high"
+    },
+    {
+      "tracking_id": "RSO-0160",
+      "parent_market_name": "Next Prime Minister of Sweden",
+      "outcome": "Magdalena Andersson",
+      "fair_value_group_norm": "0.48913",
+      "comparison_price": "0.735",
+      "normalized_gap": "-0.24587",
+      "normalized_abs_gap": "0.24587",
+      "group_mass_flag": ""
+    },
+    {
+      "tracking_id": "RSO-0025",
+      "parent_market_name": "Republican Senate seats after 2026 midterms",
+      "outcome": "57+",
+      "fair_value_group_norm": "0.23913",
+      "comparison_price": "0.0135",
+      "normalized_gap": "0.22563",
+      "normalized_abs_gap": "0.22563",
+      "group_mass_flag": "llm_mass_too_high|market_mass_low"
+    }
+  ]
+}

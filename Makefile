@@ -1,0 +1,37 @@
+.PHONY: setup init seed demo run daily scheduler test lint typecheck build validate
+
+setup:
+	python -m venv .venv
+	. .venv/bin/activate && pip install -r requirements-dev.txt
+
+init:
+	PYTHONPATH=. python scripts/migrate_db.py
+
+seed:
+	PYTHONPATH=. python scripts/seed_production_markets.py
+
+demo:
+	PYTHONPATH=. python scripts/seed_production_markets.py --demo
+
+run:
+	PYTHONPATH=. streamlit run app/dashboard/streamlit_app.py
+
+daily:
+	PYTHONPATH=. python scripts/run_ppi_daily.py --trigger manual
+
+scheduler:
+	PYTHONPATH=. python scripts/run_scheduler.py
+
+test:
+	PYTHONPATH=. pytest -q
+
+lint:
+	ruff check app/ppi app/dashboard app/db/models.py app/db/database.py scripts/run_ppi_daily.py scripts/run_scheduler.py scripts/create_admin_user.py scripts/hash_password.py scripts/seed_production_markets.py scripts/backfill_polymarket_prices.py scripts/migrate_db.py tests/test_ppi_*.py tests/test_evidence_*.py tests/test_snapshot_idempotency.py tests/test_stale_data.py tests/test_polymarket_integration_mock.py tests/test_publication_flow.py tests/test_streamlit_smoke.py tests/test_daily_digest.py tests/test_source_security.py tests/test_seed_data.py tests/test_database_url.py
+
+typecheck:
+	mypy app/ppi app/db/models.py app/db/database.py scripts/run_ppi_daily.py scripts/run_scheduler.py scripts/create_admin_user.py scripts/seed_production_markets.py scripts/migrate_db.py
+
+build:
+	python -m compileall -q app scripts
+
+validate: lint typecheck test build

@@ -1,0 +1,30 @@
+{
+  "run_id": "20260706T153423Z",
+  "timestamp_utc": "2026-07-06T15:34:23Z",
+  "markets_input": "data/tracked_markets_final.csv",
+  "scope": "parents",
+  "target_rows": 34,
+  "results_total": 238,
+  "sources": [
+    "google",
+    "gdelt"
+  ],
+  "days": 7,
+  "max_results_per_query": 6,
+  "outputs": {
+    "latest_csv": "data/research/hermes_research_latest.csv",
+    "dated_csv": "data/research/daily/2026-07-06/hermes_research_20260706T153423Z.csv",
+    "brief_dir": "data/research/daily/2026-07-06/briefings",
+    "parent_brief_dir": "data/research/daily/2026-07-06/parent_briefings",
+    "alerts_path": "data/research/hermes_research_alerts_latest.csv"
+  },
+  "alerts": [
+    {
+      "severity": "WARN",
+      "area": "source_fetch",
+      "message": "32 source fetch errors were recorded.",
+      "recommended_action": "Inspect hermes_research_latest.csv rows where source_name=ERROR."
+    }
+  ],
+  "status": "WARNINGS"
+}

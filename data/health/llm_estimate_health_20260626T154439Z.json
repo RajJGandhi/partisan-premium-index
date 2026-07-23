@@ -1,0 +1,25 @@
+{
+  "run_id": "20260626T154439Z",
+  "timestamp_utc": "2026-06-26T15:44:39Z",
+  "prompt_version": "fair_value_v0.1",
+  "input_path": "data/signal_inputs/signal_input_latest.csv",
+  "latest_output_path": "data/llm_estimates/llm_estimates_latest.csv",
+  "snapshot_output_path": "data/llm_estimates/llm_estimates_20260626T154439Z.csv",
+  "append_output_path": "data/snapshots/llm_estimate_snapshots.csv",
+  "model_backend": "ollama",
+  "model_name": "qwen3:8b",
+  "mock": false,
+  "rows_total": 5,
+  "parse_status_counts": {
+    "OK": 5
+  },
+  "ok_count": 5,
+  "ok_rate": 1.0,
+  "abstain_count": 0,
+  "missing_evidence_count": 0,
+  "avg_fair_value": 0.35,
+  "min_fair_value": 0.15,
+  "max_fair_value": 0.45,
+  "avg_confidence": 0.6,
+  "sample_errors": []
+}

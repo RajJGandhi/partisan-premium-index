@@ -1,0 +1,79 @@
+{
+  "snapshot_id": "20260628T054019Z",
+  "timestamp_utc": "2026-06-28T05:40:19Z",
+  "input_path": "data/orderbook_check.csv",
+  "latest_output_path": "data/signal_inputs/signal_input_latest.csv",
+  "snapshot_output_path": "data/signal_inputs/signal_input_20260628T054019Z.csv",
+  "append_output_path": "data/snapshots/signal_input_snapshots.csv",
+  "wide_spread_threshold": 0.1,
+  "thin_depth_threshold": 10.0,
+  "rows_total": 188,
+  "signal_ready_count": 188,
+  "skipped_count": 0,
+  "signal_ready_rate": 1.0,
+  "source_orderbook_status_counts": {
+    "OK": 182,
+    "NO_BIDS": 6
+  },
+  "price_type_counts": {
+    "mid": 182,
+    "ask_only": 6
+  },
+  "liquidity_flag_counts": {
+    "no_bids": 6
+  },
+  "avg_comparison_price": 0.176383,
+  "min_comparison_price": 0.001,
+  "max_comparison_price": 0.945,
+  "sample_skipped_rows": [],
+  "sample_flagged_rows": [
+    {
+      "tracking_id": "RSO-0032",
+      "parent_market_name": "Alaska Senate Election Winner",
+      "outcome": "Dustin Darden",
+      "comparison_price": "0.001",
+      "price_type": "ask_only",
+      "flags": "no_bids"
+    },
+    {
+      "tracking_id": "RSO-0033",
+      "parent_market_name": "Alaska Senate Election Winner",
+      "outcome": "Ann Diener",
+      "comparison_price": "0.001",
+      "price_type": "ask_only",
+      "flags": "no_bids"
+    },
+    {
+      "tracking_id": "RSO-0034",
+      "parent_market_name": "Alaska Senate Election Winner",
+      "outcome": "Richard Grayson",
+      "comparison_price": "0.001",
+      "price_type": "ask_only",
+      "flags": "no_bids"
+    },
+    {
+      "tracking_id": "RSO-0091",
+      "parent_market_name": "Brazil Presidential Election",
+      "outcome": "Ratinho Júnior",
+      "comparison_price": "0.001",
+      "price_type": "ask_only",
+      "flags": "no_bids"
+    },
+    {
+      "tracking_id": "RSO-0092",
+      "parent_market_name": "Brazil Presidential Election",
+      "outcome": "Eduardo Leite",
+      "comparison_price": "0.001",
+      "price_type": "ask_only",
+      "flags": "no_bids"
+    },
+    {
+      "tracking_id": "RSO-0137",
+      "parent_market_name": "Brazil Presidential Election First Round: 2nd Place",
+      "outcome": "Helder Barbalho",
+      "comparison_price": "0.001",
+      "price_type": "ask_only",
+      "flags": "no_bids"
+    }
+  ]
+}

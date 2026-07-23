@@ -1,0 +1,23 @@
+services:
+  web:
+    build: .
+    env_file: .env
+    ports:
+      - "8501:8501"
+    volumes:
+      - ppi_data:/app/data
+      - ppi_reports:/app/reports
+    restart: unless-stopped
+  scheduler:
+    build: .
+    command: ["sh", "-c", "PYTHONPATH=. python scripts/run_scheduler.py"]
+    env_file: .env
+    volumes:
+      - ppi_data:/app/data
+      - ppi_reports:/app/reports
+    restart: unless-stopped
+    depends_on:
+      - web
+volumes:
+  ppi_data:
+  ppi_reports:
