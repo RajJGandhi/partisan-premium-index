@@ -1,0 +1,260 @@
+import {
+  ArrowLeft,
+  ArrowRight,
+  BookOpenText,
+  CalendarClock,
+  ExternalLink,
+  FileCheck2,
+  Gauge,
+  Landmark,
+  Layers3,
+  Link2,
+  Scale,
+  ScrollText,
+} from "lucide-react";
+import { Link, useParams } from "react-router-dom";
+import { ComponentChart, MarketHistoryChart } from "../components/Charts";
+import { DataStamp } from "../components/DataStamp";
+import { MetricCard } from "../components/MetricCard";
+import { PremiumBadge } from "../components/PremiumBadge";
+import { ErrorState, LoadingState, EmptyState } from "../components/StateViews";
+import { StatusPill } from "../components/StatusPill";
+import { usePublicData } from "../hooks/usePublicData";
+import { publicData } from "../lib/data";
+import {
+  formatCompactNumber,
+  formatDateTime,
+  formatPremium,
+  formatProbability,
+  formatShortDate,
+  labelize,
+} from "../lib/format";
+
+export function MarketDetailPage() {
+  const { slug = "" } = useParams();
+  const { data, loading, error } = usePublicData(() => publicData.market(slug), [slug]);
+
+  if (loading) return <div className="shell-width page-space"><LoadingState label="Loading market profile…" /></div>;
+  if (error || !data) return <div className="shell-width page-space"><ErrorState error={error ?? new Error("Market unavailable")} /></div>;
+
+  const { market } = data;
+  const spread = market.best_bid != null && market.best_ask != null ? market.best_ask - market.best_bid : market.spread;
+
+  return (
+    <div className="shell-width page-space">
+      <Link className="back-link" to="/markets"><ArrowLeft size={16} /> Back to markets</Link>
+
+      <section className="market-hero">
+        <div className="market-hero__copy">
+          <div className="market-hero__tags">
+            <span>{market.region ?? "Global"}</span>
+            <span>{market.category ?? "Political market"}</span>
+            <StatusPill status={market.is_stale ? "STALE" : market.freshness_status} compact />
+          </div>
+          <h1>{market.question ?? "Untitled market"}</h1>
+          <p>{market.description ?? "PPI tracks the market price, independently constructed fair value, and the resulting partisan premium through time."}</p>
+          <div className="market-hero__actions">
+            {market.market_url ? <a className="button button--secondary" href={market.market_url} target="_blank" rel="noreferrer">Open market <ExternalLink size={16} /></a> : null}
+            <DataStamp generatedAt={data.generated_at} />
+          </div>
+        </div>
+        <div className="market-hero__premium">
+          <span>Current partisan premium</span>
+          <strong>{formatPremium(market.partisan_premium)}</strong>
+          <PremiumBadge value={market.partisan_premium} size="large" />
+          <p>Market probability minus the latest human-approved PPI fair value.</p>
+        </div>
+      </section>
+
+      {market.ppi_fair_value == null ? (
+        <div className="notice notice--warning">
+          <CalendarClock size={19} aria-hidden="true" />
+          <div>
+            <strong>Independent fair value awaiting publication</strong>
+            <span>The market is being observed, but no PPI fair value has been approved yet. Price and evidence history continue to accumulate.</span>
+          </div>
+        </div>
+      ) : null}
+
+      <section className="metrics-grid metrics-grid--four page-section--compact">
+        <MetricCard label="Market probability" value={formatProbability(market.market_probability)} detail={`${formatProbability(market.best_bid)} bid · ${formatProbability(market.best_ask)} ask`} icon={Landmark} />
+        <MetricCard label="PPI fair value" value={formatProbability(market.ppi_fair_value)} detail={`${market.revision_count} published revision${market.revision_count === 1 ? "" : "s"}`} icon={Scale} tone="accent" />
+        <MetricCard label="Partisan premium" value={formatPremium(market.partisan_premium)} detail="Market minus PPI" icon={Gauge} tone={market.partisan_premium != null && market.partisan_premium > 0 ? "positive" : market.partisan_premium != null && market.partisan_premium < 0 ? "negative" : "default"} />
+        <MetricCard label="Market depth" value={formatCompactNumber(market.liquidity)} detail={`${formatProbability(spread)} quoted spread`} icon={Layers3} />
+      </section>
+
+      <section className="page-section detail-grid">
+        <article className="panel panel--chart detail-grid__wide">
+          <div className="panel__header">
+            <div>
+              <div className="eyebrow">Probability history</div>
+              <h2>Market price versus PPI fair value</h2>
+              <p>Published observations only. Missing PPI values are not imputed.</p>
+            </div>
+          </div>
+          <MarketHistoryChart history={data.history} />
+        </article>
+
+        <article className="panel thesis-panel">
+          <div className="panel__header">
+            <div>
+              <div className="eyebrow">Current thesis</div>
+              <h2>Why PPI differs</h2>
+            </div>
+          </div>
+          {market.current_thesis ? <p className="thesis-copy">{market.current_thesis}</p> : <EmptyState title="No public thesis yet" description="A public thesis appears with the first approved fair-value revision." />}
+          <div className="thesis-panel__meta">
+            <span><FileCheck2 size={15} /> {market.public_evidence_count} accepted evidence items</span>
+            <span><CalendarClock size={15} /> Published {formatDateTime(market.last_fair_value_publication_at)}</span>
+          </div>
+        </article>
+      </section>
+
+      <section className="page-section detail-grid">
+        <article className="panel panel--chart detail-grid__wide">
+          <div className="panel__header">
+            <div>
+              <div className="eyebrow">Fair-value construction</div>
+              <h2>Five independent components</h2>
+              <p>Component probabilities and configured weights are visible rather than hidden inside a single model output.</p>
+            </div>
+          </div>
+          <ComponentChart components={data.components} />
+          {data.components.length ? (
+            <div className="component-list">
+              {data.components.map((component) => (
+                <div className="component-row" key={component.type}>
+                  <div>
+                    <strong>{labelize(component.type)}</strong>
+                    <span>{component.source_label ?? "Public component input"}</span>
+                  </div>
+                  <div><span>Weight</span><strong>{formatProbability(component.weight, 0)}</strong></div>
+                  <div><span>Value</span><strong>{formatProbability(component.probability)}</strong></div>
+                  {component.source_url ? <a href={component.source_url} target="_blank" rel="noreferrer" aria-label={`Open ${component.type} source`}><ExternalLink size={16} /></a> : <span />}
+                </div>
+              ))}
+            </div>
+          ) : null}
+        </article>
+
+        <article className="panel">
+          <div className="panel__header">
+            <div>
+              <div className="eyebrow">Market data</div>
+              <h2>Latest observation</h2>
+            </div>
+          </div>
+          <dl className="definition-list">
+            <div><dt>Observed</dt><dd>{formatDateTime(market.last_observed_at)}</dd></div>
+            <div><dt>Price type</dt><dd>{labelize(market.price_type)}</dd></div>
+            <div><dt>Best bid</dt><dd>{formatProbability(market.best_bid)}</dd></div>
+            <div><dt>Best ask</dt><dd>{formatProbability(market.best_ask)}</dd></div>
+            <div><dt>Spread</dt><dd>{formatProbability(spread)}</dd></div>
+            <div><dt>Volume</dt><dd>{formatCompactNumber(market.volume)}</dd></div>
+            <div><dt>Liquidity</dt><dd>{formatCompactNumber(market.liquidity)}</dd></div>
+            <div><dt>Pipeline</dt><dd><StatusPill status={market.pipeline_status} compact /></dd></div>
+          </dl>
+        </article>
+      </section>
+
+      <section className="page-section two-column-section two-column-section--balanced">
+        <article className="panel">
+          <div className="panel__header">
+            <div>
+              <div className="eyebrow">Accepted evidence</div>
+              <h2>What informed the public record</h2>
+              <p>Only evidence approved for public display is included.</p>
+            </div>
+          </div>
+          {data.evidence.length ? (
+            <div className="evidence-list">
+              {data.evidence.map((item, index) => (
+                <a className="evidence-item" href={item.url} target="_blank" rel="noreferrer" key={`${item.url}-${index}`}>
+                  <div className="evidence-item__topline">
+                    <span>{item.source_name ?? labelize(item.source_type)}</span>
+                    <span>{formatShortDate(item.published_at ?? item.discovered_at)}</span>
+                  </div>
+                  <strong>{item.title ?? "Public evidence"}</strong>
+                  {item.summary ? <p>{item.summary}</p> : null}
+                  <div className="evidence-item__tags">
+                    {item.category ? <span>{labelize(item.category)}</span> : null}
+                    {item.direction ? <span>Direction: {labelize(item.direction)}</span> : null}
+                    {item.relevance_score != null ? <span>Relevance {formatProbability(item.relevance_score, 0)}</span> : null}
+                  </div>
+                  <ExternalLink size={15} className="evidence-item__icon" />
+                </a>
+              ))}
+            </div>
+          ) : <EmptyState title="No public evidence yet" description="Approved evidence will appear here after review." />}
+        </article>
+
+        <article className="panel">
+          <div className="panel__header">
+            <div>
+              <div className="eyebrow">Revision history</div>
+              <h2>Published values are append-only</h2>
+              <p>Corrections are identified rather than silently replacing prior work.</p>
+            </div>
+          </div>
+          {data.revisions.length ? (
+            <div className="timeline">
+              {[...data.revisions].reverse().map((revision) => (
+                <div className="timeline__item" key={revision.revision_number}>
+                  <span className="timeline__dot" />
+                  <div className="timeline__topline">
+                    <strong>Revision {revision.revision_number}</strong>
+                    <span>{formatShortDate(revision.published_at)}</span>
+                  </div>
+                  <div className="timeline__change">
+                    {formatProbability(revision.previous_fair_value)} <ArrowRight size={14} /> <strong>{formatProbability(revision.fair_value)}</strong>
+                    {revision.is_correction ? <span className="mini-label">Correction</span> : null}
+                  </div>
+                  {revision.thesis ? <p>{revision.thesis}</p> : null}
+                </div>
+              ))}
+            </div>
+          ) : <EmptyState title="No revisions published" description="The first approved fair value will begin the permanent revision record." />}
+        </article>
+      </section>
+
+      <section className="page-section two-column-section two-column-section--balanced">
+        <article className="panel">
+          <div className="panel__header">
+            <div><div className="eyebrow">Resolution framework</div><h2>What exactly resolves this market</h2></div>
+          </div>
+          <div className="prose-block">
+            <h3><ScrollText size={17} /> Rules</h3>
+            <p>{market.rules ?? "The official market rules and qualifying resolution source govern the outcome."}</p>
+            <h3><BookOpenText size={17} /> Resolution source</h3>
+            <p>{market.resolution_source ?? "Official election results and the market's published resolution criteria."}</p>
+            {data.resolution ? (
+              <div className="resolution-box">
+                <StatusPill status="RESOLVED" />
+                <strong>{data.resolution.label ?? formatProbability(data.resolution.outcome)}</strong>
+                <span>{formatDateTime(data.resolution.resolved_at)}</span>
+                {data.resolution.source_url ? <a href={data.resolution.source_url} target="_blank" rel="noreferrer">Resolution source <ExternalLink size={14} /></a> : null}
+              </div>
+            ) : null}
+          </div>
+        </article>
+
+        <article className="panel">
+          <div className="panel__header">
+            <div><div className="eyebrow">Public sources</div><h2>Configured research inputs</h2></div>
+          </div>
+          {data.sources.length ? (
+            <div className="source-list">
+              {data.sources.map((source, index) => (
+                <div className="source-list__item" key={`${source.name}-${index}`}>
+                  <span className="source-list__icon"><Link2 size={16} /></span>
+                  <div><strong>{source.name ?? labelize(source.type)}</strong><span>{labelize(source.type)}</span></div>
+                  {source.url ? <a href={source.url} target="_blank" rel="noreferrer"><ExternalLink size={16} /></a> : null}
+                </div>
+              ))}
+            </div>
+          ) : <EmptyState title="No public source list" description="Source metadata will appear as the market's research pack is published." />}
+        </article>
+      </section>
+    </div>
+  );
+}

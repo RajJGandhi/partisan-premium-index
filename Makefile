@@ -1,4 +1,4 @@
-.PHONY: setup init seed demo run daily export-public scheduler test lint typecheck build validate
+.PHONY: setup init seed demo run daily export-public scheduler test lint typecheck build validate web-install web-dev web-data-check web-check web-build
 
 setup:
 	python -m venv .venv
@@ -38,3 +38,18 @@ build:
 	python -m compileall -q app scripts
 
 validate: lint typecheck test build
+
+web-install:
+	cd web && npm install
+
+web-dev:
+	cd web && npm run dev
+
+web-data-check:
+	cd web && npm run data:check
+
+web-check:
+	cd web && npm run check
+
+web-build:
+	cd web && npm run build

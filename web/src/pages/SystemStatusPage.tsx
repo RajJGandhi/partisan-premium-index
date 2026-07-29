@@ -1,0 +1,114 @@
+import { Activity, Clock3, Database, FileCheck2, ShieldCheck, TriangleAlert } from "lucide-react";
+import { DataStamp } from "../components/DataStamp";
+import { MetricCard } from "../components/MetricCard";
+import { PageHeader } from "../components/PageHeader";
+import { ErrorState, LoadingState, EmptyState } from "../components/StateViews";
+import { StatusPill } from "../components/StatusPill";
+import { usePublicData } from "../hooks/usePublicData";
+import { publicData } from "../lib/data";
+import { formatDateTime, formatDuration } from "../lib/format";
+
+export function SystemStatusPage() {
+  const { data, loading, error } = usePublicData(publicData.systemStatus, []);
+
+  if (loading) return <div className="shell-width page-space"><LoadingState label="Loading system status…" /></div>;
+  if (error || !data) return <div className="shell-width page-space"><ErrorState error={error ?? new Error("System status unavailable")} /></div>;
+
+  const latest = data.latest_run;
+  const successRate = latest?.markets_attempted
+    ? latest.markets_succeeded / latest.markets_attempted
+    : null;
+
+  return (
+    <div className="shell-width page-space">
+      <PageHeader
+        eyebrow="System status"
+        title="The public record includes its own operating health."
+        description="Recent pipeline runs, market freshness and source outcomes are published without exposing internal errors, credentials or administrative data."
+        actions={<DataStamp generatedAt={data.generated_at} />}
+      />
+
+      <section className={`status-banner status-banner--${data.status.toLowerCase()}`}>
+        <span className="status-banner__icon"><Activity size={24} /></span>
+        <div><strong>Current system status: {data.status}</strong><span>{latest ? `Latest run finished ${formatDateTime(latest.finished_at)} with ${latest.error_count} errors.` : "No production run has been published yet."}</span></div>
+        <StatusPill status={data.status} />
+      </section>
+
+      <section className="metrics-grid metrics-grid--four page-section--compact">
+        <MetricCard label="Fresh markets" value={`${data.summary.fresh_markets}/${data.summary.tracked_markets}`} detail={successRate == null ? "No run data" : `${Math.round(successRate * 100)}% latest run success`} icon={Database} tone="accent" />
+        <MetricCard label="Stale markets" value={data.summary.stale_markets} detail="Require a new valid observation" icon={Clock3} tone={data.summary.stale_markets ? "negative" : "default"} />
+        <MetricCard label="Source failures" value={data.summary.latest_source_failures} detail="In the latest published run" icon={TriangleAlert} tone={data.summary.latest_source_failures ? "negative" : "default"} />
+        <MetricCard label="Snapshots written" value={latest?.snapshots_written ?? 0} detail={`${latest?.evidence_relevant ?? 0} relevant evidence items`} icon={FileCheck2} />
+      </section>
+
+      <section className="page-section two-column-section two-column-section--balanced">
+        <article className="panel">
+          <div className="panel__header"><div><div className="eyebrow">Latest run</div><h2>Pipeline summary</h2></div></div>
+          {latest ? (
+            <dl className="definition-list definition-list--large">
+              <div><dt>Status</dt><dd><StatusPill status={latest.status} compact /></dd></div>
+              <div><dt>Trigger</dt><dd>{latest.trigger_type}</dd></div>
+              <div><dt>Started</dt><dd>{formatDateTime(latest.started_at)}</dd></div>
+              <div><dt>Duration</dt><dd>{formatDuration(latest.started_at, latest.finished_at)}</dd></div>
+              <div><dt>Markets</dt><dd>{latest.markets_succeeded}/{latest.markets_attempted}</dd></div>
+              <div><dt>Evidence discovered</dt><dd>{latest.evidence_discovered}</dd></div>
+              <div><dt>Evidence relevant</dt><dd>{latest.evidence_relevant}</dd></div>
+              <div><dt>Proposals created</dt><dd>{latest.proposals_created}</dd></div>
+              <div><dt>Errors</dt><dd>{latest.error_count}</dd></div>
+            </dl>
+          ) : <EmptyState title="No production run yet" description="The first successful scheduled workflow will populate this summary." />}
+        </article>
+
+        <article className="panel security-panel">
+          <div className="panel__header"><div><div className="eyebrow">Public architecture</div><h2>Static by design</h2></div></div>
+          <ShieldCheck size={34} />
+          <p>Visitors receive pre-generated HTML, JavaScript and sanitized JSON. Public traffic cannot trigger Python, query Supabase, run an LLM or access administration.</p>
+          <ul>
+            <li>No public database credentials</li>
+            <li>No public write endpoint</li>
+            <li>No public admin route</li>
+            <li>No per-request server computation</li>
+          </ul>
+        </article>
+      </section>
+
+      <section className="panel page-section">
+        <div className="panel__header"><div><div className="eyebrow">Recent runs</div><h2>Automation history</h2><p>The latest published execution records, newest first.</p></div></div>
+        {data.recent_runs.length ? (
+          <div className="table-scroll">
+            <table className="data-table">
+              <thead><tr><th>Run</th><th>Status</th><th>Finished</th><th>Duration</th><th>Markets</th><th>Evidence</th><th>Snapshots</th><th>Errors</th></tr></thead>
+              <tbody>{data.recent_runs.map((run) => (
+                <tr key={run.run_key}>
+                  <td><strong>{run.trigger_type}</strong><span>{run.run_key}</span></td>
+                  <td><StatusPill status={run.status} compact /></td>
+                  <td>{formatDateTime(run.finished_at)}</td>
+                  <td>{formatDuration(run.started_at, run.finished_at)}</td>
+                  <td>{run.markets_succeeded}/{run.markets_attempted}</td>
+                  <td>{run.evidence_relevant}/{run.evidence_discovered}</td>
+                  <td>{run.snapshots_written}</td>
+                  <td>{run.error_count}</td>
+                </tr>
+              ))}</tbody>
+            </table>
+          </div>
+        ) : <EmptyState title="No recent runs" description="Scheduled pipeline results will appear here." />}
+      </section>
+
+      <section className="panel page-section">
+        <div className="panel__header"><div><div className="eyebrow">Source health</div><h2>Latest adapter outcomes</h2><p>Public status only; internal error detail remains private.</p></div></div>
+        {data.latest_source_runs.length ? (
+          <div className="source-health-grid">
+            {data.latest_source_runs.map((source, index) => (
+              <article key={`${source.source_name}-${source.market_slug}-${index}`}>
+                <div><strong>{source.source_name ?? "Unnamed source"}</strong><span>{source.market_slug ?? "Global"}</span></div>
+                <StatusPill status={source.status} compact />
+                <dl><div><dt>Discovered</dt><dd>{source.items_discovered}</dd></div><div><dt>Inserted</dt><dd>{source.items_inserted}</dd></div><div><dt>Retries</dt><dd>{source.retry_count}</dd></div></dl>
+              </article>
+            ))}
+          </div>
+        ) : <EmptyState title="No source-run details" description="Adapter health appears after a production pipeline run exports public status data." />}
+      </section>
+    </div>
+  );
+}
