@@ -30,6 +30,7 @@ data/*.sqlite-wal
 data/*.sqlite3
 data/*.sqlite3-shm
 data/*.sqlite3-wal
+data/.ppi_pipeline.lock
 # Generated static public data (rebuilt by CI)
 web/public/data/
 
@@ -37,3 +38,10 @@ web/public/data/
 web/node_modules/
 web/dist/
 web/.vite/
+
+CLAUDE.local.md
+
+.claude/settings.local.json
+
+# JetBrains IDE local workspace state (machine-specific)
+.idea/

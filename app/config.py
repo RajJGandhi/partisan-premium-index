@@ -43,9 +43,13 @@ class Settings(BaseSettings):
 
     discord_webhook_url: str = ""
     app_stale_hours: int = 30
+    # Canonical schedule is 06:00 / 18:00 America/Toronto (see docs/SELF_HOSTED_RUNNER.md). GitHub
+    # Actions cron is UTC-only and does not observe DST, so these are the EDT-equivalent UTC hours;
+    # the +/-2h tolerance in app.ppi.blind_forecast.determine_run_slot absorbs the 1h EST shift
+    # (06:00 Toronto = 10:00 UTC in EDT, 11:00 UTC in EST -- both within tolerance of hour 10).
     primary_run_hour_utc: int = 10
-    backup_run_hour_utc: int = 18
-    scheduler_timezone: str = "UTC"
+    backup_run_hour_utc: int = 22
+    scheduler_timezone: str = "America/Toronto"
 
     # Existing optional integrations retained.
     kalshi_base_url: str = "https://external-api.kalshi.com/trade-api/v2"

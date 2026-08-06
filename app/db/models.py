@@ -368,6 +368,28 @@ class JobRun(Base):
     error_count: Mapped[int] = mapped_column(Integer, default=0)
     sanitized_error: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     metadata_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    llm_forecasts_attempted: Mapped[int] = mapped_column(Integer, default=0)
+    llm_forecasts_succeeded: Mapped[int] = mapped_column(Integer, default=0)
+    llm_forecasts_abstained: Mapped[int] = mapped_column(Integer, default=0)
+    llm_forecasts_failed: Mapped[int] = mapped_column(Integer, default=0)
+    llm_forecasts_skipped: Mapped[int] = mapped_column(Integer, default=0)
+    evidence_classification_failed: Mapped[int] = mapped_column(Integer, default=0)
+    # "standard_mixed_fallback_allowed": evidence classification may silently degrade to the
+    # deterministic classifier on an LLM failure (legacy/default behavior; this is what every run
+    # before this column existed used). "strict_llm_only": the canonical blind-Qwen series -- a
+    # classification or forecast failure is recorded explicitly and never masked by a fallback.
+    pipeline_mode: Mapped[str] = mapped_column(String(40), default="standard_mixed_fallback_allowed", index=True)
+    # One of: canonical, noncanonical_mixed, contaminated, failed, adhoc. Computed automatically
+    # at the end of the run (see app.ppi.run_classification.compute_run_classification) from
+    # pipeline_mode, status, trigger_type, and whether any forecast in this run pulled in
+    # non-live-classified evidence. Never hand-edited.
+    run_classification: Mapped[str] = mapped_column(String(30), default="adhoc", index=True)
+    # Set explicitly (never auto-computed) when a later run replaces this one's results for
+    # public/reporting purposes without deleting it -- e.g. a contaminated run redone cleanly
+    # under a different run_key. NULL means not superseded.
+    superseded_by_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("job_runs.id", ondelete="SET NULL"), nullable=True, index=True
+    )
 
 
 class SourceRun(Base):
@@ -390,6 +412,97 @@ class SourceRun(Base):
     items_inserted: Mapped[int] = mapped_column(Integer, default=0)
     retry_count: Mapped[int] = mapped_column(Integer, default=0)
     sanitized_error: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
+
+class LLMForecast(Base):
+    """Primary blind-LLM (Qwen) fair-value series.
+
+    Append-only per (market_id, run_slot): a scheduled run twice per day produces at most one
+    row per market per slot. A row that reached status OK is never overwritten by a later call
+    for the same slot -- only a still-pending/failed slot may be retried in place. Corrections
+    to a genuinely wrong forecast require a new run_slot, never an edit of this table.
+    """
+
+    __tablename__ = "llm_forecasts"
+    __table_args__ = (
+        UniqueConstraint("market_id", "run_slot", name="uq_llm_forecast_market_run_slot"),
+        Index("ix_llm_forecasts_market_generated", "market_id", "generated_at"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    market_id: Mapped[int] = mapped_column(ForeignKey("markets.id", ondelete="CASCADE"), index=True)
+    job_run_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("job_runs.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    run_key: Mapped[str] = mapped_column(String(150), index=True)
+    run_slot: Mapped[str] = mapped_column(String(60), index=True)
+    trigger_type: Mapped[str] = mapped_column(String(30), default="manual")
+    generated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, index=True)
+    model_provider: Mapped[str] = mapped_column(String(30))
+    model_name: Mapped[str] = mapped_column(String(100))
+    prompt_version: Mapped[str] = mapped_column(String(30))
+    prompt_hash: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    generation_params_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    evidence_ids_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    # Whether every evidence item shown to the model was itself classified by a live model, not a
+    # deterministic-fallback or failed-classification item left over from a different (possibly
+    # non-strict) run reused via content-hash dedup. Only meaningful for strict_llm_only runs;
+    # None for standard-mode forecasts. Drives the "contaminated" run classification.
+    evidence_all_live_classified: Mapped[Optional[bool]] = mapped_column(Boolean, nullable=True)
+    raw_response: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    fair_value: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    confidence: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    should_abstain: Mapped[Optional[bool]] = mapped_column(Boolean, nullable=True)
+    rationale: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    key_uncertainties_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    base_rate_notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    retries: Mapped[int] = mapped_column(Integer, default=0)
+    status: Mapped[str] = mapped_column(String(30), default="PENDING", index=True)
+    error_message: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    price_snapshot_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("market_snapshots.id", ondelete="SET NULL"), nullable=True
+    )
+    comparison_price_at_join: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    raw_ppi: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    joined_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    # Publication review layer: humans may approve a valid forecast for public display, or flag a
+    # data-quality concern, but this must never touch fair_value/confidence/rationale/etc above --
+    # the numeric primary-model forecast is edited by nobody, ever.
+    reviewed_status: Mapped[str] = mapped_column(String(30), default="UNREVIEWED", index=True)
+    reviewed_by: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    reviewed_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    review_notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
+
+class BlindIndexRun(Base):
+    """Aggregate daily index for the primary blind-LLM (Qwen) series only.
+
+    Structurally separate from ``DailyIndex``, which aggregates the legacy human-approved
+    weighted series (``MarketSnapshot.partisan_premium``, sourced from admin-entered
+    ``FairValueComponent`` rows). The two series must never be mixed into one table: this table
+    exists specifically so the blind-Qwen aggregate is never confused with, or silently
+    substituted by, the human-weighted one.
+
+    Upserted per ``run_key`` (one row per canonical job run): rerunning the exact same scheduled
+    window recomputes and overwrites this row's aggregate figures in place rather than appending
+    a duplicate, since it is a derived summary of the (immutable) ``LLMForecast`` rows for that
+    run_key, not a raw model observation itself.
+    """
+
+    __tablename__ = "blind_index_runs"
+    __table_args__ = (UniqueConstraint("run_key", name="uq_blind_index_run_key"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    job_run_id: Mapped[int] = mapped_column(ForeignKey("job_runs.id", ondelete="CASCADE"), index=True)
+    run_key: Mapped[str] = mapped_column(String(150), index=True)
+    effective_timestamp: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    market_count: Mapped[int] = mapped_column(Integer, default=0)
+    average_signed_premium: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    median_signed_premium: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    average_absolute_premium: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    model_name: Mapped[str] = mapped_column(String(100))
+    prompt_version: Mapped[str] = mapped_column(String(30))
+    generated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
 
 
 class AdminUser(Base):

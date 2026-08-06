@@ -96,12 +96,47 @@ One UTC daily run:
 4. collects and classifies evidence;
 5. proposes—but never silently publishes—fair-value changes;
 6. upserts one canonical daily market snapshot;
-7. writes the daily aggregate index;
-8. records sanitized failures;
-9. writes a durable Markdown/JSON daily digest with market movements, evidence, proposals and failures;
-10. optionally sends a compact Discord digest with a direct approval-queue link.
+7. generates the primary blind-LLM (Qwen) forecast for the market's twice-daily run slot (see `app/ppi/blind_forecast.py`), then joins it against the just-written price snapshot;
+8. writes the daily aggregate index;
+9. records sanitized failures;
+10. writes a durable Markdown/JSON daily digest with market movements, evidence, proposals and failures;
+11. optionally sends a compact Discord digest with a direct approval-queue link.
 
-The pipeline commits after each market so a process interruption preserves completed work. A forced rerun updates the same daily snapshot instead of creating duplicates.
+The pipeline commits after each market so a process interruption preserves completed work. A forced rerun updates the same daily snapshot instead of creating duplicates. The blind-forecast step runs inside a SQL SAVEPOINT per market so an unexpected forecast failure cannot abort snapshot/proposal work already committed for other markets in the same run.
+
+### `app/ppi/blind_forecast.py`
+
+The canonical, database-backed implementation of the primary Qwen-vs-Polymarket experiment described in `CLAUDE.md`. This is the convergence point between the two pipelines that previously existed in this repository:
+
+- the DB-backed `app/ppi/pipeline.py`, which computed only a human-approved weighted blend and never called an LLM;
+- the file/CSV-based `scripts/run_daily_experiment.py` + `scripts/run_llm_fair_values.py` ("Reality Spread"), which implemented a genuinely blind Ollama prompt but wrote to `data/llm_estimates/*.csv` outside the database and outside the scheduled pipeline.
+
+`blind_forecast.py` reuses the same prompt contract (`fair_value_v0.1`, documented in `prompts/fair_value_prompt_v0_1.md`) so historical CSV runs and new database runs stay comparable, but persists to the `llm_forecasts` table instead of timestamped files:
+
+- **Blindness**: `build_blind_evidence_packet` sources only `Market` identity fields and DB `EvidenceItem` rows; `assert_blind_packet` walks the packet at runtime and raises if any market-price-derived key (`comparison_price`, `yes_best_bid`, `spread`, `volume`, …) is present, so a future field addition cannot silently leak market consensus into the prompt.
+- **Twice-daily append-only history**: `determine_run_slot` maps a generation timestamp onto `"<date>:primary"`, `"<date>:backup"`, or a timestamped `"<date>:adhoc-<HHMMSS>"` slot (based on `primary_run_hour_utc`/`backup_run_hour_utc`), and `llm_forecasts` has a unique constraint on `(market_id, run_slot)`. This replaces the previous one-row-per-day `market_snapshots` semantics, which could not represent two scheduled runs per day without one overwriting the other.
+- **Immutability**: a slot already at status `OK` is returned unchanged on any later call — a valid primary-model probability is final for that run and is never edited. A slot that previously `FAILED` or was `SKIPPED_PROVIDER` may be retried in place, since it never produced a valid forecast to protect.
+- **No silent fallback**: if `llm_provider` is not `ollama` or `openai_compatible` (e.g. the production GitHub Actions workflow, which runs on a hosted runner with no Ollama reachable and sets `LLM_PROVIDER=deterministic`), the row is recorded with status `SKIPPED_PROVIDER` and an explicit `error_message` — never a fabricated or deterministic-fallback value. If the model call or JSON-schema validation fails after a bounded number of retries, the row is recorded `FAILED` with `fair_value = NULL`.
+- **Price joined after persistence**: `join_forecast_with_price` runs only after `generate_blind_forecast` has already committed the forecast row, computing `raw_ppi = polymarket_probability - llm_fair_value` from the same run's `market_snapshots` row. This preserves the "lock the forecast before price comparison" rule — the model can never see or be influenced by the price it will be compared against.
+
+`scripts/run_daily_experiment.py` and `scripts/run_llm_fair_values.py` remain in the repository as the original file-based prototype and are still useful for offline experimentation against `data/tracked_markets_final.csv`, but the scheduled production path is now `app/ppi/pipeline.py` → `app/ppi/blind_forecast.py`. Decommissioning the file-based scripts is a later-phase cleanup once the database series has enough history to be trusted as the sole source of truth.
+
+### `app/ppi/llm_forecast_view.py` and `app/ppi/llm_forecast_review.py`
+
+Read-side and review-side support for the Streamlit "LLM Forecasts" page (public) and the Administration → "LLM Forecasts" tab (admin-only):
+
+- `llm_forecast_view.py` is pure/read-only: freshness classification (`OK`/`STALE`/`ERROR`/`SKIPPED_PROVIDER`/`MISSING`) per market against `app_stale_hours`, the derived (non-native) confidence-interval heuristic used for the chart band, and the row/export shape shared by the on-screen table and the CSV download. It never writes to the database.
+- `llm_forecast_review.py` lets an authenticated admin set `LLMForecast.reviewed_status` to `APPROVED_FOR_PUBLICATION`, `FLAGGED`, or back to `UNREVIEWED`, with a reviewer identity, timestamp, and notes — this is the "humans may approve publication or flag data quality" allowance from the research-integrity rules. It is structurally incapable of touching `fair_value`, `confidence`, `should_abstain`, `rationale`, `key_uncertainties_json`, `base_rate_notes`, or `raw_response`; only the four `reviewed_*` columns are ever assigned.
+
+`LLMForecast` therefore carries two independent status concepts that must not be conflated: `status` (the generation outcome: `OK`/`ABSTAINED`/`FAILED`/`SKIPPED_PROVIDER`, set once by `generate_blind_forecast` and never edited) and `reviewed_status` (the publication-review outcome, editable by admins, defaulting to `UNREVIEWED`).
+
+### `app/ppi/lock.py`
+
+A filesystem PID-verified concurrency lock (`data/.ppi_pipeline.lock`), acquired for the duration of one `run_daily_pipeline` call. Defense in depth alongside the GitHub Actions `concurrency:` group on the scheduled workflow — that group prevents two *workflow* invocations from overlapping; this lock is the backstop for any out-of-band invocation (a manual local run, a stray second runner) that bypasses it. A stale lock (holder process no longer running) is reclaimed automatically; a lock held by a live process raises immediately rather than blocking, so a scheduled run that can't proceed fails fast and visibly (`status: "LOCKED"`, a benign non-failure outcome) instead of hanging.
+
+### `app/ppi/run_classification.py`
+
+Computes which of five base categories a `JobRun` belongs to — `canonical`, `noncanonical_mixed`, `contaminated`, `failed`, `adhoc` — from `pipeline_mode`, `status`, `trigger_type`, and whether any of the run's forecasts pulled in evidence that wasn't itself classified by a live model (`LLMForecast.evidence_all_live_classified`, set by `generate_blind_forecast`). Quality signals (mixed/contaminated) take priority over the scheduling signal (adhoc vs. canonical), so a manually-triggered strict run that turns out contaminated is reported as `contaminated`, never masked by `adhoc`. `mark_job_run_superseded` records (without deleting or editing anything) that a later run replaces an earlier one for reporting/publication purposes — used e.g. when a contaminated run is redone cleanly under a new `run_key`. Only a run that is `canonical` *and* not superseded (`is_canonical_and_current`) is ever exported as the public "latest run" — see `scripts/export_public_bundle.py`.
 
 ## Data model
 
@@ -121,6 +156,10 @@ Required production entities:
 - `job_runs`
 - `source_runs`
 - `admin_users`
+- `llm_forecasts` — the primary blind Qwen series, append-only per `(market_id, run_slot)`, kept structurally separate from `fair_value_proposals`/`fair_value_revisions` so the human-approved weighted series and the primary model series can never be mixed.
+- `blind_index_runs` — the aggregate blind-Qwen daily index (average/median/absolute signed premium, market count, model/prompt version), upserted per `run_key`, structurally separate from `daily_index` (the legacy human-weighted series' aggregate). See `app/ppi/blind_forecast.py`'s `compute_and_persist_blind_index`.
+
+`job_runs` additionally carries `pipeline_mode` (`standard_mixed_fallback_allowed` / `strict_llm_only`), `run_classification` (`canonical` / `noncanonical_mixed` / `contaminated` / `failed` / `adhoc`, computed automatically), and `superseded_by_id` (an explicit, never-automatic pointer to a later run that replaces this one for reporting purposes) — see `app/ppi/run_classification.py`.
 
 Legacy Reality Spread entities remain available for backward compatibility.
 
@@ -135,6 +174,16 @@ Legacy Reality Spread entities remain available for backward compatibility.
 - evidence and snapshot uniqueness constraints;
 - explicit `STALE`, `PARTIAL` and `FAILED` states;
 - no raw stack traces in public status views.
+
+## Production automation (self-hosted runner)
+
+`.github/workflows/ppi-daily.yml` runs the scheduled canonical pipeline on a **self-hosted runner** (`runs-on: [self-hosted, macOS, ppi]`) registered on an always-on Mac with Ollama and `qwen3:8b` installed, with `LLM_PROVIDER=ollama` and `--strict-llm-only` set explicitly in the workflow. See `docs/SELF_HOSTED_RUNNER.md` for installation, secrets, keep-awake, reboot recovery, manual retry, and how to disable scheduling safely.
+
+The workflow verifies Ollama is reachable, localhost-only (never `OLLAMA_HOST` bound beyond `127.0.0.1`), and has the model pulled *before* running the pipeline, and refuses to run at all rather than silently falling back — a missing self-hosted runner simply leaves the scheduled workflow queued (via the `ppi` runner label) instead of producing `SKIPPED_PROVIDER`/fallback-contaminated results.
+
+A previous, now-superseded design ran on a GitHub-hosted `ubuntu-latest` runner with `LLM_PROVIDER=deterministic`, since a hosted runner cannot reach a local Ollama instance; that produced `llm_forecasts.status = SKIPPED_PROVIDER` for every market. `app/db/models.py`'s `JobRun.pipeline_mode`/`run_classification` still label any such historical run `noncanonical_mixed`/`adhoc` rather than deleting it — see `app/ppi/run_classification.py`.
+
+An `LLM_PROVIDER=openai_compatible` hosted-model fallback remains available as an explicit, versioned, cost-capped option (a separately-labelled model series, never silently substituted for the primary Qwen series) if the self-hosted runner is ever unavailable for an extended period.
 
 ## Security boundary
 

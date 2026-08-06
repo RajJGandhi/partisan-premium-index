@@ -317,6 +317,8 @@ def _job_payload(job: JobRun) -> dict[str, Any]:
         "started_at": _iso(job.started_at),
         "finished_at": _iso(job.finished_at),
         "status": job.status,
+        "run_classification": job.run_classification,
+        "superseded": job.superseded_by_id is not None,
         "markets_attempted": job.markets_attempted,
         "markets_succeeded": job.markets_succeeded,
         "evidence_discovered": job.evidence_discovered,
@@ -325,6 +327,22 @@ def _job_payload(job: JobRun) -> dict[str, Any]:
         "snapshots_written": job.snapshots_written,
         "error_count": job.error_count,
     }
+
+
+def _latest_canonical_job(session: Session) -> JobRun | None:
+    """The most recent run that is safe to present as "the" authoritative latest update.
+
+    Only a run classified "canonical" (scheduled primary/backup slot, live Qwen throughout, zero
+    fallback/contamination) and not superseded by a later run qualifies. A noncanonical, mixed,
+    contaminated, failed, or adhoc run must never be presented to the public as if it were a
+    trustworthy canonical update, even if it is the most recent row in job_runs.
+    """
+    return session.scalar(
+        select(JobRun)
+        .where(JobRun.run_classification == "canonical", JobRun.superseded_by_id.is_(None))
+        .order_by(JobRun.started_at.desc())
+        .limit(1)
+    )
 
 
 def _daily_index_payload(row: DailyIndex) -> dict[str, Any]:
@@ -554,6 +572,7 @@ def build_public_bundle(session: Session, *, generated_at: datetime | None = Non
         session.scalars(select(JobRun).order_by(JobRun.started_at.desc()).limit(MAX_RECENT_RUNS))
     )
     latest_job = jobs[0] if jobs else None
+    latest_canonical_job = _latest_canonical_job(session)
     latest_source_runs: list[SourceRun] = []
     if latest_job:
         latest_source_runs = list(
@@ -616,7 +635,10 @@ def build_public_bundle(session: Session, *, generated_at: datetime | None = Non
             "share_above_fair_value": _probability(share_above),
             "methodology_label": "equal_weight_current_published_markets",
         },
-        "latest_run": _job_payload(latest_job) if latest_job else None,
+        # Only a canonical, non-superseded run is presented as "the" latest update here -- a
+        # noncanonical/contaminated/failed/adhoc run being the most recent row must never read as
+        # a trustworthy canonical refresh. See system_status.latest_run_any for full transparency.
+        "latest_run": _job_payload(latest_canonical_job) if latest_canonical_job else None,
         "largest_positive_premiums": sorted(
             published_markets,
             key=lambda item: float(item["partisan_premium"]),
@@ -666,7 +688,12 @@ def build_public_bundle(session: Session, *, generated_at: datetime | None = Non
         "schema_version": SCHEMA_VERSION,
         "generated_at": _iso(generated_at),
         "status": latest_job.status if latest_job else "NO_RUNS",
+        # Unchanged field: most recent run of any classification, for full operational
+        # transparency -- a noncanonical/contaminated/failed run must be visible here, just never
+        # presented as "the" canonical update (that's latest_canonical_run below, and
+        # overview.latest_run, which is canonical-only).
         "latest_run": _job_payload(latest_job) if latest_job else None,
+        "latest_canonical_run": _job_payload(latest_canonical_job) if latest_canonical_job else None,
         "recent_runs": [_job_payload(job) for job in jobs],
         "latest_source_runs": source_statuses,
         "summary": {

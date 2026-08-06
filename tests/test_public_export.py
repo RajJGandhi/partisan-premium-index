@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import json
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
@@ -289,6 +289,101 @@ def test_public_export_is_sanitized_and_complete(tmp_path):
     assert (output_dir / "system-status.json").exists()
     assert (output_dir / "manifest.json").exists()
     assert (output_dir / "markets" / "test-market.json").exists()
+
+
+def test_public_export_never_presents_a_noncanonical_run_as_the_latest_update(tmp_path):
+    engine = create_engine(f"sqlite:///{tmp_path / 'canonical.db'}")
+    Base.metadata.create_all(engine)
+    Session = sessionmaker(engine, expire_on_commit=False)
+    now = datetime(2026, 8, 6, 10, 0, tzinfo=timezone.utc)
+
+    with Session.begin() as session:
+        contaminated = JobRun(
+            run_key="ppi-daily:2026-08-06:strict-manual",
+            job_name="daily_pipeline",
+            trigger_type="strict-manual",
+            started_at=now,
+            finished_at=now,
+            status="OK",
+            pipeline_mode="strict_llm_only",
+            run_classification="contaminated",
+        )
+        session.add(contaminated)
+
+    with Session() as session:
+        bundle = build_public_bundle(session, generated_at=now)
+
+    # The most recent job is contaminated -- it must never be published as the authoritative
+    # "latest run", even though it's the newest row in job_runs.
+    assert bundle["overview"]["latest_run"] is None
+    assert bundle["system_status"]["latest_canonical_run"] is None
+    # But it must still be visible for operational transparency.
+    assert bundle["system_status"]["latest_run"]["run_key"] == contaminated.run_key
+    assert bundle["system_status"]["latest_run"]["run_classification"] == "contaminated"
+
+    with Session.begin() as session:
+        canonical = JobRun(
+            run_key="ppi-daily:2026-08-07:primary",
+            job_name="daily_pipeline",
+            trigger_type="primary",
+            started_at=now + timedelta(days=1),
+            finished_at=now + timedelta(days=1),
+            status="OK",
+            pipeline_mode="strict_llm_only",
+            run_classification="canonical",
+        )
+        session.add(canonical)
+
+    with Session() as session:
+        bundle = build_public_bundle(session, generated_at=now + timedelta(days=1))
+
+    assert bundle["overview"]["latest_run"]["run_key"] == canonical.run_key
+    assert bundle["system_status"]["latest_canonical_run"]["run_key"] == canonical.run_key
+    # Still transparent about the most recent run overall being a different (contaminated) one
+    # if it were more recent; here the canonical run is also the newest, so both agree.
+    assert bundle["system_status"]["latest_run"]["run_key"] == canonical.run_key
+
+
+def test_public_export_prefers_canonical_over_a_more_recent_failed_retry(tmp_path):
+    engine = create_engine(f"sqlite:///{tmp_path / 'canonical2.db'}")
+    Base.metadata.create_all(engine)
+    Session = sessionmaker(engine, expire_on_commit=False)
+    now = datetime(2026, 8, 6, 10, 0, tzinfo=timezone.utc)
+
+    with Session.begin() as session:
+        session.add(
+            JobRun(
+                run_key="ppi-daily:2026-08-06:primary",
+                job_name="daily_pipeline",
+                trigger_type="primary",
+                started_at=now,
+                finished_at=now,
+                status="OK",
+                pipeline_mode="strict_llm_only",
+                run_classification="canonical",
+            )
+        )
+        session.add(
+            JobRun(
+                run_key="ppi-daily:2026-08-06:backup",
+                job_name="daily_pipeline",
+                trigger_type="backup",
+                started_at=now + timedelta(hours=12),
+                finished_at=now + timedelta(hours=12),
+                status="FAILED",
+                pipeline_mode="strict_llm_only",
+                run_classification="failed",
+            )
+        )
+
+    with Session() as session:
+        bundle = build_public_bundle(session, generated_at=now + timedelta(hours=12))
+
+    # A later FAILED backup run must not blank out or replace the earlier canonical primary run
+    # as the public "latest" figure -- it stays visible in system_status, not promoted to overview.
+    assert bundle["overview"]["latest_run"]["run_key"] == "ppi-daily:2026-08-06:primary"
+    assert bundle["system_status"]["latest_run"]["run_key"] == "ppi-daily:2026-08-06:backup"
+    assert bundle["system_status"]["latest_run"]["status"] == "FAILED"
 
 
 def test_public_export_handles_empty_database(tmp_path):

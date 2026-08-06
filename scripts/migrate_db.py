@@ -56,6 +56,24 @@ ADDITIVE_COLUMNS = {
         "published_fair_yes": "FLOAT",
         "last_published_at": "DATETIME",
     },
+    "job_runs": {
+        "llm_forecasts_attempted": "INTEGER DEFAULT 0 NOT NULL",
+        "llm_forecasts_succeeded": "INTEGER DEFAULT 0 NOT NULL",
+        "llm_forecasts_abstained": "INTEGER DEFAULT 0 NOT NULL",
+        "llm_forecasts_failed": "INTEGER DEFAULT 0 NOT NULL",
+        "llm_forecasts_skipped": "INTEGER DEFAULT 0 NOT NULL",
+        "evidence_classification_failed": "INTEGER DEFAULT 0 NOT NULL",
+        "pipeline_mode": "VARCHAR(40) DEFAULT 'standard_mixed_fallback_allowed' NOT NULL",
+        "run_classification": "VARCHAR(30) DEFAULT 'adhoc' NOT NULL",
+        "superseded_by_id": "INTEGER",
+    },
+    "llm_forecasts": {
+        "reviewed_status": "VARCHAR(30) DEFAULT 'UNREVIEWED' NOT NULL",
+        "reviewed_by": "VARCHAR(100)",
+        "reviewed_at": "DATETIME",
+        "review_notes": "TEXT",
+        "evidence_all_live_classified": "BOOLEAN",
+    },
 }
 
 
@@ -81,6 +99,13 @@ def migrate() -> None:
             "CREATE INDEX IF NOT EXISTS ix_market_snapshots_market_date ON market_snapshots(market_id, snapshot_date)",
             "CREATE UNIQUE INDEX IF NOT EXISTS uq_markets_tracking_id_idx ON markets(tracking_id)",
             "CREATE UNIQUE INDEX IF NOT EXISTS uq_market_daily_snapshot_idx ON market_snapshots(market_id, snapshot_date, snapshot_kind)",
+            "CREATE UNIQUE INDEX IF NOT EXISTS uq_llm_forecast_market_run_slot_idx ON llm_forecasts(market_id, run_slot)",
+            "CREATE INDEX IF NOT EXISTS ix_llm_forecasts_market_generated_idx ON llm_forecasts(market_id, generated_at)",
+            "CREATE INDEX IF NOT EXISTS ix_llm_forecasts_reviewed_status_idx ON llm_forecasts(reviewed_status)",
+            "CREATE UNIQUE INDEX IF NOT EXISTS uq_blind_index_run_key_idx ON blind_index_runs(run_key)",
+            "CREATE INDEX IF NOT EXISTS ix_job_runs_pipeline_mode_idx ON job_runs(pipeline_mode)",
+            "CREATE INDEX IF NOT EXISTS ix_job_runs_run_classification_idx ON job_runs(run_classification)",
+            "CREATE INDEX IF NOT EXISTS ix_job_runs_superseded_by_id_idx ON job_runs(superseded_by_id)",
         ]
         for stmt in index_statements:
             conn.execute(text(stmt))
