@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import traceback
 from datetime import UTC, date, datetime, time, timedelta
+from pathlib import Path
 from typing import Any
 
 import requests
@@ -23,10 +24,18 @@ from app.db.models import (
     MarketSource,
     SourceRun,
 )
+from app.ppi.blind_forecast import (
+    AUTOMATED_PROVIDERS,
+    compute_and_persist_blind_index,
+    generate_blind_forecast,
+    join_forecast_with_price,
+)
 from app.ppi.digest import write_daily_digest
 from app.ppi.evidence import adapter_for, insert_and_classify_candidate
+from app.ppi.lock import PipelineLockedError, pipeline_lock
 from app.ppi.methodology import DEFAULT_WEIGHTS, compute_weighted_fair_value, partisan_premium
 from app.ppi.polymarket import TrackedPolymarketClient, price_policy, save_raw_response, update_market_from_gamma
+from app.ppi.run_classification import compute_run_classification
 
 
 def utcnow() -> datetime:
@@ -197,7 +206,9 @@ def _maybe_create_proposal(session: Session, market: Market, evidence: list[Evid
     return proposal
 
 
-def _collect_market_evidence(session: Session, job: JobRun, market: Market) -> tuple[list[EvidenceItem], int]:
+def _collect_market_evidence(
+    session: Session, job: JobRun, market: Market, *, strict: bool = False
+) -> tuple[list[EvidenceItem], int]:
     relevant_new: list[EvidenceItem] = []
     inserted_count = 0
     sources = list(
@@ -212,11 +223,13 @@ def _collect_market_evidence(session: Session, job: JobRun, market: Market) -> t
             candidates = adapter.collect(market, source) if adapter else []
             sr.items_discovered = len(candidates)
             for candidate in candidates:
-                item, inserted = insert_and_classify_candidate(session, market, source, candidate)
+                item, inserted = insert_and_classify_candidate(session, market, source, candidate, strict=strict)
                 if inserted:
                     inserted_count += 1
                     sr.items_inserted += 1
-                    if item.relevant:
+                    if item.review_status == "CLASSIFICATION_FAILED":
+                        job.evidence_classification_failed += 1
+                    elif item.relevant:
                         relevant_new.append(item)
             sr.status = "OK"
         except Exception as exc:
@@ -288,7 +301,36 @@ def _send_discord_digest(job: JobRun, digest_markdown: str | None = None) -> Non
 
 
 def run_daily_pipeline(
-    trigger_type: str = "manual", force: bool = False, run_date: date | None = None
+    trigger_type: str = "manual",
+    force: bool = False,
+    run_date: date | None = None,
+    strict_llm_only: bool = False,
+    lock_path: Path | None = None,
+) -> dict[str, Any]:
+    """Public entry point: acquires the filesystem concurrency lock, then runs the pipeline.
+
+    A locked pipeline (another run genuinely in progress) is a benign, expected outcome -- not a
+    failure -- since the GitHub Actions ``concurrency:`` group is the primary defense and normally
+    prevents this from ever being reached; this is only the backstop for an out-of-band
+    invocation. It returns status "LOCKED" without touching any JobRun row.
+
+    ``lock_path`` defaults to the real project-relative lock file; tests should pass a
+    ``tmp_path``-scoped path instead of touching actual repository state.
+    """
+    day = run_date or utcnow().date()
+    run_key = f"ppi-daily:{day.isoformat()}:{trigger_type}"
+    try:
+        with pipeline_lock(lock_path) if lock_path else pipeline_lock():
+            return _run_daily_pipeline_locked(trigger_type, force, run_date, strict_llm_only)
+    except PipelineLockedError as exc:
+        return {"status": "LOCKED", "run_key": run_key, "error": str(exc)}
+
+
+def _run_daily_pipeline_locked(
+    trigger_type: str,
+    force: bool,
+    run_date: date | None,
+    strict_llm_only: bool,
 ) -> dict[str, Any]:
     init_db()
     day = run_date or utcnow().date()
@@ -308,14 +350,41 @@ def run_daily_pipeline(
             job.markets_succeeded = 0
             job.evidence_discovered = 0
             job.evidence_relevant = 0
+            job.evidence_classification_failed = 0
             job.proposals_created = 0
             job.snapshots_written = 0
             job.error_count = 0
             job.metadata_json = None
+            job.llm_forecasts_attempted = 0
+            job.llm_forecasts_succeeded = 0
+            job.llm_forecasts_abstained = 0
+            job.llm_forecasts_failed = 0
+            job.llm_forecasts_skipped = 0
         else:
             job = JobRun(run_key=run_key, job_name="daily_pipeline", trigger_type=trigger_type)
             session.add(job)
             session.flush()
+        job.pipeline_mode = "strict_llm_only" if strict_llm_only else "standard_mixed_fallback_allowed"
+
+        # Canonical blind-Qwen series requires a real model backend for every classification and
+        # forecast. Refuse to run at all rather than silently producing SKIPPED_PROVIDER/fallback
+        # results that would contaminate a run meant to be labelled "strict_llm_only".
+        if strict_llm_only and get_settings().llm_provider not in AUTOMATED_PROVIDERS:
+            job.status = "FAILED"
+            job.sanitized_error = (
+                f"strict_llm_only requires LLM_PROVIDER in {sorted(AUTOMATED_PROVIDERS)}; "
+                f"got {get_settings().llm_provider!r}. Refusing to run to avoid producing "
+                "fallback-derived results in a run labelled strict_llm_only."
+            )
+            job.finished_at = utcnow()
+            job.run_classification = compute_run_classification(session, job, run_key)
+            session.commit()
+            return {
+                "status": job.status,
+                "run_key": run_key,
+                "job_run_id": job.id,
+                "error": job.sanitized_error,
+            }
         session.commit()
         client = TrackedPolymarketClient()
         markets = list(
@@ -381,7 +450,7 @@ def run_daily_pipeline(
                 finally:
                     sr.finished_at = utcnow()
 
-                evidence, inserted = _collect_market_evidence(session, job, market)
+                evidence, inserted = _collect_market_evidence(session, job, market, strict=strict_llm_only)
                 job.evidence_discovered += inserted
                 job.evidence_relevant += len(evidence)
                 proposal = _maybe_create_proposal(session, market, evidence)
@@ -400,14 +469,48 @@ def run_daily_pipeline(
                 else:
                     status = "OK"
                     message = "No material new evidence. Published fair value unchanged."
-                _upsert_daily_snapshot(session, market, book, evidence, proposals, status, message, stale)
+                snap = _upsert_daily_snapshot(session, market, book, evidence, proposals, status, message, stale)
                 job.snapshots_written += 1
                 if status in {"OK", "PARTIAL"}:
                     job.markets_succeeded += 1
+
+                # Primary blind-LLM (Qwen) forecast series. Generated after the human-approved
+                # weighted snapshot above, but the two never share inputs: the blind forecast
+                # never sees `book`/`snap` price data, and the price join below only runs after
+                # the forecast has already been persisted. A SAVEPOINT isolates an unexpected
+                # failure here so it cannot abort the rest of the run for other markets.
+                job.llm_forecasts_attempted += 1
+                try:
+                    with session.begin_nested():
+                        forecast = generate_blind_forecast(
+                            session,
+                            market,
+                            job=job,
+                            run_key=run_key,
+                            trigger_type=trigger_type,
+                            day=day,
+                            strict=strict_llm_only,
+                        )
+                        join_forecast_with_price(session, forecast, snap)
+                    if forecast.status == "OK":
+                        job.llm_forecasts_succeeded += 1
+                    elif forecast.status == "ABSTAINED":
+                        job.llm_forecasts_abstained += 1
+                    elif forecast.status == "SKIPPED_PROVIDER":
+                        job.llm_forecasts_skipped += 1
+                    else:
+                        job.llm_forecasts_failed += 1
+                        job.error_count += 1
+                except Exception as exc:
+                    job.llm_forecasts_failed += 1
+                    job.error_count += 1
+                    print(f"[ppi] blind forecast failed for market_id={market.id}: {_safe_error(exc)}")
+
                 session.flush()
                 session.commit()
 
             _update_daily_index(session, day)
+            compute_and_persist_blind_index(session, job, run_key)
             job.status = "OK" if job.error_count == 0 else "PARTIAL"
         except Exception as exc:
             job.status = "FAILED"
@@ -416,6 +519,7 @@ def run_daily_pipeline(
             job.metadata_json = json.dumps({"trace": traceback.format_exc(limit=4)})
         finally:
             job.finished_at = utcnow()
+            job.run_classification = compute_run_classification(session, job, run_key)
             session.flush()
             digest_markdown: str | None = None
             digest_path: str | None = None

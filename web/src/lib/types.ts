@@ -7,6 +7,10 @@ export interface JobRun {
   started_at: string | null;
   finished_at: string | null;
   status: string;
+  // One of: canonical, noncanonical_mixed, contaminated, failed, adhoc. Only "canonical" (and
+  // not superseded) runs are ever exported as overview.latest_run / system_status.latest_canonical_run.
+  run_classification: string;
+  superseded: boolean;
   markets_attempted: number;
   markets_succeeded: number;
   evidence_discovered: number;
@@ -252,6 +256,7 @@ export interface SystemStatusData {
   generated_at: string | null;
   status: string;
   latest_run: JobRun | null;
+  latest_canonical_run: JobRun | null;
   recent_runs: JobRun[];
   latest_source_runs: SourceRun[];
   summary: {

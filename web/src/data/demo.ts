@@ -174,12 +174,14 @@ const indexHistory = [
 }));
 
 const latestRun = {
-  run_key: "ppi-daily:2026-07-29:github-1535",
+  run_key: "ppi-daily:2026-07-29:primary",
   job_name: "ppi-daily",
-  trigger_type: "github-1535",
+  trigger_type: "primary",
   started_at: "2026-07-29T15:34:02Z",
   finished_at: now,
   status: "OK",
+  run_classification: "canonical",
+  superseded: false,
   markets_attempted: 12,
   markets_succeeded: 12,
   evidence_discovered: 20,
@@ -442,14 +444,15 @@ export const demoSystemStatus: SystemStatusData = {
   generated_at: now,
   status: "OK",
   latest_run: latestRun,
+  latest_canonical_run: latestRun,
   recent_runs: [
     latestRun,
     {
       ...latestRun,
-      run_key: "ppi-daily:2026-07-29:github-1017",
-      trigger_type: "github-1017",
-      started_at: "2026-07-29T10:17:02Z",
-      finished_at: "2026-07-29T10:18:10Z",
+      run_key: "ppi-daily:2026-07-29:backup",
+      trigger_type: "backup",
+      started_at: "2026-07-29T22:17:02Z",
+      finished_at: "2026-07-29T22:18:10Z",
       evidence_discovered: 18,
       evidence_relevant: 12,
     },

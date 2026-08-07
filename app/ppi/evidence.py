@@ -9,13 +9,15 @@ from typing import Any
 from urllib.parse import quote_plus
 
 import feedparser
+import requests
+from pydantic import ValidationError
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 from tenacity import retry, stop_after_attempt, wait_exponential
 
 from app.config import get_settings
 from app.db.models import EvidenceItem, Market, MarketSource
-from app.ppi.classifier import classify_with_fallback
+from app.ppi.classifier import classify_with_fallback, get_classifier
 from app.ppi.security import canonicalize_url, safe_get, validate_external_url
 
 
@@ -225,8 +227,24 @@ def market_aliases(market: Market) -> list[str]:
 
 
 def insert_and_classify_candidate(
-    session: Session, market: Market, source: MarketSource | None, candidate: EvidenceCandidate
+    session: Session,
+    market: Market,
+    source: MarketSource | None,
+    candidate: EvidenceCandidate,
+    *,
+    strict: bool = False,
 ) -> tuple[EvidenceItem, bool]:
+    """Insert a discovered evidence candidate, classifying it via the configured provider.
+
+    ``strict=False`` (default): the legacy/standard behavior. A classifier failure silently
+    degrades to ``DeterministicClassifier`` via ``classify_with_fallback`` so the pipeline never
+    crashes on a bad model response; the item is still inserted and usable.
+
+    ``strict=True``: the canonical blind-Qwen-only mode. A classifier failure is recorded as an
+    explicit, incomplete ``CLASSIFICATION_FAILED`` item -- ``relevant`` stays ``None`` rather than
+    being silently answered by the deterministic classifier. Never mix strict and non-strict
+    results into one "canonical" claim; ``JobRun.pipeline_mode`` records which mode produced them.
+    """
     canonical = canonicalize_url(candidate.url) if candidate.url else None
     digest = evidence_hash(candidate.title, canonical, candidate.content_text)
     existing = session.scalar(
@@ -234,19 +252,51 @@ def insert_and_classify_candidate(
     )
     if existing:
         return existing, False
-    classification, fallback_warning = classify_with_fallback(
-        {
-            "market_question": market.question,
-            "resolution_criteria": market.rules or "",
-            "aliases": market_aliases(market),
-            "title": candidate.title,
-            "content_text": candidate.content_text or "",
-            "url": canonical or "",
-            "source_name": candidate.source_name,
-            "published_at": candidate.published_at.isoformat() if candidate.published_at else None,
-        }
-    )
-    provider = get_settings().llm_provider if not fallback_warning else "deterministic_fallback"
+
+    payload = {
+        "market_question": market.question,
+        "resolution_criteria": market.rules or "",
+        "aliases": market_aliases(market),
+        "title": candidate.title,
+        "content_text": candidate.content_text or "",
+        "url": canonical or "",
+        "source_name": candidate.source_name,
+        "published_at": candidate.published_at.isoformat() if candidate.published_at else None,
+    }
+    settings = get_settings()
+
+    if strict:
+        try:
+            classification = get_classifier().classify(payload)
+        except (ValidationError, ValueError, KeyError, requests.RequestException) as exc:
+            item = EvidenceItem(
+                market_id=market.id,
+                market_source_id=source.id if source else None,
+                source_type=candidate.source_type,
+                source_name=candidate.source_name,
+                title=candidate.title,
+                canonical_url=canonical,
+                original_url=candidate.url,
+                published_at=candidate.published_at,
+                content_text=candidate.content_text,
+                normalized_title=normalize_title(candidate.title),
+                content_hash=digest,
+                raw_json=json.dumps(candidate.raw or {}, ensure_ascii=False, default=str),
+                relevant=None,
+                needs_human_review=True,
+                reason=f"Live classification failed in strict mode; no fallback was used: {type(exc).__name__}: {exc}",
+                classifier_provider="ollama_failed",
+                classifier_model=settings.llm_model,
+                review_status="CLASSIFICATION_FAILED",
+            )
+            session.add(item)
+            session.flush()
+            return item, True
+        provider, fallback_warning = settings.llm_provider, None
+    else:
+        classification, fallback_warning = classify_with_fallback(payload)
+        provider = settings.llm_provider if not fallback_warning else "deterministic_fallback"
+
     item = EvidenceItem(
         market_id=market.id,
         market_source_id=source.id if source else None,
@@ -271,7 +321,7 @@ def insert_and_classify_candidate(
         reason=classification.reason + ((" " + fallback_warning) if fallback_warning else ""),
         needs_human_review=classification.needs_human_review,
         classifier_provider=provider,
-        classifier_model=get_settings().llm_model if provider != "deterministic" else "rules-v1",
+        classifier_model=settings.llm_model if provider != "deterministic" else "rules-v1",
         classifier_raw_json=classification.model_dump_json(),
         review_status="PENDING" if classification.needs_human_review else "AUTO_ACCEPTED",
     )

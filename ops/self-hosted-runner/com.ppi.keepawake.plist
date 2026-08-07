@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Keeps this Mac from sleeping so the GitHub Actions self-hosted runner (installed separately via
+  actions-runner's own svc.sh, which manages its own launchd entry) stays reachable for scheduled
+  workflow dispatches at any hour. Independent of the runner's own service so the two can be
+  installed, started, and stopped separately. See docs/SELF_HOSTED_RUNNER.md.
+
+  -d: prevent display sleep, -i: prevent idle sleep, -s: prevent system sleep on AC power,
+  -w waits on nothing here since this runs indefinitely (KeepAlive restarts it if it ever exits).
+-->
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.ppi.keepawake</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/usr/bin/caffeinate</string>
+        <string>-dis</string>
+    </array>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <true/>
+    <key>StandardOutPath</key>
+    <string>__LOG_DIR__/keepawake.log</string>
+    <key>StandardErrorPath</key>
+    <string>__LOG_DIR__/keepawake.log</string>
+    <key>ProcessType</key>
+    <string>Background</string>
+</dict>
+</plist>

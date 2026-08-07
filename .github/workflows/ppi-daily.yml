@@ -1,17 +1,42 @@
 name: PPI Production Pipeline
 
+# Canonical schedule is 06:00 / 18:00 America/Toronto, executed on the self-hosted runner (see
+# docs/SELF_HOSTED_RUNNER.md). GitHub Actions `schedule:` cron is UTC-only and does not observe
+# DST, so this uses the standard workaround: one cron entry per possible UTC offset (EDT/EST),
+# and the "Determine run slot" step below checks the *real* Toronto local time before doing
+# anything -- a cron firing at the "wrong" offset for the current season is a clean no-op, never
+# a duplicate or a mis-timed run. This never fabricates a timestamp; it only decides whether to
+# proceed, using the machine's actual current time throughout.
 on:
   workflow_dispatch:
     inputs:
+      slot:
+        description: "Which scheduled observation this run represents"
+        required: true
+        default: "adhoc"
+        type: choice
+        options:
+          - primary
+          - backup
+          - adhoc
+      force:
+        description: "Force a retry even if this slot's run already completed (idempotent: reuses the same run_key, never duplicates immutable results)"
+        required: true
+        default: false
+        type: boolean
       run_pipeline:
-        description: "Run market collection before rebuilding the website"
+        description: "Run the canonical pipeline before rebuilding the public site (turn off to only re-export/rebuild/redeploy)"
         required: true
         default: true
         type: boolean
 
   schedule:
-    - cron: "17 10 * * *"
-    - cron: "17 18 * * *"
+    # Primary: 06:00 America/Toronto -> 10:00 UTC (EDT) or 11:00 UTC (EST).
+    - cron: "0 10 * * *"
+    - cron: "0 11 * * *"
+    # Backup: 18:00 America/Toronto -> 22:00 UTC (EDT) or 23:00 UTC (EST).
+    - cron: "0 22 * * *"
+    - cron: "0 23 * * *"
 
   push:
     branches:
@@ -31,19 +56,78 @@ concurrency:
 
 jobs:
   build-and-deploy:
-    name: Update data and deploy public site
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
+    name: Run canonical pipeline and deploy public site
+    # Self-hosted runner on the always-on Mac: only this machine can reach the local Ollama
+    # instance the canonical blind-Qwen series requires. See docs/SELF_HOSTED_RUNNER.md for
+    # installation. Label "ppi" is set at runner registration time.
+    runs-on: [self-hosted, macOS, ppi]
+    timeout-minutes: 45
 
     env:
       APP_ENV: production
       DATABASE_URL: ${{ secrets.DATABASE_URL }}
-      LLM_PROVIDER: deterministic
+      LLM_PROVIDER: ollama
+      LLM_MODEL: qwen3:8b
       GDELT_ENABLED: "false"
 
     steps:
       - name: Check out repository
         uses: actions/checkout@v6
+
+      - name: Determine run slot
+        id: slot
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" = "push" ]; then
+            echo "slot=none" >> "$GITHUB_OUTPUT"
+            echo "should_run_pipeline=false" >> "$GITHUB_OUTPUT"
+            echo "Push-triggered run: re-export/rebuild/redeploy only, no pipeline run."
+            exit 0
+          fi
+
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            SLOT="${{ inputs.slot }}"
+            if [ "${{ inputs.run_pipeline }}" != "true" ]; then
+              echo "slot=$SLOT" >> "$GITHUB_OUTPUT"
+              echo "should_run_pipeline=false" >> "$GITHUB_OUTPUT"
+              echo "workflow_dispatch with run_pipeline=false: re-export/rebuild/redeploy only."
+              exit 0
+            fi
+            echo "slot=$SLOT" >> "$GITHUB_OUTPUT"
+            echo "should_run_pipeline=true" >> "$GITHUB_OUTPUT"
+            echo "Manual dispatch: slot=$SLOT (explicit, not time-gated)."
+            exit 0
+          fi
+
+          # Scheduled run: verify the *real* current Toronto local time actually matches the
+          # slot this cron entry represents before proceeding. TZ database on macOS handles DST
+          # correctly; this is the only source of truth, never the cron expression alone.
+          TORONTO_HOUR=$(TZ="America/Toronto" date +%H)
+          SCHEDULE="${{ github.event.schedule }}"
+
+          if [ "$SCHEDULE" = "0 10 * * *" ] || [ "$SCHEDULE" = "0 11 * * *" ]; then
+            SLOT=primary
+            EXPECTED_HOUR=06
+          elif [ "$SCHEDULE" = "0 22 * * *" ] || [ "$SCHEDULE" = "0 23 * * *" ]; then
+            SLOT=backup
+            EXPECTED_HOUR=18
+          else
+            SLOT=adhoc
+            EXPECTED_HOUR=""
+          fi
+
+          if [ -z "$EXPECTED_HOUR" ]; then
+            SHOULD_RUN=true
+          elif [ "$TORONTO_HOUR" = "$EXPECTED_HOUR" ]; then
+            SHOULD_RUN=true
+          else
+            SHOULD_RUN=false
+          fi
+
+          echo "slot=$SLOT" >> "$GITHUB_OUTPUT"
+          echo "should_run_pipeline=$SHOULD_RUN" >> "$GITHUB_OUTPUT"
+          echo "cron='$SCHEDULE' slot=$SLOT toronto_hour=$TORONTO_HOUR expected=$EXPECTED_HOUR should_run=$SHOULD_RUN"
 
       - name: Set up Python
         uses: actions/setup-python@v6
@@ -72,15 +156,42 @@ jobs:
         run: |
           PYTHONPATH=. python scripts/seed_production_markets.py
 
-      - name: Run scheduled PPI pipeline
-        if: >-
-          github.event_name == 'schedule' ||
-          (github.event_name == 'workflow_dispatch' && inputs.run_pipeline)
+      - name: Verify Ollama is reachable, local-only, and has the model
+        if: steps.slot.outputs.should_run_pipeline == 'true'
+        shell: bash
         run: |
-          PYTHONPATH=. python scripts/run_ppi_daily.py \
-            --trigger "github-${GITHUB_RUN_ID}"
+          set -euo pipefail
+          # Ollama must never be exposed beyond localhost. OLLAMA_HOST is unset by default,
+          # which binds to 127.0.0.1 only; refuse to proceed if it has been widened.
+          if [ -n "${OLLAMA_HOST:-}" ] && [[ "$OLLAMA_HOST" != "127.0.0.1"* ]] && [[ "$OLLAMA_HOST" != "localhost"* ]]; then
+            echo "::error::OLLAMA_HOST='$OLLAMA_HOST' is not localhost-only. Refusing to run the canonical pipeline."
+            exit 1
+          fi
+          if ! curl -sf --max-time 5 http://127.0.0.1:11434/api/tags > /dev/null; then
+            echo "::error::Ollama is not reachable at http://127.0.0.1:11434. Is 'ollama serve' running? See docs/SELF_HOSTED_RUNNER.md."
+            exit 1
+          fi
+          if ! curl -s http://127.0.0.1:11434/api/tags | grep -q "${LLM_MODEL}"; then
+            echo "::error::${LLM_MODEL} is not pulled. Run: ollama pull ${LLM_MODEL}"
+            exit 1
+          fi
+          echo "Ollama reachable at localhost with ${LLM_MODEL} available."
 
-      - name: Export sanitized public data
+      - name: Run canonical strict-LLM-only pipeline
+        if: steps.slot.outputs.should_run_pipeline == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          FORCE_FLAG=""
+          if [ "${{ inputs.force }}" = "true" ]; then
+            FORCE_FLAG="--force"
+          fi
+          PYTHONPATH=. python scripts/run_ppi_daily.py \
+            --trigger "${{ steps.slot.outputs.slot }}" \
+            --strict-llm-only \
+            $FORCE_FLAG
+
+      - name: Export sanitized public data (canonical runs only)
         run: |
           PYTHONPATH=. python scripts/export_public_bundle.py
 
@@ -98,9 +209,9 @@ jobs:
           set -euo pipefail
 
           if grep -RniE \
-            'postgresql://|postgres://|DATABASE_URL|SESSION_SECRET|PASSWORD_HASH|\$2[aby]\$' \
+            'postgresql://|postgres://|DATABASE_URL|SESSION_SECRET|PASSWORD_HASH|\$2[aby]\$|ollama|11434' \
             web/dist; then
-            echo "::error::Potential secret marker found in web/dist"
+            echo "::error::Potential secret or internal-endpoint marker found in web/dist"
             exit 1
           fi
 
@@ -115,3 +226,39 @@ jobs:
           npx wrangler pages deploy dist \
             --project-name=partisan-premium-index \
             --branch=main
+
+      - name: Write run summary
+        if: always()
+        shell: bash
+        run: |
+          {
+            echo "## PPI pipeline run"
+            echo ""
+            echo "- Event: \`${{ github.event_name }}\`"
+            echo "- Slot: \`${{ steps.slot.outputs.slot }}\`"
+            echo "- Pipeline executed: \`${{ steps.slot.outputs.should_run_pipeline }}\`"
+            echo "- Result: \`${{ job.status }}\`"
+            echo ""
+            if [ "${{ job.status }}" != "success" ]; then
+              echo "Failed or cancelled. GitHub sends a native failure notification to watchers of this repository."
+              echo ""
+              echo "Manual retry:"
+              echo '```bash'
+              echo "gh workflow run ppi-daily.yml -f slot=${{ steps.slot.outputs.slot }} -f force=true"
+              echo '```'
+              echo ""
+              echo "See docs/SELF_HOSTED_RUNNER.md \"Manual retry procedure\" for details, including how"
+              echo "the backup slot remains a distinct observation rather than silently replacing a"
+              echo "failed primary run."
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload failure diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ppi-failure-diagnostics-${{ github.run_id }}
+          path: |
+            reports/ppi_daily_digest_latest.md
+          retention-days: 14
+          if-no-files-found: ignore

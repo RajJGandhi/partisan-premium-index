@@ -18,6 +18,7 @@ from app.db.models import (
     FairValueProposal,
     FairValueRevision,
     JobRun,
+    LLMForecast,
     Market,
     MarketSnapshot,
     MarketSource,
@@ -25,9 +26,19 @@ from app.db.models import (
     SourceRun,
 )
 from app.ppi.evidence import EvidenceCandidate, insert_and_classify_candidate
+from app.ppi.llm_forecast_review import set_llm_forecast_review_status
+from app.ppi.llm_forecast_view import (
+    FRESHNESS_OK,
+    build_forecast_rows,
+    classify_forecast_freshness,
+    evidence_items_for_forecast,
+    forecast_rows_to_export_dataframe,
+    latest_forecast_by_market,
+)
 from app.ppi.methodology import DEFAULT_WEIGHTS, validate_weights
 from app.ppi.pipeline import run_daily_pipeline
 from app.ppi.publication import publish_proposal, reject_proposal, resolve_market
+from app.ppi.run_classification import is_canonical_and_current
 from app.ppi.security import (
     validate_external_url,
     verify_password,
@@ -76,6 +87,30 @@ def safe_json(value, fallback):
         return json.loads(value or "")
     except Exception:
         return fallback
+
+
+CLASSIFICATION_LABELS = {
+    "canonical": "Canonical",
+    "noncanonical_mixed": "Noncanonical (mixed fallback)",
+    "contaminated": "Contaminated",
+    "failed": "Failed",
+    "adhoc": "Adhoc",
+}
+CLASSIFICATION_HELP = (
+    "Canonical: scheduled primary/backup run, live Qwen for every classification and forecast, "
+    "zero fallback or contamination -- safe to publish. "
+    "Noncanonical (mixed fallback): evidence classification may have silently used the "
+    "deterministic classifier. "
+    "Contaminated: a strict run whose evidence packet included an item classified by something "
+    "other than a live model (reused via dedup from a different run). "
+    "Failed: did not complete. "
+    "Adhoc: a real, live manual/verification run outside the twice-daily schedule."
+)
+
+
+def classification_label(job) -> str:
+    label = CLASSIFICATION_LABELS.get(job.run_classification, job.run_classification)
+    return f"{label} (superseded)" if job.superseded_by_id else label
 
 
 def latest_daily_snapshots(session):
@@ -134,6 +169,7 @@ pages = [
     "Overview",
     "Markets",
     "Market detail",
+    "LLM Forecasts",
     "Track record",
     "Methodology",
     "System status",
@@ -433,6 +469,237 @@ with get_session() as session:
                     if item.canonical_url:
                         st.link_button("Open source", item.canonical_url)
 
+    elif page == "LLM Forecasts":
+        st.header("Primary blind-LLM (Qwen) forecast history")
+        st.caption(
+            "Every row is an immutable, append-only observation from the primary blind-LLM series — "
+            "at most one per market per twice-daily run slot. The model never sees Polymarket prices "
+            "when it generates a forecast; the Polymarket price and PPI-gap columns below are attached "
+            "only after the forecast row was already stored, and read “not yet joined” until then."
+        )
+
+        all_markets = list(session.scalars(select(Market).order_by(Market.question)))
+        markets_by_id = {m.id: m for m in all_markets}
+        all_forecasts = list(session.scalars(select(LLMForecast).order_by(desc(LLMForecast.generated_at))))
+
+        enabled_markets = [m for m in all_markets if m.enabled]
+        latest_by_market = latest_forecast_by_market(all_forecasts)
+        freshness_counts: dict[str, int] = {}
+        problem_rows = []
+        for m in enabled_markets:
+            state = classify_forecast_freshness(
+                latest_by_market.get(m.id), stale_hours=float(settings.app_stale_hours)
+            )
+            freshness_counts[state] = freshness_counts.get(state, 0) + 1
+            if state != FRESHNESS_OK:
+                latest = latest_by_market.get(m.id)
+                problem_rows.append(
+                    {
+                        "Market": m.question,
+                        "State": state,
+                        "Latest slot": latest.run_slot if latest else "—",
+                        "Latest generation status": latest.status if latest else "—",
+                        "Reason": (latest.error_message if latest else None) or "No forecast has ever been generated.",
+                    }
+                )
+        problem_count = sum(v for k, v in freshness_counts.items() if k != FRESHNESS_OK)
+        if problem_count:
+            st.warning(
+                f"{problem_count} of {len(enabled_markets)} tracked market(s) lack a fresh, successful "
+                f"blind-LLM forecast — breakdown: {freshness_counts}."
+            )
+            with st.expander("Markets needing attention", expanded=False):
+                st.dataframe(pd.DataFrame(problem_rows), use_container_width=True, hide_index=True)
+        elif enabled_markets:
+            st.success("Every tracked market has a fresh, successful blind-LLM forecast.")
+
+        st.subheader("History")
+        market_options = {"All markets": None}
+        market_options.update({f"{m.tracking_id or m.id} · {m.question}": m.id for m in all_markets})
+        f1, f2, f3 = st.columns([2, 2, 1.4])
+        selected_market_label = f1.selectbox("Market", list(market_options), key="llm_forecast_market_filter")
+        selected_market_id = market_options[selected_market_label]
+
+        filtered = (
+            all_forecasts
+            if selected_market_id is None
+            else [f for f in all_forecasts if f.market_id == selected_market_id]
+        )
+
+        if filtered:
+            available_dates = [f.generated_at.date() for f in filtered]
+            min_date, max_date = min(available_dates), max(available_dates)
+        else:
+            min_date = max_date = utcnow().date()
+        date_range = f2.date_input(
+            "Date range (UTC)",
+            value=(min_date, max_date),
+            min_value=min_date,
+            max_value=max_date,
+            key="llm_forecast_date_filter",
+        )
+        start_date, end_date = date_range if isinstance(date_range, tuple) and len(date_range) == 2 else (date_range, date_range)
+        filtered = [f for f in filtered if start_date <= f.generated_at.date() <= end_date]
+
+        status_options = sorted({f.status for f in filtered})
+        status_filter = f3.multiselect("Generation status", status_options, key="llm_forecast_status_filter")
+        if status_filter:
+            filtered = [f for f in filtered if f.status in status_filter]
+
+        filtered.sort(key=lambda f: f.generated_at, reverse=True)
+        rows = build_forecast_rows(filtered, markets_by_id)
+
+        run_keys = {f.run_key for f in filtered}
+        jobs_by_run_key = {
+            j.run_key: j
+            for j in session.scalars(select(JobRun).where(JobRun.run_key.in_(run_keys)))
+        }
+
+        display_df = pd.DataFrame(
+            [
+                {
+                    "Market": r.market_label,
+                    "Run slot": r.run_slot,
+                    "Run classification": (
+                        classification_label(jobs_by_run_key[forecast.run_key])
+                        if forecast.run_key in jobs_by_run_key
+                        else "Unknown"
+                    ),
+                    "Generated (UTC)": r.generated_at,
+                    "Generation status": r.generation_status,
+                    "Publication status": r.reviewed_status,
+                    "Fair value": pct(r.fair_value),
+                    "Confidence": pct(r.confidence),
+                    "Approx. interval": (
+                        f"{pct(r.interval_low)} – {pct(r.interval_high)}" if r.interval_low is not None else "—"
+                    ),
+                    "Abstained": r.should_abstain,
+                    "Model": r.model_name,
+                    "Prompt version": r.prompt_version,
+                    "Retries": r.retries,
+                    "Polymarket price": pct(r.comparison_price_at_join) if r.joined_at else "not yet joined",
+                    "PPI gap (raw)": pct(r.raw_ppi, True) if r.joined_at else "not yet joined",
+                }
+                for r, forecast in zip(rows, filtered, strict=True)
+            ]
+        )
+        st.dataframe(display_df, use_container_width=True, hide_index=True)
+        st.caption(
+            "“Approx. interval” is a derived visual band from the model’s self-reported confidence score "
+            "(half-width = (1 − confidence) / 2), not a statistical confidence interval the model produced."
+        )
+
+        export_df = forecast_rows_to_export_dataframe(rows)
+        st.download_button(
+            "Download filtered history (CSV)",
+            data=export_df.to_csv(index=False).encode("utf-8"),
+            file_name=f"llm_forecasts_{selected_market_id or 'all'}_{start_date}_{end_date}.csv",
+            mime="text/csv",
+            disabled=export_df.empty,
+        )
+
+        st.subheader("Historical probability")
+        if selected_market_id is None:
+            st.info("Select a single market above to see its historical probability chart.")
+        elif not rows:
+            st.info("No forecasts in the selected range.")
+        else:
+            chart_rows = sorted(rows, key=lambda r: r.generated_at)
+            fig = go.Figure()
+            band_rows = [r for r in chart_rows if r.interval_low is not None and r.interval_high is not None]
+            if band_rows:
+                fig.add_trace(
+                    go.Scatter(
+                        x=[r.generated_at for r in band_rows] + [r.generated_at for r in band_rows][::-1],
+                        y=[r.interval_high for r in band_rows] + [r.interval_low for r in band_rows][::-1],
+                        fill="toself",
+                        fillcolor="rgba(124,58,237,0.12)",
+                        line=dict(width=0),
+                        name="Approx. confidence band",
+                        hoverinfo="skip",
+                    )
+                )
+            fig.add_trace(
+                go.Scatter(
+                    x=[r.generated_at for r in chart_rows],
+                    y=[r.fair_value for r in chart_rows],
+                    name="Blind LLM fair value",
+                    mode="lines+markers",
+                )
+            )
+            joined_rows = [r for r in chart_rows if r.joined_at is not None]
+            if joined_rows:
+                fig.add_trace(
+                    go.Scatter(
+                        x=[r.generated_at for r in joined_rows],
+                        y=[r.comparison_price_at_join for r in joined_rows],
+                        name="Polymarket price (at join)",
+                        mode="lines+markers",
+                    )
+                )
+            fig.update_yaxes(tickformat=".0%", range=[0, 1])
+            fig.update_layout(height=420, margin=dict(l=10, r=10, t=30, b=10), legend_orientation="h")
+            st.plotly_chart(fig, use_container_width=True)
+
+        st.subheader("Forecast detail")
+        detail_limit = 100
+        if len(rows) > detail_limit:
+            st.caption(
+                f"Showing detail for the most recent {detail_limit} of {len(rows)} matching rows. "
+                "Use CSV export above for the full filtered set."
+            )
+        for row, forecast in list(zip(rows, filtered, strict=True))[:detail_limit]:
+            abstain_note = " · ABSTAINED" if row.should_abstain else ""
+            with st.expander(f"{row.market_label} · {row.run_slot} · {row.generation_status}{abstain_note}"):
+                c1, c2 = st.columns(2)
+                with c1:
+                    if row.fair_value is not None:
+                        st.markdown(
+                            f"**Fair value:** {pct(row.fair_value)}  \n**Confidence:** {pct(row.confidence)}  \n"
+                            f"**Approx. interval (derived, not model-native):** {pct(row.interval_low)} – {pct(row.interval_high)}"
+                        )
+                    else:
+                        st.info("No parsed forecast value for this row.")
+                    st.markdown(
+                        f"**Model version:** {row.model_name}  \n**Prompt version:** {row.prompt_version}  \n"
+                        f"**Retries:** {row.retries}  \n**Generated (UTC):** {row.generated_at}"
+                    )
+                    st.markdown(f"**Publication status:** {row.reviewed_status}")
+                    if forecast.reviewed_by:
+                        st.caption(
+                            f"Reviewed by {forecast.reviewed_by} at {forecast.reviewed_at} — "
+                            f"{forecast.review_notes or 'no notes'}"
+                        )
+                with c2:
+                    if row.joined_at:
+                        st.markdown(
+                            f"**Polymarket price (at join):** {pct(row.comparison_price_at_join)}  \n"
+                            f"**Raw PPI gap:** {pct(row.raw_ppi, True)}  \n**Joined (UTC):** {row.joined_at}"
+                        )
+                    else:
+                        st.info("Not yet joined to a Polymarket price snapshot.")
+                    if row.error_message:
+                        st.error(row.error_message)
+                if row.rationale:
+                    st.markdown(f"**Rationale:** {row.rationale}")
+                if row.key_uncertainties:
+                    st.markdown("**Key uncertainties:** " + "; ".join(row.key_uncertainties))
+                if row.base_rate_notes:
+                    st.markdown(f"**Base rate notes:** {row.base_rate_notes}")
+                evidence = evidence_items_for_forecast(session, forecast)
+                if evidence:
+                    st.markdown("**Evidence considered (with timestamps):**")
+                    for item in evidence:
+                        published = (
+                            item.published_at.strftime("%Y-%m-%d %H:%M UTC") if item.published_at else "undated"
+                        )
+                        discovered = (
+                            item.discovered_at.strftime("%Y-%m-%d %H:%M UTC") if item.discovered_at else "—"
+                        )
+                        st.caption(f"· {item.title} — published {published}, discovered {discovered}")
+                else:
+                    st.caption("No evidence items were referenced at generation time.")
+
     elif page == "Track record":
         predictions = list(session.scalars(select(Prediction).order_by(desc(Prediction.initial_publication_at))))
         resolved = [p for p in predictions if p.status == "RESOLVED"]
@@ -532,6 +799,18 @@ with get_session() as session:
             if digest_markdown:
                 with st.expander("Latest daily digest", expanded=False):
                     st.markdown(digest_markdown)
+
+        st.subheader("Run classification")
+        st.caption(CLASSIFICATION_HELP)
+        counts: dict[str, int] = {}
+        for j in jobs:
+            counts[j.run_classification] = counts.get(j.run_classification, 0) + 1
+        cols = st.columns(len(CLASSIFICATION_LABELS))
+        for col, (key, label) in zip(cols, CLASSIFICATION_LABELS.items(), strict=True):
+            col.metric(label, counts.get(key, 0))
+        canonical_current = sum(1 for j in jobs if is_canonical_and_current(j))
+        st.caption(f"{canonical_current} run(s) among the last {len(jobs)} are canonical and not superseded.")
+
         st.subheader("Job history")
         st.dataframe(
             pd.DataFrame(
@@ -542,8 +821,11 @@ with get_session() as session:
                         "Started": j.started_at,
                         "Finished": j.finished_at,
                         "Status": j.status,
+                        "Classification": classification_label(j),
+                        "Superseded by": j.superseded_by_id,
                         "Markets": f"{j.markets_succeeded}/{j.markets_attempted}",
                         "Evidence": j.evidence_discovered,
+                        "Evidence classification failed": j.evidence_classification_failed,
                         "Proposals": j.proposals_created,
                         "Errors": j.error_count,
                         "Error summary": j.sanitized_error,
@@ -595,6 +877,7 @@ with get_session() as session:
                 "Pipeline",
                 "Resolve",
                 "Failures",
+                "LLM Forecasts",
             ]
         )
         markets = list(session.scalars(select(Market).order_by(Market.question)))
@@ -1056,3 +1339,70 @@ with get_session() as session:
                 use_container_width=True,
                 hide_index=True,
             )
+
+        with tabs[8]:
+            st.write(
+                "Review actions here only set a publication/flag status and a reviewer note. "
+                "The forecast itself — fair value, confidence, rationale, evidence — is the immutable "
+                "output of the blind model call and is never editable from this screen."
+            )
+            review_filter = st.selectbox(
+                "Show",
+                ["UNREVIEWED", "APPROVED_FOR_PUBLICATION", "FLAGGED", "All"],
+                key="llm_review_filter",
+            )
+            review_query = (
+                select(LLMForecast)
+                .where(LLMForecast.status.in_(["OK", "ABSTAINED"]))
+                .order_by(desc(LLMForecast.generated_at))
+            )
+            if review_filter != "All":
+                review_query = review_query.where(LLMForecast.reviewed_status == review_filter)
+            candidates = list(session.scalars(review_query.limit(100)))
+            if not candidates:
+                st.info("No matching forecasts.")
+            for forecast in candidates:
+                m = session.get(Market, forecast.market_id)
+                label = f"{m.question if m else forecast.market_id} · {forecast.run_slot} · {pct(forecast.fair_value)} · {forecast.reviewed_status}"
+                with st.expander(label):
+                    st.write(forecast.rationale or "No rationale recorded.")
+                    st.caption(
+                        f"Confidence {pct(forecast.confidence)} · model {forecast.model_name} · "
+                        f"prompt {forecast.prompt_version} · generated {forecast.generated_at}"
+                    )
+                    notes = st.text_area(
+                        "Review notes",
+                        value=forecast.review_notes or "",
+                        key=f"llm_review_notes_{forecast.id}",
+                    )
+                    c1, c2, c3 = st.columns(3)
+                    if c1.button("Approve for publication", key=f"llm_approve_{forecast.id}"):
+                        set_llm_forecast_review_status(
+                            session,
+                            forecast,
+                            "APPROVED_FOR_PUBLICATION",
+                            st.session_state.get("admin_username", "admin"),
+                            notes,
+                        )
+                        session.commit()
+                        st.rerun()
+                    if c2.button("Flag data quality", key=f"llm_flag_{forecast.id}"):
+                        set_llm_forecast_review_status(
+                            session,
+                            forecast,
+                            "FLAGGED",
+                            st.session_state.get("admin_username", "admin"),
+                            notes,
+                        )
+                        session.commit()
+                        st.rerun()
+                    if c3.button("Reset to unreviewed", key=f"llm_reset_{forecast.id}"):
+                        set_llm_forecast_review_status(
+                            session,
+                            forecast,
+                            "UNREVIEWED",
+                            st.session_state.get("admin_username", "admin"),
+                            notes,
+                        )
+                        session.commit()
+                        st.rerun()
