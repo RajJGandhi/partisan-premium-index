@@ -23,5 +23,7 @@ def test_fresh_database_contains_required_tables(tmp_path):
         "job_runs",
         "source_runs",
         "admin_users",
+        "llm_forecasts",
+        "blind_index_runs",
     }
     assert required <= names

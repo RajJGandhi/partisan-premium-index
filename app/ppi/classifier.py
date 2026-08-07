@@ -55,6 +55,20 @@ def _extract_json(text: str) -> dict[str, Any]:
         return json.loads(match.group(0))
 
 
+def _normalize_classification_dict(data: dict[str, Any]) -> dict[str, Any]:
+    """Tolerantly repair known live-model field-name drift before schema validation.
+
+    Observed live against qwen3:8b: the model sometimes answers the boolean "relevant" field
+    under the key "relevance" (presumably blending it with the neighboring "relevance_score"
+    field name). This corrects the *key name* for a value the model already produced -- it never
+    invents, fills in, or substitutes a value the model didn't actually return.
+    """
+    if "relevant" not in data and isinstance(data.get("relevance"), bool):
+        data = dict(data)
+        data["relevant"] = data.pop("relevance")
+    return data
+
+
 class EvidenceClassifierProvider(ABC):
     name: str
     model: str
@@ -185,13 +199,36 @@ class OllamaClassifier(EvidenceClassifierProvider):
     def classify(self, payload: dict[str, Any]) -> EvidenceClassification:
         schema = EvidenceClassification.model_json_schema()
         prompt = f"{SYSTEM_PROMPT}\nSchema:\n{json.dumps(schema)}\nInput:\n{json.dumps(payload, ensure_ascii=False)}\nReturn JSON only."
-        response = requests.post(
-            f"{self.base_url}/api/generate",
-            json={"model": self.model, "prompt": prompt, "stream": False, "format": "json"},
-            timeout=self.timeout,
-        )
-        response.raise_for_status()
-        return EvidenceClassification.model_validate(_extract_json(response.json().get("response", "")))
+        last_error: Exception | None = None
+        # Bounded retry with a corrective follow-up prompt, matching OllamaJSONClient.generate_validated.
+        # Without a low temperature, models occasionally drift on exact field names (e.g. "relevance"
+        # instead of the schema's "relevant") even though format="json" only guarantees valid JSON syntax,
+        # not schema-conformant keys.
+        for _attempt in range(2):
+            response = requests.post(
+                f"{self.base_url}/api/generate",
+                json={
+                    "model": self.model,
+                    "prompt": prompt,
+                    "stream": False,
+                    "format": "json",
+                    "options": {"temperature": 0.15},
+                },
+                timeout=self.timeout,
+            )
+            response.raise_for_status()
+            try:
+                parsed = _normalize_classification_dict(_extract_json(response.json().get("response", "")))
+                return EvidenceClassification.model_validate(parsed)
+            except (ValidationError, ValueError) as exc:
+                last_error = exc
+                prompt = (
+                    f"{SYSTEM_PROMPT}\nSchema:\n{json.dumps(schema)}\nInput:\n"
+                    f"{json.dumps(payload, ensure_ascii=False)}\nYour previous response was invalid: {exc}\n"
+                    "Return corrected JSON only, matching the schema's field names exactly."
+                )
+        assert last_error is not None  # both loop iterations raise before falling through here
+        raise last_error
 
 
 class OpenAICompatibleClassifier(EvidenceClassifierProvider):

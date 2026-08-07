@@ -27,6 +27,25 @@ Then open:
 - Administration → Evidence;
 - Administration → Approval queue.
 
+## Primary blind-LLM (Qwen) forecast series
+
+```bash
+sqlite3 data/reality_spread.db \
+  "select run_slot,status,fair_value,confidence,raw_ppi from llm_forecasts order by id desc limit 20;"
+```
+
+`status` is one of `OK`, `ABSTAINED`, `FAILED`, or `SKIPPED_PROVIDER`. In production today, expect `SKIPPED_PROVIDER` on every row: the scheduled GitHub Actions workflow runs on a hosted runner with `LLM_PROVIDER=deterministic` because it cannot reach a local Ollama instance (see `PPI_ARCHITECTURE.md` → "Production automation constraint"). To generate real forecasts, run the pipeline from a machine with Ollama running and `LLM_PROVIDER=ollama` set:
+
+```bash
+ollama pull qwen3:8b
+ollama serve &
+LLM_PROVIDER=ollama PYTHONPATH=. python scripts/run_ppi_daily.py --trigger manual
+```
+
+A row already at `OK` is never overwritten by a later run of the same twice-daily slot; only `FAILED`/`SKIPPED_PROVIDER` rows are retried in place. To correct a genuinely wrong forecast, do not edit the row — that slot's history is immutable by design.
+
+The Streamlit app's **LLM Forecasts** page (public, in the main navigation) shows the full history with market/date/status filters, a historical probability chart with a derived confidence band, and a CSV export button. **Administration → LLM Forecasts** lets a signed-in admin mark a forecast `APPROVED_FOR_PUBLICATION` or `FLAGGED` with a note — this never edits the forecast's numeric value, only the separate `reviewed_status`/`reviewed_by`/`reviewed_at`/`review_notes` columns.
+
 ## Primary and backup scheduler
 
 ```bash
