@@ -23,6 +23,23 @@ if ! command -v ollama >/dev/null 2>&1; then
   echo "WARNING: 'ollama' is not on PATH. Install Ollama.app from https://ollama.com before continuing." >&2
 fi
 
+# actions/setup-python's macOS Python builds are compiled against, and hardcode,
+# /Users/runner/hostedtoolcache -- they are not relocatable via RUNNER_TOOL_CACHE (see GitHub's
+# setup-python docs). On a self-hosted Mac running as any user other than literally "runner" (the
+# normal case), that path doesn't exist and can't be created by an unprivileged process, so the
+# "Set up Python" step fails with "mkdir: /Users/runner: Permission denied" before the pipeline
+# ever runs. This is a one-time, per-machine fix: create the path and give this user ownership of
+# it, without making it world-writable.
+TOOL_CACHE_DIR="/Users/runner/hostedtoolcache"
+if [ -d "$TOOL_CACHE_DIR" ] && [ -w "$TOOL_CACHE_DIR" ]; then
+  echo "OK: $TOOL_CACHE_DIR exists and is writable by $(whoami)."
+else
+  echo "MISSING/UNWRITABLE: $TOOL_CACHE_DIR -- required by actions/setup-python on macOS." >&2
+  echo "Run this once (requires an admin password), then re-run this script:" >&2
+  echo "  sudo bash -c 'mkdir -p $TOOL_CACHE_DIR && chown -R $(whoami):staff /Users/runner && chmod -R 755 /Users/runner'" >&2
+  exit 1
+fi
+
 echo "== 2. Downloading GitHub Actions runner v${RUNNER_VERSION} =="
 mkdir -p "$RUNNER_DIR"
 cd "$RUNNER_DIR"

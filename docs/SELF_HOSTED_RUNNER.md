@@ -21,8 +21,21 @@ Prerequisites:
   expose Ollama publicly" below.
 - Admin access to the GitHub repository (Settings → Actions → Runners) to generate a
   registration token.
-- Python 3.11, Node 22 available (or let the workflow's `setup-python`/`setup-node` actions
-  install them into the runner's tool cache — this works the same on self-hosted runners).
+- Node 22 available, or let `setup-node` install it into the runner's tool cache — this works
+  unmodified on self-hosted runners.
+- **Python is different on macOS**: `actions/setup-python`'s macOS Python builds are compiled
+  against, and hardcode, `/Users/runner/hostedtoolcache` — they are not relocatable via
+  `RUNNER_TOOL_CACHE` (see GitHub's `setup-python` docs). On a self-hosted Mac running as any user
+  other than literally `runner` (the normal case), that path doesn't exist yet and an unprivileged
+  process can't create it, so the workflow's "Set up Python" step fails immediately with
+  `mkdir: /Users/runner: Permission denied` — before the pipeline, database, export, or deploy
+  steps ever run. `install.sh` checks for this and, if needed, prints the exact one-time command:
+  ```bash
+  sudo bash -c 'mkdir -p /Users/runner/hostedtoolcache && chown -R $(whoami):staff /Users/runner && chmod -R 755 /Users/runner'
+  ```
+  This creates the official path and gives your runner's user ownership of it (not world-writable)
+  — it does **not** redirect `RUNNER_TOOL_CACHE` elsewhere, since that's unsupported for macOS.
+  One-time per machine; survives runner reinstalls and reboots.
 
 Run the automated part:
 
