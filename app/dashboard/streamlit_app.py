@@ -567,7 +567,7 @@ with get_session() as session:
                     ),
                     "Generated (UTC)": r.generated_at,
                     "Generation status": r.generation_status,
-                    "Publication status": r.reviewed_status,
+                    "Review flag": r.reviewed_status,
                     "Fair value": pct(r.fair_value),
                     "Confidence": pct(r.confidence),
                     "Approx. interval": (
@@ -664,7 +664,11 @@ with get_session() as session:
                         f"**Model version:** {row.model_name}  \n**Prompt version:** {row.prompt_version}  \n"
                         f"**Retries:** {row.retries}  \n**Generated (UTC):** {row.generated_at}"
                     )
-                    st.markdown(f"**Publication status:** {row.reviewed_status}")
+                    st.markdown(
+                        f"**Review flag:** {row.reviewed_status}  \n"
+                        "A canonical OK/ABSTAINED forecast is public automatically; "
+                        "FLAGGED is the only review state that suppresses public display."
+                    )
                     if forecast.reviewed_by:
                         st.caption(
                             f"Reviewed by {forecast.reviewed_by} at {forecast.reviewed_at} — "
@@ -1342,13 +1346,16 @@ with get_session() as session:
 
         with tabs[8]:
             st.write(
-                "Review actions here only set a publication/flag status and a reviewer note. "
-                "The forecast itself — fair value, confidence, rationale, evidence — is the immutable "
+                "A canonical forecast (OK or ABSTAINED, from a run classified `canonical`) publishes "
+                "automatically once persisted — there is no approval action here, and none is needed. "
+                "The only review action available is flagging a genuine data-integrity concern, which "
+                "removes a forecast from public display without editing or fabricating anything. The "
+                "forecast itself — fair value, confidence, rationale, evidence — is the immutable "
                 "output of the blind model call and is never editable from this screen."
             )
             review_filter = st.selectbox(
                 "Show",
-                ["UNREVIEWED", "APPROVED_FOR_PUBLICATION", "FLAGGED", "All"],
+                ["UNREVIEWED", "FLAGGED", "All"],
                 key="llm_review_filter",
             )
             review_query = (
@@ -1375,18 +1382,8 @@ with get_session() as session:
                         value=forecast.review_notes or "",
                         key=f"llm_review_notes_{forecast.id}",
                     )
-                    c1, c2, c3 = st.columns(3)
-                    if c1.button("Approve for publication", key=f"llm_approve_{forecast.id}"):
-                        set_llm_forecast_review_status(
-                            session,
-                            forecast,
-                            "APPROVED_FOR_PUBLICATION",
-                            st.session_state.get("admin_username", "admin"),
-                            notes,
-                        )
-                        session.commit()
-                        st.rerun()
-                    if c2.button("Flag data quality", key=f"llm_flag_{forecast.id}"):
+                    c1, c2 = st.columns(2)
+                    if c1.button("Flag data quality", key=f"llm_flag_{forecast.id}"):
                         set_llm_forecast_review_status(
                             session,
                             forecast,
@@ -1396,7 +1393,7 @@ with get_session() as session:
                         )
                         session.commit()
                         st.rerun()
-                    if c3.button("Reset to unreviewed", key=f"llm_reset_{forecast.id}"):
+                    if c2.button("Reset to unreviewed", key=f"llm_reset_{forecast.id}"):
                         set_llm_forecast_review_status(
                             session,
                             forecast,

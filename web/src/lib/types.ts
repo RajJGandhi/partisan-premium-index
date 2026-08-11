@@ -20,6 +20,10 @@ export interface JobRun {
   error_count: number;
 }
 
+// One of: OK, ABSTAINED, ERROR, FLAGGED, NONE. OK is the only status with real
+// fair_value/market_probability/partisan_premium values -- see MarketSummary below.
+export type ForecastStatus = "OK" | "ABSTAINED" | "ERROR" | "FLAGGED" | "NONE";
+
 export interface MarketSummary {
   slug: string;
   tracking_id: string | null;
@@ -31,9 +35,23 @@ export interface MarketSummary {
   closed: boolean;
   end_date: string | null;
   market_url: string | null;
+  // The primary blind-Qwen series: publishes automatically once a canonical forecast is
+  // persisted -- no human approval step gates this. These three fields always describe the same
+  // observation (the price the forecast was actually compared against at join time), so
+  // partisan_premium always equals market_probability - ppi_fair_value exactly as shown. All
+  // three are null unless forecast_status is "OK" -- see forecast_status for why.
   market_probability: NullableNumber;
   ppi_fair_value: NullableNumber;
   partisan_premium: NullableNumber;
+  forecast_status: ForecastStatus;
+  forecast_generated_at: string | null;
+  forecast_run_key: string | null;
+  forecast_model_name: string | null;
+  forecast_confidence: NullableNumber;
+  forecast_rationale: string | null;
+  // Current live Polymarket price, independent of any forecast -- shown whenever available,
+  // unlike market_probability above which is null except on an OK forecast.
+  live_market_probability: NullableNumber;
   price_type: string | null;
   best_bid: NullableNumber;
   best_ask: NullableNumber;
@@ -47,6 +65,12 @@ export interface MarketSummary {
   last_fair_value_publication_at: string | null;
   revision_count: number;
   public_evidence_count: number;
+  // The legacy human-approved weighted-fair-value series. Retained for auditability; no longer
+  // the current headline PPI figure -- that is the blind-Qwen series above.
+  legacy_weighted: {
+    ppi_fair_value: NullableNumber;
+    partisan_premium: NullableNumber;
+  };
 }
 
 export interface DailyIndexPoint {
@@ -60,6 +84,17 @@ export interface DailyIndexPoint {
   methodology_label: string | null;
   generated_at: string | null;
   status: string;
+}
+
+export interface BlindIndexPoint {
+  run_key: string;
+  effective_timestamp: string | null;
+  market_count: number;
+  average_signed_premium: NullableNumber;
+  median_signed_premium: NullableNumber;
+  average_absolute_premium: NullableNumber;
+  model_name: string | null;
+  generated_at: string | null;
 }
 
 export interface RevisionSummary {
@@ -85,6 +120,8 @@ export interface OverviewData {
   coverage: {
     tracked_markets: number;
     fresh_markets: number;
+    // Count of markets with a canonical OK blind-Qwen forecast (forecast_status === "OK").
+    // Publication is automatic, not gated on human review.
     published_markets: number;
     resolved_predictions: number;
   };
@@ -99,7 +136,10 @@ export interface OverviewData {
   largest_negative_premiums: MarketSummary[];
   largest_absolute_premiums: MarketSummary[];
   recent_fair_value_revisions: RevisionSummary[];
+  // Legacy human-weighted series' daily aggregate -- retained for auditability.
   index_history: DailyIndexPoint[];
+  // Primary blind-Qwen series' aggregate history, one entry per canonical run.
+  blind_index_history: BlindIndexPoint[];
 }
 
 export interface MarketsData {

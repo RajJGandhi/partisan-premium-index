@@ -11,7 +11,7 @@ paths:
 - Keep the primary forecast blind to all prediction-market prices and derived market signals.
 - Join prices to forecasts only after the model response is persisted and timestamped.
 - Preserve prompt, evidence, raw response, parsed response, model metadata, and hashes for auditability.
-- Never edit a valid primary-model probability after generation; publication review is not forecast editing.
+- Never edit a valid primary-model probability after generation. A canonical forecast publishes automatically once persisted; data-integrity review may only flag it (suppressing public display), never approve, select, or edit it.
 - Treat every methodology, prompt, schema, model, and normalization change as versioned research methodology.
 - Append observations and corrections. Never overwrite historical forecasts, prices, evidence, or resolutions.
 - Record failures explicitly; absence of data is not zero, neutral, or success.

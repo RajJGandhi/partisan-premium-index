@@ -55,7 +55,7 @@ Converge these into **one canonical database-backed pipeline**. Reuse proven cod
 - Record model name, provider, prompt version, generation parameters, prompt/input hash, evidence references, raw response, parsed response, retries, timestamps, and error state.
 - Use deterministic generation settings where supported and document any remaining nondeterminism.
 - Validate model output against a versioned schema. Retry only under a documented bounded policy.
-- A valid model probability is final for that run. Humans may approve publication or flag data quality, but may not edit the numeric primary-model forecast.
+- A valid model probability is final for that run and publishes automatically once its run is classified canonical -- there is no human approval gate on publication. Humans may only flag a forecast for a genuine data-integrity concern (removing it from public display) and may never edit the numeric primary-model forecast or selectively approve one based on its contents.
 - If the model still fails after retries, record a failed or abstained forecast. Never substitute a human value, deterministic fallback, or market price into the primary Qwen series.
 - Manual or alternative-model estimates may exist only as separately labelled comparison baselines. Never mix them into the primary series.
 - Do not silently change the primary model. Any model change starts a clearly versioned series and requires a documented comparison.

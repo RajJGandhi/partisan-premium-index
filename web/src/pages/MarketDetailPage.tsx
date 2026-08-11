@@ -62,16 +62,35 @@ export function MarketDetailPage() {
           <span>Current partisan premium</span>
           <strong>{formatPremium(market.partisan_premium)}</strong>
           <PremiumBadge value={market.partisan_premium} size="large" />
-          <p>Market probability minus the latest human-approved PPI fair value.</p>
+          <p>Market probability minus the latest canonical blind-Qwen PPI fair value, published automatically.</p>
         </div>
       </section>
 
-      {market.ppi_fair_value == null ? (
+      {market.forecast_status !== "OK" ? (
         <div className="notice notice--warning">
           <CalendarClock size={19} aria-hidden="true" />
           <div>
-            <strong>Independent fair value awaiting publication</strong>
-            <span>The market is being observed, but no PPI fair value has been approved yet. Price and evidence history continue to accumulate.</span>
+            {market.forecast_status === "ABSTAINED" ? (
+              <>
+                <strong>The model abstained on this market</strong>
+                <span>Qwen was asked and declined to give a confident probability -- no value is invented or shown.</span>
+              </>
+            ) : market.forecast_status === "FLAGGED" ? (
+              <>
+                <strong>Forecast flagged for data-integrity review</strong>
+                <span>A reviewer flagged a genuine concern with this forecast, so it is withheld from public display until resolved.</span>
+              </>
+            ) : market.forecast_status === "ERROR" ? (
+              <>
+                <strong>No usable forecast from the most recent canonical run</strong>
+                <span>The most recent attempt did not produce a usable forecast. No fallback or substitute value is shown.</span>
+              </>
+            ) : (
+              <>
+                <strong>Independent fair value not yet available</strong>
+                <span>The market is being observed, but no canonical blind-Qwen forecast has been generated yet. Price and evidence history continue to accumulate.</span>
+              </>
+            )}
           </div>
         </div>
       ) : null}
