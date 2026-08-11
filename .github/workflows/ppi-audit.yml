@@ -1,0 +1,73 @@
+name: PPI Forecast Run Audit (read-only)
+
+# On-demand, read-only diagnostic: inspects an already-completed JobRun's persisted LLMForecast/
+# EvidenceItem rows in detail (raw model responses, exact evidence packets, retries, generation
+# parameters) for forensic analysis -- e.g. investigating an anomalous probability distribution --
+# without needing local DATABASE_URL access. See scripts/audit_llm_forecast_run.py and
+# tests/test_audit_llm_forecast_run.py for the enforced read-only contract (SELECT-only; never
+# calls session.add/delete/merge, never commits a change).
+#
+# Deliberately separate from ppi-daily.yml: this never needs Ollama, so it runs on a standard
+# GitHub-hosted runner (DATABASE_URL is a network-reachable Postgres connection, unlike the
+# self-hosted Mac's localhost-only Ollama instance) rather than competing with the production
+# self-hosted runner or its concurrency group. It never runs migrations, the forecasting
+# pipeline, the public exporter, or a Cloudflare deploy.
+on:
+  workflow_dispatch:
+    inputs:
+      job_run_id:
+        description: "JobRun.id to audit (read-only -- never modifies or supersedes it)"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    name: Audit one JobRun's LLM forecasts (read-only)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    env:
+      APP_ENV: production
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: requirements.txt
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run read-only forecast audit
+        run: |
+          PYTHONPATH=. python scripts/audit_llm_forecast_run.py \
+            --job-run-id "${{ inputs.job_run_id }}" \
+            --output audit-report.json \
+            --markdown-summary audit-summary.md
+
+      - name: Append aggregate findings to job summary
+        if: always()
+        run: |
+          if [ -f audit-summary.md ]; then
+            cat audit-summary.md >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Upload sanitized report artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: llm-forecast-audit-job-${{ inputs.job_run_id }}
+          path: audit-report.json
+          retention-days: 30
+          if-no-files-found: ignore

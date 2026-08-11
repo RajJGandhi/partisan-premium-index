@@ -46,6 +46,30 @@ A row already at `OK` is never overwritten by a later run of the same twice-dail
 
 The Streamlit app's **LLM Forecasts** page (public, in the main navigation) shows the full history with market/date/status filters, a historical probability chart with a derived confidence band, and a CSV export button. A canonical forecast (`OK` or `ABSTAINED`, from a run classified `canonical`) publishes to the sanitized public export automatically — see `app/ppi/public_forecast.py` — there is no approval step. **Administration → LLM Forecasts** lets a signed-in admin mark a forecast `FLAGGED` (removing it from public display for a genuine data-integrity concern) or reset it back to `UNREVIEWED`, with a note — this never edits the forecast's numeric value, only the separate `reviewed_status`/`reviewed_by`/`reviewed_at`/`review_notes` columns, and it is never used to selectively approve a forecast based on its contents.
 
+### Read-only forecast run audit
+
+`DATABASE_URL` only exists inside GitHub Actions secrets — a raw model response, the exact
+evidence packet, retry count, or generation parameters for a specific `JobRun` can't be inspected
+from a local machine without production DB access. `scripts/audit_llm_forecast_run.py` (and the
+`PPI Forecast Run Audit` workflow, `.github/workflows/ppi-audit.yml`) exist specifically for
+this: a strictly SELECT-only diagnostic that never writes to the database, never runs a
+migration, the forecasting pipeline, the public exporter, or a Cloudflare deploy, and never
+supersedes the run it audits (see `tests/test_audit_llm_forecast_run.py` for the enforced
+no-writes contract).
+
+```bash
+# From GitHub: Actions -> "PPI Forecast Run Audit (read-only)" -> Run workflow -> job_run_id
+gh workflow run ppi-audit.yml -f job_run_id=21
+
+# Locally, with DATABASE_URL already set in your environment:
+PYTHONPATH=. python scripts/audit_llm_forecast_run.py --job-run-id 21 --output audit-report.json
+```
+
+The full sanitized report (per-forecast raw responses, evidence titles/sources/timestamps,
+generation parameters, and cross-market evidence-overlap/duplicate-packet analysis) is uploaded
+as a workflow artifact; only aggregate counts (no raw text) are written to the job's step
+summary.
+
 ## Primary and backup scheduler
 
 The canonical production schedule is 09:00 and 21:00 America/Toronto, run by `.github/workflows/ppi-daily.yml` on the self-hosted runner (see `docs/SELF_HOSTED_RUNNER.md`) — that workflow's own `schedule:` trigger is what actually drives production, not the script below.
