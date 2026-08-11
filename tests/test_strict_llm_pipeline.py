@@ -108,6 +108,39 @@ def test_strict_mode_never_falls_back_even_when_deterministic_would_succeed(tmp_
         assert strict_item.relevant is None
 
 
+def test_collect_market_evidence_counts_fallback_on_job_in_non_strict_mode(tmp_path, monkeypatch):
+    """job.llm_fallback_count is the persisted signal app.ppi.run_health reports as "LLM fallback
+    count" -- it must increment exactly when an evidence item is classified via
+    classify_with_fallback's silent deterministic degrade, and never in strict mode (which has no
+    fallback path at all)."""
+    from app.ppi.pipeline import _collect_market_evidence
+
+    Session = _session_factory(tmp_path)
+    monkeypatch.setattr("app.ppi.evidence.get_classifier", lambda: _BrokenClassifier())
+    monkeypatch.setattr("app.ppi.classifier.get_classifier", lambda: _BrokenClassifier())
+
+    class _FakeAdapter:
+        def collect(self, market, source):
+            return [EvidenceCandidate("rss", "Google News RSS", "poll shows a close race", "https://reuters.com/a")]
+
+    monkeypatch.setattr("app.ppi.pipeline.adapter_for", lambda source_type: _FakeAdapter())
+
+    with Session.begin() as session:
+        market = _make_market(session)
+        source = MarketSource(market_id=market.id, source_type="rss", name="Google News RSS", enabled=True)
+        session.add(source)
+        session.flush()
+        job = JobRun(run_key="ppi-daily:2026-08-11:primary", job_name="daily_pipeline", trigger_type="primary")
+        session.add(job)
+        session.flush()
+
+        relevant, inserted = _collect_market_evidence(session, job, market, strict=False)
+
+        assert inserted == 1
+        assert job.llm_fallback_count == 1
+        assert job.evidence_classification_failed == 0  # fallback succeeded; it did not fail outright
+
+
 @contextmanager
 def _fake_get_session(session_factory):
     session = session_factory()

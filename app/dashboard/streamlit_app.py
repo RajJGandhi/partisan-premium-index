@@ -39,6 +39,7 @@ from app.ppi.methodology import DEFAULT_WEIGHTS, validate_weights
 from app.ppi.pipeline import run_daily_pipeline
 from app.ppi.publication import publish_proposal, reject_proposal, resolve_market
 from app.ppi.run_classification import is_canonical_and_current
+from app.ppi.run_health import compute_run_health
 from app.ppi.security import (
     validate_external_url,
     verify_password,
@@ -814,6 +815,30 @@ with get_session() as session:
             col.metric(label, counts.get(key, 0))
         canonical_current = sum(1 for j in jobs if is_canonical_and_current(j))
         st.caption(f"{canonical_current} run(s) among the last {len(jobs)} are canonical and not superseded.")
+
+        st.subheader("Forecast-outcome observability")
+        st.caption(
+            "Derived fresh from persisted LLMForecast/BlindIndexRun rows for the selected run, "
+            "not from in-memory counters -- see app.ppi.run_health."
+        )
+        if jobs:
+            run_key_options = [j.run_key for j in jobs]
+            selected_run_key = st.selectbox("Run", run_key_options, index=0)
+            selected_job = next(j for j in jobs if j.run_key == selected_run_key)
+            health = compute_run_health(session, selected_job.id)
+            h1, h2, h3, h4 = st.columns(4)
+            h1.metric("Forecasts OK", health.forecasts_ok)
+            h2.metric("Forecasts abstained", health.forecasts_abstained)
+            h3.metric("Forecasts error", health.forecasts_error)
+            h4.metric("LLM fallback count", health.llm_fallback_count)
+            h5, h6, h7, h8 = st.columns(4)
+            h5.metric("Evidence classified", f"{health.evidence_successful}/{health.evidence_attempted}")
+            h6.metric("Snapshots persisted", health.snapshots_persisted)
+            h7.metric("PPI rows persisted", health.ppi_rows_persisted)
+            h8.metric("Blind-index rows", health.blind_index_rows_persisted)
+            st.caption(f"Job run ID {health.job_run_id} · classification: {health.run_classification}")
+        else:
+            st.caption("No job runs yet.")
 
         st.subheader("Job history")
         st.dataframe(

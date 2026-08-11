@@ -231,6 +231,8 @@ def _collect_market_evidence(
                         job.evidence_classification_failed += 1
                     elif item.relevant:
                         relevant_new.append(item)
+                    if item.classifier_provider == "deterministic_fallback":
+                        job.llm_fallback_count += 1
             sr.status = "OK"
         except Exception as exc:
             sr.status = "FAILED"
@@ -351,6 +353,7 @@ def _run_daily_pipeline_locked(
             job.evidence_discovered = 0
             job.evidence_relevant = 0
             job.evidence_classification_failed = 0
+            job.llm_fallback_count = 0
             job.proposals_created = 0
             job.snapshots_written = 0
             job.error_count = 0
