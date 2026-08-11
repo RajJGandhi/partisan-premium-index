@@ -171,8 +171,13 @@ jobs:
 
       - name: Install Python dependencies
         run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
+          # uv-managed Python installs mark themselves PEP 668 "externally managed" so a bare
+          # `pip install` refuses to run. --break-system-packages is the mechanism pip itself
+          # documents for this; it's safe here because this interpreter (~/.local/share/uv/python/
+          # ...) exists solely for this workflow -- nothing else on the runner shares it, so
+          # there's no "system" to break.
+          python -m pip install --upgrade pip --break-system-packages
+          pip install -r requirements.txt --break-system-packages
 
       - name: Run database migrations
         run: |
