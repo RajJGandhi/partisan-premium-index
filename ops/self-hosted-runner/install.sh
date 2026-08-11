@@ -23,22 +23,32 @@ if ! command -v ollama >/dev/null 2>&1; then
   echo "WARNING: 'ollama' is not on PATH. Install Ollama.app from https://ollama.com before continuing." >&2
 fi
 
-# actions/setup-python's macOS Python builds are compiled against, and hardcode,
-# /Users/runner/hostedtoolcache -- they are not relocatable via RUNNER_TOOL_CACHE (see GitHub's
-# setup-python docs). On a self-hosted Mac running as any user other than literally "runner" (the
-# normal case), that path doesn't exist and can't be created by an unprivileged process, so the
-# "Set up Python" step fails with "mkdir: /Users/runner: Permission denied" before the pipeline
-# ever runs. This is a one-time, per-machine fix: create the path and give this user ownership of
-# it, without making it world-writable.
+# This block (and the leftover /Users/runner/hostedtoolcache check just below) documents a
+# problem that no longer needs solving on this machine: actions/setup-python's macOS Python
+# builds are compiled against, and hardcode, /Users/runner/hostedtoolcache, and its installer
+# unconditionally shells out to `sudo installer -pkg ... -target /` for any version not already
+# registered there -- which always fails non-interactively on a self-hosted runner (no TTY, no
+# password prompt possible). ppi-daily.yml's self-hosted job no longer uses actions/setup-python
+# at all; see the uv step below and docs/SELF_HOSTED_RUNNER.md "Python on the self-hosted macOS
+# runner" for the replacement. The hostedtoolcache check is left in place only because it's
+# already correct and harmless -- it costs nothing and nothing currently depends on removing it.
 TOOL_CACHE_DIR="/Users/runner/hostedtoolcache"
 if [ -d "$TOOL_CACHE_DIR" ] && [ -w "$TOOL_CACHE_DIR" ]; then
-  echo "OK: $TOOL_CACHE_DIR exists and is writable by $(whoami)."
+  echo "OK: $TOOL_CACHE_DIR exists and is writable by $(whoami) (unused by this workflow, harmless)."
 else
-  echo "MISSING/UNWRITABLE: $TOOL_CACHE_DIR -- required by actions/setup-python on macOS." >&2
-  echo "Run this once (requires an admin password), then re-run this script:" >&2
-  echo "  sudo bash -c 'mkdir -p $TOOL_CACHE_DIR && chown -R $(whoami):staff /Users/runner && chmod -R 755 /Users/runner'" >&2
-  exit 1
+  echo "NOTE: $TOOL_CACHE_DIR is missing or unwritable -- this is fine, it is no longer used." >&2
 fi
+
+# uv manages a pinned, relocatable, user-space Python build (python-build-standalone) that needs
+# no elevated privileges to install or run -- this is what ppi-daily.yml's self-hosted job uses
+# instead of actions/setup-python. Install once, in user space, no sudo, no prompts.
+UV_BIN="$HOME/.local/bin/uv"
+if [ ! -x "$UV_BIN" ]; then
+  echo "Installing uv (user-space, no sudo)..."
+  curl -LsSf https://astral.sh/uv/install.sh | sh
+fi
+"$UV_BIN" --version
+echo "OK: uv is installed at $UV_BIN."
 
 echo "== 2. Downloading GitHub Actions runner v${RUNNER_VERSION} =="
 mkdir -p "$RUNNER_DIR"

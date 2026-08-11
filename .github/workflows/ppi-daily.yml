@@ -129,12 +129,38 @@ jobs:
           echo "should_run_pipeline=$SHOULD_RUN" >> "$GITHUB_OUTPUT"
           echo "cron='$SCHEDULE' slot=$SLOT toronto_hour=$TORONTO_HOUR expected=$EXPECTED_HOUR should_run=$SHOULD_RUN"
 
-      - name: Set up Python
-        uses: actions/setup-python@v6
-        with:
-          python-version: "3.11"
-          cache: pip
-          cache-dependency-path: requirements.txt
+      - name: Resolve pinned self-hosted Python (uv-managed, no sudo)
+        shell: bash
+        run: |
+          set -euo pipefail
+          # actions/setup-python's macOS build must run
+          # `sudo installer -pkg ... -target /` to register a new Python version in
+          # /Users/runner/hostedtoolcache -- that fails non-interactively on a self-hosted
+          # runner (no TTY, no password prompt possible). uv instead manages a pinned,
+          # relocatable, user-space Python build (python-build-standalone) that needs no
+          # elevated privileges to install or run. See docs/SELF_HOSTED_RUNNER.md.
+          #
+          # Use uv's absolute install path, not PATH lookup: the runner's launchd job session
+          # does not source ~/.zshrc/~/.zprofile (uv's installer only adds ~/.local/bin there),
+          # and ~/.local/bin is not in /etc/paths or /etc/paths.d -- so a bare `uv` on PATH can
+          # silently fail to resolve here even though it works in an interactive terminal.
+          UV_BIN="$HOME/.local/bin/uv"
+          if [ ! -x "$UV_BIN" ]; then
+            echo "::error::uv is not installed at $UV_BIN. Run ops/self-hosted-runner/install.sh once on this Mac."
+            exit 1
+          fi
+
+          REQUIRED_VERSION="$(cat .python-version)"
+          "$UV_BIN" python install "$REQUIRED_VERSION"
+          PYTHON_BIN="$("$UV_BIN" python find "$REQUIRED_VERSION" --no-project)"
+          ACTUAL_VERSION="$("$PYTHON_BIN" -c 'import platform; print(platform.python_version())')"
+          if [ "$ACTUAL_VERSION" != "$REQUIRED_VERSION" ]; then
+            echo "::error::Resolved interpreter is $ACTUAL_VERSION, expected exactly $REQUIRED_VERSION. Refusing to silently use a different version."
+            exit 1
+          fi
+
+          echo "Pinned interpreter: $PYTHON_BIN (Python $ACTUAL_VERSION)"
+          dirname "$PYTHON_BIN" >> "$GITHUB_PATH"
 
       - name: Set up Node
         uses: actions/setup-node@v6
