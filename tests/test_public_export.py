@@ -14,6 +14,7 @@ from app.db.models import (
     FairValueComponent,
     FairValueRevision,
     JobRun,
+    LLMForecast,
     Market,
     MarketResolution,
     MarketSnapshot,
@@ -237,7 +238,12 @@ def test_public_export_is_sanitized_and_complete(tmp_path):
         bundle = build_public_bundle(session, generated_at=now)
 
     detail = bundle["market_details"]["test-market"]
-    assert detail["market"]["partisan_premium"] == 0.05
+    # No LLMForecast/canonical run exists in this fixture, so the primary blind-Qwen series has
+    # nothing to publish for this market yet -- the legacy human-weighted value moved to
+    # legacy_weighted rather than disappearing.
+    assert detail["market"]["forecast_status"] == "NONE"
+    assert detail["market"]["partisan_premium"] is None
+    assert detail["market"]["legacy_weighted"]["partisan_premium"] == 0.05
     assert detail["components"][0]["source_url"] == "https://example.com/poll"
     assert detail["evidence"] == [
         {
@@ -400,3 +406,139 @@ def test_public_export_handles_empty_database(tmp_path):
     assert bundle["overview"]["latest_run"] is None
     assert bundle["track_record"]["summary"]["resolved_predictions"] == 0
     assert bundle["system_status"]["status"] == "NO_RUNS"
+
+
+def test_canonical_ok_forecast_publishes_publicly_without_any_manual_review(tmp_path):
+    """Regression test: a canonical OK forecast must appear in the public export -- with real
+    values, counted in coverage.published_markets, and folded into current_index -- purely from
+    being persisted, with reviewed_status left at its UNREVIEWED default. No approval action is
+    taken anywhere in this test."""
+    engine = create_engine(f"sqlite:///{tmp_path / 'auto_publish.db'}")
+    Base.metadata.create_all(engine)
+    Session = sessionmaker(engine, expire_on_commit=False)
+    now = datetime(2026, 8, 11, 10, 0, tzinfo=timezone.utc)
+
+    with Session.begin() as session:
+        market = Market(
+            platform="polymarket",
+            platform_market_id="market-1",
+            tracking_id="RSO-0001",
+            slug="test-market",
+            question="Will the test outcome happen?",
+            category="politics",
+            region="US",
+            enabled=True,
+        )
+        session.add(market)
+        session.flush()
+
+        job = JobRun(
+            run_key="ppi-daily:2026-08-11:primary",
+            job_name="daily_pipeline",
+            trigger_type="primary",
+            started_at=now,
+            finished_at=now,
+            status="OK",
+            pipeline_mode="strict_llm_only",
+            run_classification="canonical",
+        )
+        session.add(job)
+        session.flush()
+
+        session.add(
+            LLMForecast(
+                market_id=market.id,
+                job_run_id=job.id,
+                run_key=job.run_key,
+                run_slot="2026-08-11:primary",
+                trigger_type="primary",
+                generated_at=now,
+                model_provider="ollama",
+                model_name="qwen3:8b",
+                prompt_version="fair_value_v0.1",
+                status="OK",
+                fair_value=0.40,
+                confidence=0.75,
+                rationale="Base rates favor a close race.",
+                raw_ppi=0.05,
+                comparison_price_at_join=0.45,
+                # Left at the default -- no reviewer ever touched this row.
+                reviewed_status="UNREVIEWED",
+            )
+        )
+
+    with Session() as session:
+        bundle = build_public_bundle(session, generated_at=now)
+
+    detail = bundle["market_details"]["test-market"]["market"]
+    assert detail["forecast_status"] == "OK"
+    assert detail["ppi_fair_value"] == 0.40
+    assert detail["market_probability"] == 0.45
+    assert detail["partisan_premium"] == 0.05
+
+    assert bundle["overview"]["coverage"]["published_markets"] == 1
+    assert bundle["overview"]["current_index"]["average_signed_premium"] == 0.05
+
+
+def test_abstained_canonical_forecast_stays_an_abstention_not_a_missing_value(tmp_path):
+    engine = create_engine(f"sqlite:///{tmp_path / 'abstain.db'}")
+    Base.metadata.create_all(engine)
+    Session = sessionmaker(engine, expire_on_commit=False)
+    now = datetime(2026, 8, 11, 10, 0, tzinfo=timezone.utc)
+
+    with Session.begin() as session:
+        market = Market(
+            platform="polymarket",
+            platform_market_id="market-2",
+            tracking_id="RSO-0002",
+            slug="abstain-market",
+            question="Will a niche outcome happen?",
+            category="politics",
+            region="US",
+            enabled=True,
+        )
+        session.add(market)
+        session.flush()
+
+        job = JobRun(
+            run_key="ppi-daily:2026-08-11:primary",
+            job_name="daily_pipeline",
+            trigger_type="primary",
+            started_at=now,
+            finished_at=now,
+            status="OK",
+            pipeline_mode="strict_llm_only",
+            run_classification="canonical",
+        )
+        session.add(job)
+        session.flush()
+
+        session.add(
+            LLMForecast(
+                market_id=market.id,
+                job_run_id=job.id,
+                run_key=job.run_key,
+                run_slot="2026-08-11:primary",
+                trigger_type="primary",
+                generated_at=now,
+                model_provider="ollama",
+                model_name="qwen3:8b",
+                prompt_version="fair_value_v0.1",
+                status="ABSTAINED",
+                fair_value=0.5,
+                confidence=0.1,
+                rationale="Evidence too thin to estimate confidently.",
+            )
+        )
+
+    with Session() as session:
+        bundle = build_public_bundle(session, generated_at=now)
+
+    detail = bundle["market_details"]["abstain-market"]["market"]
+    assert detail["forecast_status"] == "ABSTAINED"
+    # An abstention never gets a fabricated fair value or premium, even though the model
+    # returned a best-guess fair_value internally.
+    assert detail["ppi_fair_value"] is None
+    assert detail["partisan_premium"] is None
+    # Not counted as "published" -- ABSTAINED is not OK.
+    assert bundle["overview"]["coverage"]["published_markets"] == 0

@@ -45,7 +45,7 @@ def _make_forecast(session, *, status: str = "OK", fair_value: float | None = 0.
     return forecast
 
 
-def test_approving_a_forecast_never_mutates_the_immutable_forecast_fields(tmp_path):
+def test_flagging_never_mutates_the_immutable_forecast_fields(tmp_path):
     Session = _session_factory(tmp_path)
     with Session.begin() as session:
         forecast = _make_forecast(session)
@@ -59,7 +59,7 @@ def test_approving_a_forecast_never_mutates_the_immutable_forecast_fields(tmp_pa
             "generated_at": forecast.generated_at,
         }
 
-        set_llm_forecast_review_status(session, forecast, "APPROVED_FOR_PUBLICATION", "reviewer-a", "looks solid")
+        set_llm_forecast_review_status(session, forecast, "FLAGGED", "reviewer-a", "possible bad evidence")
 
         assert forecast.fair_value == before["fair_value"]
         assert forecast.confidence == before["confidence"]
@@ -69,9 +69,9 @@ def test_approving_a_forecast_never_mutates_the_immutable_forecast_fields(tmp_pa
         assert forecast.status == before["status"]
         assert forecast.generated_at == before["generated_at"]
 
-        assert forecast.reviewed_status == "APPROVED_FOR_PUBLICATION"
+        assert forecast.reviewed_status == "FLAGGED"
         assert forecast.reviewed_by == "reviewer-a"
-        assert forecast.review_notes == "looks solid"
+        assert forecast.review_notes == "possible bad evidence"
         assert forecast.reviewed_at is not None
 
 
@@ -89,9 +89,13 @@ def test_flagging_and_resetting_only_touch_review_fields(tmp_path):
 
 
 def test_unknown_review_status_is_rejected(tmp_path):
+    """"APPROVED_FOR_PUBLICATION" no longer exists -- publication is automatic for a canonical
+    forecast (see app.ppi.public_forecast), so "approving" is not a review action anymore."""
     Session = _session_factory(tmp_path)
     with Session.begin() as session:
         forecast = _make_forecast(session)
+        with pytest.raises(ValueError):
+            set_llm_forecast_review_status(session, forecast, "APPROVED_FOR_PUBLICATION", "reviewer-a")
         with pytest.raises(ValueError):
             set_llm_forecast_review_status(session, forecast, "PUBLISHED", "reviewer-a")
 
@@ -104,22 +108,16 @@ def test_missing_reviewer_is_rejected(tmp_path):
             set_llm_forecast_review_status(session, forecast, "FLAGGED", "")
 
 
-def test_cannot_approve_a_failed_or_skipped_forecast_for_publication(tmp_path):
+def test_can_flag_any_generation_status_including_failed_or_skipped(tmp_path):
+    """Flagging is a data-integrity concern, not a publication gate, so it is not restricted to
+    OK/ABSTAINED generation statuses the way the old "approve for publication" action was."""
     Session = _session_factory(tmp_path)
     with Session.begin() as session:
         failed = _make_forecast(session, status="FAILED", fair_value=None)
-        with pytest.raises(ValueError):
-            set_llm_forecast_review_status(session, failed, "APPROVED_FOR_PUBLICATION", "reviewer-a")
+        set_llm_forecast_review_status(session, failed, "FLAGGED", "reviewer-a")
+        assert failed.reviewed_status == "FLAGGED"
 
     with Session.begin() as session:
         skipped = _make_forecast(session, status="SKIPPED_PROVIDER", fair_value=None)
-        with pytest.raises(ValueError):
-            set_llm_forecast_review_status(session, skipped, "APPROVED_FOR_PUBLICATION", "reviewer-a")
-
-
-def test_abstained_forecast_can_still_be_approved_for_publication(tmp_path):
-    Session = _session_factory(tmp_path)
-    with Session.begin() as session:
-        forecast = _make_forecast(session, status="ABSTAINED")
-        set_llm_forecast_review_status(session, forecast, "APPROVED_FOR_PUBLICATION", "reviewer-a")
-        assert forecast.reviewed_status == "APPROVED_FOR_PUBLICATION"
+        set_llm_forecast_review_status(session, skipped, "FLAGGED", "reviewer-a")
+        assert skipped.reviewed_status == "FLAGGED"

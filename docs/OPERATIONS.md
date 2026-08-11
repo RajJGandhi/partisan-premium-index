@@ -44,7 +44,7 @@ LLM_PROVIDER=ollama PYTHONPATH=. python scripts/run_ppi_daily.py --trigger manua
 
 A row already at `OK` is never overwritten by a later run of the same twice-daily slot; only `FAILED`/`SKIPPED_PROVIDER` rows are retried in place. To correct a genuinely wrong forecast, do not edit the row — that slot's history is immutable by design.
 
-The Streamlit app's **LLM Forecasts** page (public, in the main navigation) shows the full history with market/date/status filters, a historical probability chart with a derived confidence band, and a CSV export button. **Administration → LLM Forecasts** lets a signed-in admin mark a forecast `APPROVED_FOR_PUBLICATION` or `FLAGGED` with a note — this never edits the forecast's numeric value, only the separate `reviewed_status`/`reviewed_by`/`reviewed_at`/`review_notes` columns.
+The Streamlit app's **LLM Forecasts** page (public, in the main navigation) shows the full history with market/date/status filters, a historical probability chart with a derived confidence band, and a CSV export button. A canonical forecast (`OK` or `ABSTAINED`, from a run classified `canonical`) publishes to the sanitized public export automatically — see `app/ppi/public_forecast.py` — there is no approval step. **Administration → LLM Forecasts** lets a signed-in admin mark a forecast `FLAGGED` (removing it from public display for a genuine data-integrity concern) or reset it back to `UNREVIEWED`, with a note — this never edits the forecast's numeric value, only the separate `reviewed_status`/`reviewed_by`/`reviewed_at`/`review_notes` columns, and it is never used to selectively approve a forecast based on its contents.
 
 ## Primary and backup scheduler
 

@@ -45,7 +45,7 @@ export function HomePage() {
               <Link className="button button--secondary" to="/methodology">See how PPI works</Link>
             </div>
             <div className="hero-trust-row">
-              <span><ShieldCheck size={15} /> Human-approved fair values</span>
+              <span><ShieldCheck size={15} /> Blind-forecast fair values, published automatically</span>
               <span><Database size={15} /> Immutable public history</span>
               <span><Gauge size={15} /> Twice-daily observations</span>
             </div>
@@ -115,7 +115,7 @@ export function HomePage() {
                 <PremiumBadge value={market.partisan_premium} />
               </Link>
             )) : (
-              <EmptyState title="Fair values are being published" description="Dislocations appear here once at least one market has an approved PPI fair value." />
+              <EmptyState title="Fair values are being published" description="Dislocations appear here once at least one market has a canonical blind-Qwen forecast." />
             )}
           </div>
         </div>
@@ -162,9 +162,9 @@ export function HomePage() {
             <h2>Automate collection. Preserve human judgment.</h2>
           </div>
           {[
-            ["01", "Collect", "Prices, order books, approved feeds and public evidence are gathered on schedule."],
-            ["02", "Construct", "Polling, forecasts, comparable markets, expert consensus and news form a proposal."],
-            ["03", "Approve", "A human reviews the proposal before a new fair value can become public."],
+            ["01", "Collect", "Prices, order books, and public evidence are gathered on schedule, never shown to the model."],
+            ["02", "Estimate", "A blind LLM (Qwen) estimates a fair probability from evidence alone -- it never sees the market price."],
+            ["03", "Publish", "A canonical forecast publishes automatically. Human review can only flag a genuine data-integrity concern -- it cannot approve or edit a forecast."],
             ["04", "Score", "After resolution, PPI and market probabilities are compared with Brier scores."],
           ].map(([number, title, copy]) => (
             <div className="method-step" key={number}>

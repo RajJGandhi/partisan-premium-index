@@ -1,13 +1,14 @@
-"""Publication review layer for the primary blind-LLM (Qwen) forecast series.
+"""Data-integrity review layer for the primary blind-LLM (Qwen) forecast series.
 
 A generated ``LLMForecast`` row is immutable: ``app.ppi.blind_forecast.generate_blind_forecast``
-never edits a slot already at status ``OK``. Humans may still approve a forecast for public
-display or flag a data-quality concern -- research-integrity policy explicitly allows this
-("Humans may approve publication or flag data quality, but may not edit the numeric
-primary-model forecast"). Every function here is restricted to the ``reviewed_*`` columns and
-must never assign to ``fair_value``, ``confidence``, ``should_abstain``, ``rationale``,
-``key_uncertainties_json``, ``base_rate_notes``, ``raw_response``, or any other field that
-represents what the model actually produced.
+never edits a slot already at status ``OK``. A canonical forecast is published automatically once
+persisted -- see ``app.ppi.public_forecast`` -- there is no human approval step gating
+publication. Human review exists only to flag a genuine data-integrity concern
+(``FLAGGED``, which removes a forecast from public display) and to reset a flag once resolved; it
+must never be used to selectively "approve" forecasts based on their contents, and every function
+here is restricted to the ``reviewed_*`` columns -- never ``fair_value``, ``confidence``,
+``should_abstain``, ``rationale``, ``key_uncertainties_json``, ``base_rate_notes``,
+``raw_response``, or any other field that represents what the model actually produced.
 """
 
 from __future__ import annotations
@@ -18,7 +19,7 @@ from sqlalchemy.orm import Session
 
 from app.db.models import LLMForecast
 
-REVIEW_STATUSES = ("UNREVIEWED", "APPROVED_FOR_PUBLICATION", "FLAGGED")
+REVIEW_STATUSES = ("UNREVIEWED", "FLAGGED")
 
 # Fields a review action is permitted to change. Enforced defensively in tests, not just here.
 _MUTABLE_REVIEW_FIELDS = {"reviewed_status", "reviewed_by", "reviewed_at", "review_notes"}
@@ -37,11 +38,6 @@ def set_llm_forecast_review_status(
 ) -> LLMForecast:
     if status not in REVIEW_STATUSES:
         raise ValueError(f"Unknown review status: {status!r}. Must be one of {REVIEW_STATUSES}.")
-    if status == "APPROVED_FOR_PUBLICATION" and forecast.status not in {"OK", "ABSTAINED"}:
-        raise ValueError(
-            f"Cannot approve a forecast for publication with generation status {forecast.status!r}; "
-            "only a forecast the model actually produced (OK or ABSTAINED) may be approved."
-        )
     if not reviewer:
         raise ValueError("A reviewer identity is required.")
 

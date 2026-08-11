@@ -18,6 +18,7 @@ from sqlalchemy.orm import Session
 
 from app.db.database import SessionLocal
 from app.db.models import (
+    BlindIndexRun,
     DailyIndex,
     EvidenceItem,
     FairValue,
@@ -31,6 +32,7 @@ from app.db.models import (
     Prediction,
     SourceRun,
 )
+from app.ppi.public_forecast import PublicForecast, current_public_forecasts
 
 SCHEMA_VERSION = "1.0"
 DEFAULT_OUTPUT_DIR = Path("web/public/data")
@@ -360,6 +362,21 @@ def _daily_index_payload(row: DailyIndex) -> dict[str, Any]:
     }
 
 
+def _blind_index_run_payload(row: BlindIndexRun) -> dict[str, Any]:
+    """One row per canonical run_key -- the primary blind-Qwen series' own aggregate history,
+    structurally separate from the legacy DailyIndex/_daily_index_payload above."""
+    return {
+        "run_key": row.run_key,
+        "effective_timestamp": _iso(row.effective_timestamp),
+        "market_count": row.market_count,
+        "average_signed_premium": _number(row.average_signed_premium),
+        "median_signed_premium": _number(row.median_signed_premium),
+        "average_absolute_premium": _number(row.average_absolute_premium),
+        "model_name": _text(row.model_name, max_length=100),
+        "generated_at": _iso(row.generated_at),
+    }
+
+
 def build_public_bundle(session: Session, *, generated_at: datetime | None = None) -> dict[str, Any]:
     generated_at = generated_at or utcnow()
     markets = list(
@@ -381,6 +398,7 @@ def build_public_bundle(session: Session, *, generated_at: datetime | None = Non
     predictions_by_market: dict[int, list[Prediction]] = defaultdict(list)
     resolutions_by_market: dict[int, MarketResolution] = {}
     evidence_by_id: dict[int, EvidenceItem] = {}
+    public_forecasts: dict[int, PublicForecast] = current_public_forecasts(session, market_ids)
 
     if market_ids:
         for snapshot in session.scalars(
@@ -451,7 +469,10 @@ def build_public_bundle(session: Session, *, generated_at: datetime | None = Non
         snapshots = snapshots_by_market[market.id]
         latest_snapshot = snapshots[-1] if snapshots else None
         fair_value = fair_values_by_market.get(market.id)
-        market_probability, published_fair_value, premium = _current_values(market, latest_snapshot, fair_value)
+        live_market_probability, legacy_fair_value, legacy_premium = _current_values(
+            market, latest_snapshot, fair_value
+        )
+        public_forecast = public_forecasts[market.id]
         revisions = revisions_by_market[market.id]
         evidence_payloads = [
             payload
@@ -476,9 +497,24 @@ def build_public_bundle(session: Session, *, generated_at: datetime | None = Non
             "closed": bool(market.closed),
             "end_date": _iso(market.end_date),
             "market_url": _market_url(market),
-            "market_probability": market_probability,
-            "ppi_fair_value": published_fair_value,
-            "partisan_premium": premium,
+            # The primary blind-Qwen series: publishes automatically once a canonical forecast is
+            # persisted (see app.ppi.public_forecast) -- no human approval step gates this. These
+            # three fields always describe the SAME observation (the price the forecast was
+            # actually compared against at join time, not a fresher live price), so
+            # partisan_premium always equals market_probability - ppi_fair_value exactly as shown.
+            # Null unless forecast_status == "OK"; see forecast_status for why.
+            "market_probability": public_forecast.market_probability,
+            "ppi_fair_value": public_forecast.fair_value,
+            "partisan_premium": public_forecast.partisan_premium,
+            "forecast_status": public_forecast.forecast_status,
+            "forecast_generated_at": _iso(public_forecast.generated_at),
+            "forecast_run_key": public_forecast.run_key,
+            "forecast_model_name": _text(public_forecast.model_name, max_length=100),
+            "forecast_confidence": _probability(public_forecast.confidence),
+            "forecast_rationale": _text(public_forecast.rationale, max_length=700),
+            # Current live Polymarket price, independent of any forecast -- always shown when
+            # available, unlike market_probability above which is null except on an OK forecast.
+            "live_market_probability": live_market_probability,
             "price_type": _text(latest_snapshot.price_type, max_length=50) if latest_snapshot else None,
             "best_bid": _probability(latest_snapshot.yes_best_bid) if latest_snapshot else None,
             "best_ask": _probability(latest_snapshot.yes_best_ask) if latest_snapshot else None,
@@ -492,6 +528,13 @@ def build_public_bundle(session: Session, *, generated_at: datetime | None = Non
             "last_fair_value_publication_at": _iso(fair_value.last_published_at) if fair_value else None,
             "revision_count": len(revisions),
             "public_evidence_count": len(evidence_payloads),
+            # The legacy human-approved weighted-fair-value series (FairValue/FairValueRevision).
+            # Retained for auditability -- see revisions/predictions below -- but no longer the
+            # current headline PPI figure; that is the blind-Qwen series above.
+            "legacy_weighted": {
+                "ppi_fair_value": legacy_fair_value,
+                "partisan_premium": legacy_premium,
+            },
         }
         market_summaries.append(summary)
 
@@ -555,7 +598,10 @@ def build_public_bundle(session: Session, *, generated_at: datetime | None = Non
         )
     )
 
-    published_markets = [item for item in market_summaries if item["partisan_premium"] is not None]
+    # "Published" means a canonical OK blind-Qwen forecast exists -- publication is automatic,
+    # not gated on human review (see app.ppi.public_forecast). ABSTAINED/ERROR/FLAGGED/NONE
+    # markets are never counted here or in the aggregate index below.
+    published_markets = [item for item in market_summaries if item["forecast_status"] == "OK"]
     signed_premiums = [float(item["partisan_premium"]) for item in published_markets]
     average_signed = sum(signed_premiums) / len(signed_premiums) if signed_premiums else None
     average_absolute = (
@@ -567,6 +613,19 @@ def build_public_bundle(session: Session, *, generated_at: datetime | None = Non
 
     daily_index_rows = list(session.scalars(select(DailyIndex).order_by(DailyIndex.index_date)))
     daily_index_history = [_daily_index_payload(row) for row in daily_index_rows]
+
+    # Only canonical, non-superseded runs' aggregates are presented as trustworthy history --
+    # same principle as _latest_canonical_job below, applied to the full history rather than just
+    # the latest row.
+    blind_index_rows = list(
+        session.scalars(
+            select(BlindIndexRun)
+            .join(JobRun, BlindIndexRun.job_run_id == JobRun.id)
+            .where(JobRun.run_classification == "canonical", JobRun.superseded_by_id.is_(None))
+            .order_by(BlindIndexRun.effective_timestamp)
+        )
+    )
+    blind_index_history = [_blind_index_run_payload(row) for row in blind_index_rows]
 
     jobs = list(
         session.scalars(select(JobRun).order_by(JobRun.started_at.desc()).limit(MAX_RECENT_RUNS))
@@ -658,7 +717,10 @@ def build_public_bundle(session: Session, *, generated_at: datetime | None = Non
             key=lambda item: item["published_at"] or "",
             reverse=True,
         )[:MAX_RECENT_REVISIONS],
+        # Legacy human-weighted series' daily aggregate -- retained for auditability.
         "index_history": daily_index_history,
+        # Primary blind-Qwen series' aggregate history, one entry per canonical run.
+        "blind_index_history": blind_index_history,
     }
 
     track_record = {

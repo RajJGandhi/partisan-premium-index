@@ -121,14 +121,15 @@ The canonical, database-backed implementation of the primary Qwen-vs-Polymarket 
 
 `scripts/run_daily_experiment.py` and `scripts/run_llm_fair_values.py` remain in the repository as the original file-based prototype and are still useful for offline experimentation against `data/tracked_markets_final.csv`, but the scheduled production path is now `app/ppi/pipeline.py` → `app/ppi/blind_forecast.py`. Decommissioning the file-based scripts is a later-phase cleanup once the database series has enough history to be trusted as the sole source of truth.
 
-### `app/ppi/llm_forecast_view.py` and `app/ppi/llm_forecast_review.py`
+### `app/ppi/llm_forecast_view.py`, `app/ppi/llm_forecast_review.py`, and `app/ppi/public_forecast.py`
 
-Read-side and review-side support for the Streamlit "LLM Forecasts" page (public) and the Administration → "LLM Forecasts" tab (admin-only):
+Read-side, review-side, and public-visibility support for the Streamlit "LLM Forecasts" page (public), the Administration → "LLM Forecasts" tab (admin-only), and the sanitized public export:
 
 - `llm_forecast_view.py` is pure/read-only: freshness classification (`OK`/`STALE`/`ERROR`/`SKIPPED_PROVIDER`/`MISSING`) per market against `app_stale_hours`, the derived (non-native) confidence-interval heuristic used for the chart band, and the row/export shape shared by the on-screen table and the CSV download. It never writes to the database.
-- `llm_forecast_review.py` lets an authenticated admin set `LLMForecast.reviewed_status` to `APPROVED_FOR_PUBLICATION`, `FLAGGED`, or back to `UNREVIEWED`, with a reviewer identity, timestamp, and notes — this is the "humans may approve publication or flag data quality" allowance from the research-integrity rules. It is structurally incapable of touching `fair_value`, `confidence`, `should_abstain`, `rationale`, `key_uncertainties_json`, `base_rate_notes`, or `raw_response`; only the four `reviewed_*` columns are ever assigned.
+- `llm_forecast_review.py` lets an authenticated admin set `LLMForecast.reviewed_status` to `FLAGGED` (a genuine data-integrity concern, removing the forecast from public display) or back to `UNREVIEWED`, with a reviewer identity, timestamp, and notes. There is no `APPROVED_FOR_PUBLICATION` status — publication is automatic for a canonical forecast, never an admin action, per the research-integrity rules ("data-integrity review may only flag it, never approve, select, or edit it"). It is structurally incapable of touching `fair_value`, `confidence`, `should_abstain`, `rationale`, `key_uncertainties_json`, `base_rate_notes`, or `raw_response`; only the four `reviewed_*` columns are ever assigned.
+- `public_forecast.py` (used by `scripts/export_public_bundle.py` and the Streamlit "System status" page) derives, per market, the current public forecast: the latest `LLMForecast` belonging to a canonical, non-superseded `JobRun`. `status == "OK"` publishes real values; `"ABSTAINED"` publishes an explicit abstention with no numeric value; anything else (`FAILED`/`SKIPPED_PROVIDER`) publishes `"ERROR"`; `reviewed_status == "FLAGGED"` overrides all of that to `"FLAGGED"` and suppresses display; no canonical forecast at all is `"NONE"`.
 
-`LLMForecast` therefore carries two independent status concepts that must not be conflated: `status` (the generation outcome: `OK`/`ABSTAINED`/`FAILED`/`SKIPPED_PROVIDER`, set once by `generate_blind_forecast` and never edited) and `reviewed_status` (the publication-review outcome, editable by admins, defaulting to `UNREVIEWED`).
+`LLMForecast` therefore carries two independent status concepts that must not be conflated: `status` (the generation outcome: `OK`/`ABSTAINED`/`FAILED`/`SKIPPED_PROVIDER`, set once by `generate_blind_forecast` and never edited) and `reviewed_status` (the data-integrity review outcome, editable by admins, defaulting to `UNREVIEWED` — a review flag, not a publication gate).
 
 ### `app/ppi/lock.py`
 
