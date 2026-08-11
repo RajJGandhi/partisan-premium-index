@@ -23,19 +23,43 @@ Prerequisites:
   registration token.
 - Node 22 available, or let `setup-node` install it into the runner's tool cache — this works
   unmodified on self-hosted runners.
-- **Python is different on macOS**: `actions/setup-python`'s macOS Python builds are compiled
-  against, and hardcode, `/Users/runner/hostedtoolcache` — they are not relocatable via
-  `RUNNER_TOOL_CACHE` (see GitHub's `setup-python` docs). On a self-hosted Mac running as any user
-  other than literally `runner` (the normal case), that path doesn't exist yet and an unprivileged
-  process can't create it, so the workflow's "Set up Python" step fails immediately with
-  `mkdir: /Users/runner: Permission denied` — before the pipeline, database, export, or deploy
-  steps ever run. `install.sh` checks for this and, if needed, prints the exact one-time command:
+- **Python on the self-hosted macOS runner**: `ppi-daily.yml`'s self-hosted job does **not** use
+  `actions/setup-python`. Two separate macOS-only problems with that action ruled it out:
+  1. Its macOS Python builds are compiled against, and hardcode, `/Users/runner/hostedtoolcache`
+     — not relocatable via `RUNNER_TOOL_CACHE` (see GitHub's `setup-python` docs). On a
+     self-hosted Mac running as any user other than literally `runner` (the normal case), that
+     path doesn't exist and an unprivileged process can't create it, so the job used to fail
+     immediately with `mkdir: /Users/runner: Permission denied`. This part is fixable with a
+     one-time `chown` (see below) — but it isn't the whole story.
+  2. Even with that directory fixed, `actions/setup-python`'s installer unconditionally runs
+     `sudo installer -pkg ... -target /` for any Python version not already registered in that
+     directory. That has no TTY on a non-interactive self-hosted job and always fails with
+     `sudo: a terminal is required to read the password`. There is no directory-permission fix
+     for this — it's a hard limitation of how `actions/setup-python` installs Python on macOS.
+
+  Instead, the self-hosted job uses [`uv`](https://docs.astral.sh/uv/) to manage a pinned,
+  relocatable, user-space Python build (python-build-standalone) that needs no elevated
+  privileges to install or run at all. `install.sh` installs `uv` once (automatically, no sudo,
+  no prompts — same trust model as downloading the runner binary itself) if it isn't already
+  present at `$HOME/.local/bin/uv`. The workflow's "Resolve pinned self-hosted Python" step then
+  runs `uv python install "$(cat .python-version)"` (idempotent — instant no-op once already
+  installed) and verifies the resolved interpreter's version matches `.python-version` exactly
+  before using it, failing the job loudly rather than silently falling back to a different
+  version if anything doesn't match.
+
+  The step deliberately invokes `uv` by its absolute path (`$HOME/.local/bin/uv`), not by PATH
+  lookup: the runner's launchd job session does not source `~/.zshrc`/`~/.zprofile` (where `uv`'s
+  installer adds itself to `PATH`), and `~/.local/bin` isn't listed in `/etc/paths` or
+  `/etc/paths.d/*` either — so a bare `uv` on PATH can silently fail to resolve inside an actual
+  job even though it works fine in an interactive terminal.
+
+  `install.sh` still checks whether `/Users/runner/hostedtoolcache` exists and is writable, and
+  prints the one-time `chown` command if not — this is now purely informational/harmless (nothing
+  in the workflow reads that path anymore); it's left in place because removing it isn't required
+  and isn't part of this fix's scope:
   ```bash
   sudo bash -c 'mkdir -p /Users/runner/hostedtoolcache && chown -R $(whoami):staff /Users/runner && chmod -R 755 /Users/runner'
   ```
-  This creates the official path and gives your runner's user ownership of it (not world-writable)
-  — it does **not** redirect `RUNNER_TOOL_CACHE` elsewhere, since that's unsupported for macOS.
-  One-time per machine; survives runner reinstalls and reboots.
 
 Run the automated part:
 
