@@ -34,7 +34,7 @@ sqlite3 data/reality_spread.db \
   "select run_slot,status,fair_value,confidence,raw_ppi from llm_forecasts order by id desc limit 20;"
 ```
 
-`status` is one of `OK`, `ABSTAINED`, `FAILED`, or `SKIPPED_PROVIDER`. In production today, expect `SKIPPED_PROVIDER` on every row: the scheduled GitHub Actions workflow runs on a hosted runner with `LLM_PROVIDER=deterministic` because it cannot reach a local Ollama instance (see `PPI_ARCHITECTURE.md` → "Production automation constraint"). To generate real forecasts, run the pipeline from a machine with Ollama running and `LLM_PROVIDER=ollama` set:
+`status` is one of `OK`, `ABSTAINED`, `FAILED`, or `SKIPPED_PROVIDER`. In production, the scheduled workflow runs on the self-hosted Mac runner with `LLM_PROVIDER=ollama` (see `docs/SELF_HOSTED_RUNNER.md`), so expect real `OK`/`ABSTAINED` rows on every canonical run. `SKIPPED_PROVIDER` only appears from a run where `LLM_PROVIDER` wasn't a live provider (e.g. a local run without Ollama configured). To generate real forecasts locally, run the pipeline from a machine with Ollama running and `LLM_PROVIDER=ollama` set:
 
 ```bash
 ollama pull qwen3:8b
@@ -48,11 +48,13 @@ The Streamlit app's **LLM Forecasts** page (public, in the main navigation) show
 
 ## Primary and backup scheduler
 
+The canonical production schedule is 09:00 and 21:00 America/Toronto, run by `.github/workflows/ppi-daily.yml` on the self-hosted runner (see `docs/SELF_HOSTED_RUNNER.md`) — that workflow's own `schedule:` trigger is what actually drives production, not the script below.
+
 ```bash
 PYTHONPATH=. python scripts/run_scheduler.py
 ```
 
-The primary and backup runs have different job keys but share evidence and daily-snapshot uniqueness rules. A backup run can fill missing data without creating duplicate canonical snapshots.
+`scripts/run_scheduler.py` is a separate, manual/local alternative (a long-running `BlockingScheduler` process) for running primary/backup on a machine without the GitHub Actions runner set up — not the production mechanism. The primary and backup runs have different job keys but share evidence and daily-snapshot uniqueness rules. A backup run can fill missing data without creating duplicate canonical snapshots.
 
 ## Daily editorial procedure
 

@@ -43,12 +43,17 @@ class Settings(BaseSettings):
 
     discord_webhook_url: str = ""
     app_stale_hours: int = 30
-    # Canonical schedule is 06:00 / 18:00 America/Toronto (see docs/SELF_HOSTED_RUNNER.md). GitHub
-    # Actions cron is UTC-only and does not observe DST, so these are the EDT-equivalent UTC hours;
-    # the +/-2h tolerance in app.ppi.blind_forecast.determine_run_slot absorbs the 1h EST shift
-    # (06:00 Toronto = 10:00 UTC in EDT, 11:00 UTC in EST -- both within tolerance of hour 10).
-    primary_run_hour_utc: int = 10
-    backup_run_hour_utc: int = 22
+    # Canonical schedule is 09:00 / 21:00 America/Toronto (see docs/SELF_HOSTED_RUNNER.md),
+    # implemented via GitHub Actions' native per-entry `timezone: America/Toronto` schedule field
+    # -- GitHub resolves the correct UTC offset for the current DST season on its own. These two
+    # settings are independent of that YAML config: they classify a forecast's run_slot from the
+    # *actual UTC hour at generation time* (see app.ppi.blind_forecast.determine_run_slot), so
+    # they're set to the EDT-equivalent UTC hour, with the +/-2h tolerance absorbing the 1h EST
+    # shift (09:00 Toronto = 13:00 UTC in EDT, 14:00 UTC in EST -- both within tolerance of hour
+    # 13; 21:00 Toronto = 01:00 UTC in EDT, 02:00 UTC in EST, next UTC calendar day -- both within
+    # tolerance of hour 1).
+    primary_run_hour_utc: int = 13
+    backup_run_hour_utc: int = 1
     scheduler_timezone: str = "America/Toronto"
 
     # Existing optional integrations retained.

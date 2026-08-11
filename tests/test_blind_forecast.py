@@ -110,25 +110,27 @@ def test_forbidden_key_set_covers_all_orderbook_and_snapshot_price_fields():
 
 
 def test_determine_run_slot_maps_to_primary_backup_and_adhoc():
-    # Canonical schedule is 06:00/18:00 America/Toronto. In EDT (summer) that's 10:00/22:00 UTC --
-    # the configured PRIMARY_RUN_HOUR_UTC/BACKUP_RUN_HOUR_UTC defaults.
+    # Canonical schedule is 09:00/21:00 America/Toronto. In EDT (summer) that's 13:00/01:00 UTC --
+    # the configured PRIMARY_RUN_HOUR_UTC/BACKUP_RUN_HOUR_UTC defaults (backup's UTC hour falls on
+    # the next calendar day relative to the Toronto evening it represents; run_key/run_slot dates
+    # are UTC-based, unaffected by this test since determine_run_slot is only given a `day`).
     day = date(2026, 8, 5)
-    primary = datetime(2026, 8, 5, 10, 30, tzinfo=timezone.utc)
-    backup = datetime(2026, 8, 5, 22, 5, tzinfo=timezone.utc)
-    adhoc = datetime(2026, 8, 5, 3, 0, tzinfo=timezone.utc)
+    primary = datetime(2026, 8, 5, 13, 30, tzinfo=timezone.utc)
+    backup = datetime(2026, 8, 5, 1, 5, tzinfo=timezone.utc)
+    adhoc = datetime(2026, 8, 5, 8, 0, tzinfo=timezone.utc)
 
     assert determine_run_slot(day, primary) == "2026-08-05:primary"
     assert determine_run_slot(day, backup) == "2026-08-05:backup"
-    assert determine_run_slot(day, adhoc) == "2026-08-05:adhoc-030000"
+    assert determine_run_slot(day, adhoc) == "2026-08-05:adhoc-080000"
 
 
 def test_determine_run_slot_absorbs_the_est_dst_shift():
-    # In EST (winter), 06:00/18:00 America/Toronto is 11:00/23:00 UTC -- one hour later than the
+    # In EST (winter), 09:00/21:00 America/Toronto is 14:00/02:00 UTC -- one hour later than the
     # EDT-equivalent configured hours. The +/-2h tolerance must still classify these correctly so
-    # the same cron entries work year-round without maintenance across DST transitions.
+    # the same settings work year-round without maintenance across DST transitions.
     day = date(2026, 1, 15)
-    primary_est = datetime(2026, 1, 15, 11, 17, tzinfo=timezone.utc)
-    backup_est = datetime(2026, 1, 15, 23, 17, tzinfo=timezone.utc)
+    primary_est = datetime(2026, 1, 15, 14, 17, tzinfo=timezone.utc)
+    backup_est = datetime(2026, 1, 15, 2, 17, tzinfo=timezone.utc)
 
     assert determine_run_slot(day, primary_est) == "2026-01-15:primary"
     assert determine_run_slot(day, backup_est) == "2026-01-15:backup"
@@ -148,7 +150,7 @@ def test_deterministic_provider_records_explicit_skip_not_a_fabricated_value(tmp
             run_key="test-run",
             trigger_type="manual",
             day=date(2026, 8, 5),
-            now=datetime(2026, 8, 5, 10, 0, tzinfo=timezone.utc),
+            now=datetime(2026, 8, 5, 13, 0, tzinfo=timezone.utc),
         )
 
     assert forecast.status == "SKIPPED_PROVIDER"
@@ -196,7 +198,7 @@ def test_valid_ollama_response_persists_ok_and_join_computes_raw_ppi(tmp_path, m
             run_key="test-run",
             trigger_type="manual",
             day=date(2026, 8, 5),
-            now=datetime(2026, 8, 5, 10, 0, tzinfo=timezone.utc),
+            now=datetime(2026, 8, 5, 13, 0, tzinfo=timezone.utc),
         )
         join_forecast_with_price(session, forecast, snap)
 
@@ -228,7 +230,7 @@ def test_failed_parse_records_failed_status_and_never_fabricates_a_value(tmp_pat
             run_key="test-run",
             trigger_type="manual",
             day=date(2026, 8, 5),
-            now=datetime(2026, 8, 5, 10, 0, tzinfo=timezone.utc),
+            now=datetime(2026, 8, 5, 13, 0, tzinfo=timezone.utc),
         )
 
     assert forecast.status == "FAILED"
@@ -267,7 +269,7 @@ def test_ok_forecast_is_immutable_for_its_run_slot(tmp_path, monkeypatch):
             run_key="run-1",
             trigger_type="manual",
             day=date(2026, 8, 5),
-            now=datetime(2026, 8, 5, 10, 0, tzinfo=timezone.utc),
+            now=datetime(2026, 8, 5, 13, 0, tzinfo=timezone.utc),
         )
         assert first.status == "OK"
         assert first.fair_value == pytest.approx(0.30)
@@ -280,7 +282,7 @@ def test_ok_forecast_is_immutable_for_its_run_slot(tmp_path, monkeypatch):
             run_key="run-1-rerun",
             trigger_type="manual",
             day=date(2026, 8, 5),
-            now=datetime(2026, 8, 5, 10, 5, tzinfo=timezone.utc),
+            now=datetime(2026, 8, 5, 13, 5, tzinfo=timezone.utc),
         )
         assert second.id == first.id
         assert second.fair_value == pytest.approx(0.30)
@@ -313,11 +315,11 @@ def test_twice_daily_slots_append_distinct_rows_same_day(tmp_path, monkeypatch):
         day = date(2026, 8, 5)
         generate_blind_forecast(
             session, market, job=None, run_key="primary", trigger_type="github-1", day=day,
-            now=datetime(2026, 8, 5, 10, 17, tzinfo=timezone.utc),
+            now=datetime(2026, 8, 5, 13, 17, tzinfo=timezone.utc),
         )
         generate_blind_forecast(
             session, market, job=None, run_key="backup", trigger_type="github-2", day=day,
-            now=datetime(2026, 8, 5, 22, 17, tzinfo=timezone.utc),
+            now=datetime(2026, 8, 5, 1, 17, tzinfo=timezone.utc),
         )
         rows = list(session.scalars(select(LLMForecast).where(LLMForecast.market_id == market.id)))
 
