@@ -53,6 +53,13 @@ Prerequisites:
   `/etc/paths.d/*` either — so a bare `uv` on PATH can silently fail to resolve inside an actual
   job even though it works fine in an interactive terminal.
 
+  One more consequence of a uv-managed interpreter: it marks itself PEP 668 "externally managed"
+  (`error: externally-managed-environment` / "This Python installation is managed by uv and
+  should not be modified"), so the "Install Python dependencies" step passes
+  `--break-system-packages` to `pip install`. This is safe here specifically because this
+  interpreter exists solely for this workflow — nothing else on the runner shares it, so there is
+  no other "system" for a bad dependency to break.
+
   `install.sh` still checks whether `/Users/runner/hostedtoolcache` exists and is writable, and
   prints the one-time `chown` command if not — this is now purely informational/harmless (nothing
   in the workflow reads that path anymore); it's left in place because removing it isn't required
