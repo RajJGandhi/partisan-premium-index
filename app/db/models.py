@@ -374,6 +374,11 @@ class JobRun(Base):
     llm_forecasts_failed: Mapped[int] = mapped_column(Integer, default=0)
     llm_forecasts_skipped: Mapped[int] = mapped_column(Integer, default=0)
     evidence_classification_failed: Mapped[int] = mapped_column(Integer, default=0)
+    # Evidence items classified via classify_with_fallback's silent deterministic degrade
+    # (standard_mixed_fallback_allowed mode only -- strict_llm_only has no fallback path for
+    # either evidence classification or forecast generation, so this is always 0 on a canonical
+    # run by construction). See app.ppi.run_health for the derived observability this feeds.
+    llm_fallback_count: Mapped[int] = mapped_column(Integer, default=0)
     # "standard_mixed_fallback_allowed": evidence classification may silently degrade to the
     # deterministic classifier on an LLM failure (legacy/default behavior; this is what every run
     # before this column existed used). "strict_llm_only": the canonical blind-Qwen series -- a

@@ -63,6 +63,7 @@ ADDITIVE_COLUMNS = {
         "llm_forecasts_failed": "INTEGER DEFAULT 0 NOT NULL",
         "llm_forecasts_skipped": "INTEGER DEFAULT 0 NOT NULL",
         "evidence_classification_failed": "INTEGER DEFAULT 0 NOT NULL",
+        "llm_fallback_count": "INTEGER DEFAULT 0 NOT NULL",
         "pipeline_mode": "VARCHAR(40) DEFAULT 'standard_mixed_fallback_allowed' NOT NULL",
         "run_classification": "VARCHAR(30) DEFAULT 'adhoc' NOT NULL",
         "superseded_by_id": "INTEGER",
