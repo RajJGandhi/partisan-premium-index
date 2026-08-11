@@ -68,7 +68,34 @@ PYTHONPATH=. python scripts/audit_llm_forecast_run.py --job-run-id 21 --output a
 The full sanitized report (per-forecast raw responses, evidence titles/sources/timestamps,
 generation parameters, and cross-market evidence-overlap/duplicate-packet analysis) is uploaded
 as a workflow artifact; only aggregate counts (no raw text) are written to the job's step
-summary.
+summary. Each forecast's `evidence_items` also carries the exact `summary` text and `category`
+shown to the model, and each forecast row carries `market_category`/`market_region`/
+`market_end_date`/`market_resolution_criteria` -- enough to exactly reconstruct the blind evidence
+packet a historical run used, for a shadow experiment (below).
+
+### Shadow experiments
+
+For characterizing an anomaly in an already-completed run (e.g. an unexpected probability
+distribution) without touching the canonical series at all:
+
+1. Run the audit workflow for the run in question (above) and download its artifact --
+   `audit-report.json`.
+2. `scripts/run_shadow_experiment.py --frozen-inputs audit-report.json --output results.json`
+   replays each market's *exact* frozen evidence packet (same question, same evidence, same
+   `assert_blind_packet` blindness check as production) under one or more experimental "arms" --
+   different prompts and/or generation settings -- calling a local Ollama instance directly. It
+   never touches `DATABASE_URL`, never creates a `JobRun`/`LLMForecast` row, never calls
+   `app.ppi.pipeline`/`generate_blind_forecast`, and writes only to the local `--output` file, so
+   these generations can never be confused with, publish as, or supersede a real canonical
+   observation.
+3. `scripts/analyze_shadow_experiment.py --results results.json --frozen-inputs audit-report.json --original-cluster-slugs <slug1,slug2,...>`
+   computes per-arm/per-market statistics (mean, stdev, unique-value count, within-/between-market
+   variance, evidence-count and evidence-overlap correlations, and whether the original clustering
+   reproduces).
+
+Shadow experiment results are diagnostic data, not part of the PPI history -- store them under
+`data/shadow_experiments/` if you want them retained, never in a location the public exporter or
+Streamlit review UI reads from.
 
 ## Primary and backup scheduler
 

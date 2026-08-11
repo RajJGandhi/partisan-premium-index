@@ -73,6 +73,13 @@ class ForecastAuditRow:
     market_id: int
     market_slug: str | None
     market_question: str | None
+    # Reconstructing the exact blind evidence packet (e.g. for a replay/shadow experiment against
+    # a frozen historical run) needs these, matching build_blind_evidence_packet's own packet
+    # shape in app/ppi/blind_forecast.py.
+    market_category: str | None
+    market_region: str | None
+    market_end_date: str | None
+    market_resolution_criteria: str | None
     run_slot: str
     status: str
     fair_value: float | None
@@ -112,10 +119,15 @@ def _audit_one_forecast(session: Session, forecast: LLMForecast, market: Market 
         {
             "id": item.id,
             "title": item.title,
+            # Matches build_blind_evidence_packet's own packet["evidence"][i]["summary"] exactly
+            # (item.summary if set, else content_text, truncated to the same 600 chars) -- the
+            # actual text shown to the model, needed to replay this evidence packet faithfully.
+            "summary": (item.summary or item.content_text or "")[:600],
             "source_name": item.source_name,
             "source_type": item.source_type,
             "url": item.canonical_url or item.original_url,
             "published_at": item.published_at.isoformat() if item.published_at else None,
+            "category": item.category,
             "content_hash": item.content_hash,
             "classifier_provider": item.classifier_provider,
         }
@@ -129,6 +141,10 @@ def _audit_one_forecast(session: Session, forecast: LLMForecast, market: Market 
         market_id=forecast.market_id,
         market_slug=market.slug if market else None,
         market_question=market.question if market else None,
+        market_category=market.category if market else None,
+        market_region=market.region if market else None,
+        market_end_date=market.end_date.isoformat() if market and market.end_date else None,
+        market_resolution_criteria=(market.rules or market.resolution_source or "") if market else None,
         run_slot=forecast.run_slot,
         status=forecast.status,
         fair_value=forecast.fair_value,
