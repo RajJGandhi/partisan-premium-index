@@ -1,12 +1,10 @@
 name: PPI Production Pipeline
 
-# Canonical schedule is 06:00 / 18:00 America/Toronto, executed on the self-hosted runner (see
-# docs/SELF_HOSTED_RUNNER.md). GitHub Actions `schedule:` cron is UTC-only and does not observe
-# DST, so this uses the standard workaround: one cron entry per possible UTC offset (EDT/EST),
-# and the "Determine run slot" step below checks the *real* Toronto local time before doing
-# anything -- a cron firing at the "wrong" offset for the current season is a clean no-op, never
-# a duplicate or a mis-timed run. This never fabricates a timestamp; it only decides whether to
-# proceed, using the machine's actual current time throughout.
+# Canonical schedule is 09:00 / 21:00 America/Toronto, executed on the self-hosted runner (see
+# docs/SELF_HOSTED_RUNNER.md). Uses GitHub Actions' native per-entry `timezone:` field (added
+# March 2026) so each cron entry fires at that exact Toronto local time year-round -- GitHub
+# itself resolves the correct UTC offset for the current DST season, so there is no need for the
+# old four-UTC-cron-entries-plus-runtime-recheck workaround this schedule used before.
 on:
   workflow_dispatch:
     inputs:
@@ -31,12 +29,12 @@ on:
         type: boolean
 
   schedule:
-    # Primary: 06:00 America/Toronto -> 10:00 UTC (EDT) or 11:00 UTC (EST).
-    - cron: "0 10 * * *"
-    - cron: "0 11 * * *"
-    # Backup: 18:00 America/Toronto -> 22:00 UTC (EDT) or 23:00 UTC (EST).
-    - cron: "0 22 * * *"
-    - cron: "0 23 * * *"
+    # Primary: 09:00 America/Toronto, year-round (GitHub resolves the UTC offset for DST).
+    - cron: "0 9 * * *"
+      timezone: "America/Toronto"
+    # Backup: 21:00 America/Toronto, year-round.
+    - cron: "0 21 * * *"
+      timezone: "America/Toronto"
 
   push:
     branches:
@@ -100,34 +98,23 @@ jobs:
             exit 0
           fi
 
-          # Scheduled run: verify the *real* current Toronto local time actually matches the
-          # slot this cron entry represents before proceeding. TZ database on macOS handles DST
-          # correctly; this is the only source of truth, never the cron expression alone.
-          TORONTO_HOUR=$(TZ="America/Toronto" date +%H)
+          # Scheduled run: GitHub's native per-entry `timezone: America/Toronto` (see the
+          # `on.schedule` block above) already guarantees this fires at exactly 09:00 (primary)
+          # or 21:00 (backup) Toronto local time year-round, correctly adjusted for DST by GitHub
+          # itself -- no runtime local-time recheck is needed here anymore.
           SCHEDULE="${{ github.event.schedule }}"
 
-          if [ "$SCHEDULE" = "0 10 * * *" ] || [ "$SCHEDULE" = "0 11 * * *" ]; then
+          if [ "$SCHEDULE" = "0 9 * * *" ]; then
             SLOT=primary
-            EXPECTED_HOUR=06
-          elif [ "$SCHEDULE" = "0 22 * * *" ] || [ "$SCHEDULE" = "0 23 * * *" ]; then
+          elif [ "$SCHEDULE" = "0 21 * * *" ]; then
             SLOT=backup
-            EXPECTED_HOUR=18
           else
             SLOT=adhoc
-            EXPECTED_HOUR=""
-          fi
-
-          if [ -z "$EXPECTED_HOUR" ]; then
-            SHOULD_RUN=true
-          elif [ "$TORONTO_HOUR" = "$EXPECTED_HOUR" ]; then
-            SHOULD_RUN=true
-          else
-            SHOULD_RUN=false
           fi
 
           echo "slot=$SLOT" >> "$GITHUB_OUTPUT"
-          echo "should_run_pipeline=$SHOULD_RUN" >> "$GITHUB_OUTPUT"
-          echo "cron='$SCHEDULE' slot=$SLOT toronto_hour=$TORONTO_HOUR expected=$EXPECTED_HOUR should_run=$SHOULD_RUN"
+          echo "should_run_pipeline=true" >> "$GITHUB_OUTPUT"
+          echo "cron='$SCHEDULE' slot=$SLOT (Toronto-local via native GitHub Actions timezone scheduling)"
 
       - name: Resolve pinned self-hosted Python (uv-managed, no sudo)
         shell: bash

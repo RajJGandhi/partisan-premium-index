@@ -3,7 +3,7 @@
 The canonical blind-Qwen series requires a live Ollama instance for every evidence
 classification and every market forecast (`--strict-llm-only`, see `PPI_ARCHITECTURE.md`). A
 GitHub-hosted runner cannot reach an Ollama instance running on your Mac, so the scheduled
-pipeline runs on a **self-hosted runner registered on this Mac**, twice daily at 06:00 and 18:00
+pipeline runs on a **self-hosted runner registered on this Mac**, twice daily at 09:00 and 21:00
 America/Toronto.
 
 Scripts referenced below live in `ops/self-hosted-runner/`.
@@ -241,12 +241,15 @@ reversible by anyone with write access.
 
 ## Design notes
 
-- **DST-safe scheduling**: GitHub Actions `schedule:` cron is UTC-only and does not observe
-  DST. The workflow declares four cron entries (EDT- and EST-equivalent UTC hours for both
-  06:00 and 18:00 Toronto) and its "Determine run slot" step checks the *real* Toronto local
-  time before proceeding — a cron firing at the wrong seasonal offset is a clean no-op, not a
-  duplicate or a mis-timed run. Nothing is ever fabricated; the check only decides whether to
-  proceed, using the machine's actual current time.
+- **DST-safe scheduling**: the workflow uses GitHub Actions' native per-entry `timezone:
+  "America/Toronto"` field on each `schedule:` cron entry (`0 9 * * *` for primary, `0 21 * * *`
+  for backup) — GitHub resolves the correct UTC offset for the current DST season on its own, so
+  there is no separate runtime Toronto-local-time recheck and no need to maintain duplicate
+  EDT/EST cron entries. `app.config.Settings.primary_run_hour_utc`/`backup_run_hour_utc`
+  (currently 13 and 1) are a separate, independent setting: they classify a forecast's
+  `run_slot` from the actual UTC hour at generation time (see
+  `app/ppi/blind_forecast.py::determine_run_slot`) and still need their own ±2h DST tolerance,
+  since that check happens in plain Python, not in GitHub's schedule trigger.
 - **Overlap prevention**: the GitHub Actions `concurrency: {group: ppi-production,
   cancel-in-progress: false}` queues rather than overlaps workflow runs; `app/ppi/lock.py`
   is a filesystem-level backstop (PID-verified, stale-lock-reclaiming) for any out-of-band
