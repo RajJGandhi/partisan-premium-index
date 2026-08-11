@@ -41,6 +41,9 @@ def _market(session, tracking_id) -> Market:
         tracking_id=tracking_id,
         slug=f"slug-{tracking_id}",
         question=f"Will {tracking_id} happen?",
+        category="politics",
+        region="US",
+        rules=f"Resolves YES if {tracking_id} happens by the end date.",
         enabled=True,
     )
     session.add(market)
@@ -48,12 +51,16 @@ def _market(session, tracking_id) -> Market:
     return market
 
 
-def _evidence(session, market_id, *, title, content_hash, published_at, classifier_provider="ollama") -> EvidenceItem:
+def _evidence(
+    session, market_id, *, title, content_hash, published_at, classifier_provider="ollama", summary=None
+) -> EvidenceItem:
     item = EvidenceItem(
         market_id=market_id,
         source_type="rss",
         source_name="Example feed",
         title=title,
+        summary=summary or f"Summary of {title}",
+        category="news",
         canonical_url=f"https://example.com/{content_hash}",
         published_at=published_at,
         normalized_title=title.lower(),
@@ -188,9 +195,15 @@ def test_audit_reports_per_forecast_fields_correctly(tmp_path):
     assert a["evidence_count"] == 1
     assert a["evidence_items"][0]["title"] == "Shared generic article"
     assert a["evidence_items"][0]["content_hash"] == "hash-shared"
+    assert a["evidence_items"][0]["summary"] == "Summary of Shared generic article"
+    assert a["evidence_items"][0]["category"] == "news"
     assert a["raw_response_contains_target_probability"] is True
     assert a["thinking_mode_detected"] is False
     assert a["raw_response_hash"] is not None
+    # Market-level fields needed to reconstruct the exact blind evidence packet for replay.
+    assert a["market_category"] == "politics"
+    assert a["market_region"] == "US"
+    assert a["market_resolution_criteria"] == "Resolves YES if A happens by the end date."
 
     b = by_slot["2026-08-11:b"]
     assert b["retries"] == 1
