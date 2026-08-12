@@ -1,0 +1,1447 @@
+{
+  "job_run_id": 21,
+  "run_key": "ppi-daily:2026-08-11:primary",
+  "run_classification": "canonical",
+  "pipeline_mode": "strict_llm_only",
+  "trigger_type": "primary",
+  "status": "OK",
+  "superseded_by_id": null,
+  "forecasts": [
+    {
+      "forecast_id": 1,
+      "market_id": 1,
+      "market_slug": "will-the-republican-party-control-the-senate-after-the-2026-midterm-elections",
+      "market_question": "Will the Republican Party control the Senate after the 2026 Midterm elections?",
+      "market_category": "politics",
+      "market_region": "US",
+      "market_end_date": "2026-11-03T00:00:00+00:00",
+      "market_resolution_criteria": "This market will resolve according to the party that controls the Senate following the 2026 U.S. Senate elections scheduled for November 3, 2026.\n\nSenate control is defined as having more than half of the voting Senate members, or half of the voting Senate members and the Vice Presidency.\n\nIf the outcome of this election is ambiguous given the above rules, this market will remain open until the Majority Leader of the US Senate is selected following the 2026 US general election, at which point it will resolve to the party the majority leader is affiliated with at the time of their election to that position. If the elected majority leader does not caucus with any listed party this market will resolve \u201cOther\u201d.\n\nDetermination of which party controls the Senate after the 2026 US Senate elections will be based on a consensus of credible reporting, or if there is ambiguity, final federal and/or state election authority certification or other final official determination of the 2026 election results.",
+      "run_slot": "2026-08-11:adhoc-022531",
+      "status": "OK",
+      "fair_value": 0.45,
+      "confidence": 0.65,
+      "should_abstain": false,
+      "retries": 0,
+      "model_provider": "ollama",
+      "model_name": "qwen3:8b",
+      "prompt_version": "fair_value_v0.1",
+      "prompt_hash": "e532dd27971fe8386a83f8a1bdd908436e2cc188357124da4da717a9cf942dfd",
+      "generation_params": {
+        "temperature": 0.15,
+        "num_ctx": 4096,
+        "max_retries": 2
+      },
+      "raw_response": "{\"fair_value\":0.45,\"confidence\":0.65,\"should_abstain\":false,\"rationale_short\":\"Current polls show Democrats leading, but midterms are unpredictable. Key races and party dynamics remain uncertain.\",\"key_uncertainties\":[\"Incumbent performance\",\"Voter turnout shifts\",\"Candidate quality\",\"Economic conditions\",\"Party strategy changes\"],\"base_rate_notes\":\"Historically, midterms favor the president's party, but 2026 is non-presidential. Recent polls suggest Democratic advantage.\"}",
+      "raw_response_hash": "ebeb5745e6103ee24bf8e430bbaf9bcbde9de6739bebfee74467c126bb8d5cd3",
+      "raw_response_contains_target_probability": true,
+      "thinking_mode_detected": false,
+      "evidence_ids": [
+        578,
+        581,
+        579,
+        580
+      ],
+      "evidence_count": 4,
+      "evidence_items": [
+        {
+          "id": 578,
+          "title": "Tracking key primary elections across the U.S. - LiveNOW from FOX",
+          "summary": "News article from Google News RSS discussing tracking of key primary elections across the U.S.",
+          "source_name": "Google News RSS",
+          "source_type": "rss",
+          "url": "https://news.google.com/rss/articles/CBMic0FVX3lxTFB3NnJ3NWk5Ul9LVDhMMF9MZXhtOUtFTjZRdEU2UUEzZk04d3VXU0ttSTFTa1ZBVUE5cG1TRlV0LVQtZm5mSmVPNmpFUHdrOEJuNERiaW56UDZCaE0xbE9ZM2xRT3o4WmhzQVB1cGVaUVhOTjTSAXhBVV95cUxOSlNhRDRhYVhFbFg3eFlWblozX1BNaFRkUWVuZl81SGhhOEtuVlAtdkllakVoTUZsUGdJTEVIblZYWi1RREp1R3EzUVlOYnFsWHJYWDRVYmhxRTh4ek9EOXhueTFmSHMwV3RaWGpGMnkwOUI5aW5mbGs?oc=5",
+          "published_at": "2026-08-08T17:53:41+00:00",
+          "category": "news",
+          "content_hash": "5ad7626dd57d23455f0dabda50788a70648cbe3f030e16ae1271881f50c0f569",
+          "classifier_provider": "ollama"
+        },
+        {
+          "id": 581,
+          "title": "Monitoring the Midterms: What El-Sayed's primary win means for Democrats in November - PBS",
+          "summary": "Article discusses El-Sayed's primary win and its implications for Democrats in the 2026 Senate elections.",
+          "source_name": "Google News RSS",
+          "source_type": "rss",
+          "url": "https://news.google.com/rss/articles/CBMi4gFBVV95cUxPSHBjbVZNcFdRREx5YWFzdTJQeXE1Q283Qkxya1djYU9RUUpmdFowdnkxcklCVDI1a2tGakFRWGdHbXYxNEpYbzNTRWpXOUpVdFlWQTdlTXgzRm5FVXJJWHVKNktMVDRGTU9QNGV5QkZEM2JwdlE0dU15ZndIVDBCQUhfd3B4ZWhQa0tkakJnSmV4ZUdNNWl5TUNkX1dUVTZMUUpvQUtuWHlGZ1BxRHRGSDQwZXhPeVBmMXRMMU1DZFJrMFZaQTl2VVZQaDI3N2N3OFc1Nk5oaW4zVVJxZmZCVDZR?oc=5",
+          "published_at": "2026-08-07T15:53:55+00:00",
+          "category": "news",
+          "content_hash": "e001ed06420359adc20672f9300939ed77b020419ec3ac20188aaebf0e4b5649",
+          "classifier_provider": "ollama"
+        },
+        {
+          "id": 579,
+          "title": "Republicans must decide, is Trump worth losing elections over? | Opinion - USA Today",
+          "summary": "Article discusses potential impact of Trump's influence on Republican Party's Senate control strategy in 2026 elections.",
+          "source_name": "Google News RSS",
+          "source_type": "rss",
+          "url": "https://news.google.com/rss/articles/CBMitgFBVV95cUxPZTlKSVJzVVRDUjdhRmtkMk0ydC1KVTJHRlZXV0pVdHlyU0pSLWZleTdyMm5jQUxXVkY0LVZJTjFubF9OVWFHUGVKdTNGcURlb1dMTjNiRFl5NGc0SFBZenpXbmVxc3l2dHJYZFRfUEZPNjB5OW00cnRSMnN4QVI0S2VXazkxa0V5RVpxU09LRUFQRDRBUFZJUUw3ZDMxNVdmT1RGZTk2NzBUVS1Zdzc5QV9wMDBCZw?oc=5",
+          "published_at": "2026-08-06T08:03:00+00:00",
+          "category": "news",
+          "content_hash": "5905d39b5e9dbac5861ad41b5d04f51854c63431b2772bb2c1ed8cefea276972",
+          "classifier_provider": "ollama"
+        },
+        {
+          "id": 580,
+          "title": "Democrats Lead Republicans in Polls Three Months Ahead of Midterms - Time Magazine",
+          "summary": "A Time Magazine article reports that Democrats lead Republicans in polls three months before the 2026 Midterm elections.",
+          "source_name": "Google News RSS",
+          "source_type": "rss",
+          "url": "https://news.google.com/rss/articles/CBMinAFBVV95cUxNUHhLZ0JSNzl6WnpQNFc2MVlkTUt4eTJvb2taOC1nR29yc29fRmtNUnZBTG1heWw3STBGdm9jQ2VRTjFNbW45aVpPMEJ6WXB6VUt3eWZ5LWN5Wjl2TWdLVDZxYk00Y1dYSUhiV1dHbldFWmx1ODQ3Znp1S3lLU3hMSjRvN1N4MTRmUGVxc2dfU1NpTXdiUXZNTWMzVlo?oc=5",
+          "published_at": "2026-08-04T07:45:03+00:00",
+          "category": "polling",
+          "content_hash": "0a500eced4c93686653f09ecf83808a56280edebaf269237add1eb2c461ad664",
+          "classifier_provider": "ollama"
+        }
+      ],
+      "evidence_packet_hash": "c53543ff895febefcba3c9335f0fe4de7da1386d68967e09f0fa759b4abcec4d",
+      "evidence_all_live_classified": true,
+      "error_message": null,
+      "reviewed_status": "UNREVIEWED",
+      "generated_at": "2026-08-11T02:25:31.253794+00:00"
+    },
+    {
+      "forecast_id": 2,
+      "market_id": 2,
+      "market_slug": "will-the-republican-party-control-the-house-after-the-2026-midterm-elections",
+      "market_question": "Will the Republican Party control the House after the 2026 Midterm elections?",
+      "market_category": "politics",
+      "market_region": "US",
+      "market_end_date": "2026-11-03T00:00:00+00:00",
+      "market_resolution_criteria": "This market will resolve according to the party that controls the House of Representatives following the 2026 U.S. House elections scheduled for November 3, 2026.\n\nHouse control is defined as having more than half of the voting members of the U.S. House of Representatives.\n\nIf the outcome of this election is ambiguous given the above rules, this market will remain open until the Speaker of the House is selected following the 2026 U.S. general election, at which point it will resolve to the party the Speaker is affiliated with at the time of their election to that position. If the elected Speaker does not caucus with any listed party this market will resolve \u201cOther\u201d.\n\nDetermination of which party controls the House after the 2026 U.S. House elections will be based on a consensus of credible reporting, or if there is ambiguity, final federal and/or state election authority certification or other final official determination of the 2026 election results.",
+      "run_slot": "2026-08-11:adhoc-022612",
+      "status": "OK",
+      "fair_value": 0.45,
+      "confidence": 0.6,
+      "should_abstain": false,
+      "retries": 0,
+      "model_provider": "ollama",
+      "model_name": "qwen3:8b",
+      "prompt_version": "fair_value_v0.1",
+      "prompt_hash": "ff3a74f21c14009fc2adbce4daaf1add94ebd4a39da0d8de727c829ccd7d6b76",
+      "generation_params": {
+        "temperature": 0.15,
+        "num_ctx": 4096,
+        "max_retries": 2
+      },
+      "raw_response": "{\"fair_value\":0.45,\"confidence\":0.6,\"should_abstain\":false,\"rationale_short\":\"Current evidence suggests a competitive race with moderate Republican chances due to shifting demographics and competitive districts, but uncertainty remains.\",\"key_uncertainties\":[\"Voter turnout trends\",\"Incumbent performance\",\"Campaign effectiveness\",\"National economic conditions\",\"State-level gerrymandering\"],\"base_rate_notes\":\"Historically, midterms see the president's party losing seats, but 2026 is a midterm following a presidential election, which may affect dynamics.\"}",
+      "raw_response_hash": "3a505dc34e4a917393b078bf8cde005ab4d7015ead83487ca5f03752f9c59812",
+      "raw_response_contains_target_probability": true,
+      "thinking_mode_detected": false,
+      "evidence_ids": [
+        582,
+        583
+      ],
+      "evidence_count": 2,
+      "evidence_items": [
+        {
+          "id": 582,
+          "title": "Tracking key primary elections across the U.S. - LiveNOW from FOX",
+          "summary": "News article from Google News RSS discussing tracking of key primary elections across the U.S.",
+          "source_name": "Google News RSS",
+          "source_type": "rss",
+          "url": "https://news.google.com/rss/articles/CBMic0FVX3lxTFB3NnJ3NWk5Ul9LVDhMMF9MZXhtOUtFTjZRdEU2UUEzZk04d3VXU0ttSTFTa1ZBVUE5cG1TRlV0LVQtZm5mSmVPNmpFUHdrOEJuNERiaW56UDZCaE0xbE9ZM2xRT3o4WmhzQVB1cGVaUVhOTjTSAXhBVV95cUxOSlNhRDRhYVhFbFg3eFlWblozX1BNaFRkUWVuZl81SGhhOEtuVlAtdkllakVoTUZsUGdJTEVIblZYWi1RREp1R3EzUVlOYnFsWHJYWDRVYmhxRTh4ek9EOXhueTFmSHMwV3RaWGpGMnkwOUI5aW5mbGs?oc=5",
+          "published_at": "2026-08-08T17:53:41+00:00",
+          "category": "news",
+          "content_hash": "5ad7626dd57d23455f0dabda50788a70648cbe3f030e16ae1271881f50c0f569",
+          "classifier_provider": "ollama"
+        },
+        {
+          "id": 583,
+          "title": "Talking With G. Elliott Morris About the Midterms - Paul Krugman | Substack",
+          "summary": "Article discusses potential outcomes of 2026 Midterm elections, focusing on House control by the Republican Party.",
+          "source_name": "Google News RSS",
+          "source_type": "rss",
+          "url": "https://news.google.com/rss/articles/CBMiekFVX3lxTFBoWkpxVDU2Q09tYS1xOGpSejRUMS1VbHNJc3pQaEoxRnJmLVJaZkxYbUNLNHAtaWc1UGFjQmRXSnZkWEtvN0haZDRPa3g0aG54djFDVWIyQ3ZaLTA0TW83a2s2cnpLeGxOV19SaWQ4UC1JZUNyckpOMmFR?oc=5",
+          "published_at": "2026-08-08T10:31:06+00:00",
+          "category": "news",
+          "content_hash": "7f0b2fc605fc0f923d41b3bba53e5aaad464e9ef7afb97e7df2e9a66ab9ee26e",
+          "classifier_provider": "ollama"
+        }
+      ],
+      "evidence_packet_hash": "5aa25e1812706981fd3b6029e4994110674433e45eb5fafca90315a37fc7e034",
+      "evidence_all_live_classified": true,
+      "error_message": null,
+      "reviewed_status": "UNREVIEWED",
+      "generated_at": "2026-08-11T02:26:12.084333+00:00"
+    },
+    {
+      "forecast_id": 3,
+      "market_id": 3,
+      "market_slug": "will-the-democrats-win-the-maine-senate-race-in-2026",
+      "market_question": "Will the Democrats win the Maine Senate race in 2026?",
+      "market_category": "politics",
+      "market_region": "US",
+      "market_end_date": null,
+      "market_resolution_criteria": "This market will resolve according to the winner of the 2026 midterm Maine U.S. Senate election, inclusive of any run-offs.\n\nA candidate shall be considered to represent a party in the event that he or she is the nominee of the party in question. Candidates other than the Democratic or Republican nominee (e.g., Greens, Libertarian, independent) may be added at a later date.\n\nCandidates who run as independents will not be encompassed by the \u201cDemocrat\u201d or \u201cRepublican\u201d options regardless of any affiliation they may have with the party.\n\nThe resolution source for this market is the Associated Press, Fox News, and NBC. This market will resolve once all three sources call the race for the same candidate. If all three sources haven\u2019t called the race in this state for the same candidate, this market will resolve based on the official certification.",
+      "run_slot": "2026-08-11:adhoc-022746",
+      "status": "OK",
+      "fair_value": 0.45,
+      "confidence": 0.65,
+      "should_abstain": false,
+      "retries": 0,
+      "model_provider": "ollama",
+      "model_name": "qwen3:8b",
+      "prompt_version": "fair_value_v0.1",
+      "prompt_hash": "571419ad7a72e25bfc66f6441435729f70c248d275a27f40ab91b12c6cfdfb03",
+      "generation_params": {
+        "temperature": 0.15,
+        "num_ctx": 4096,
+        "max_retries": 2
+      },
+      "raw_response": "{\"fair_value\":0.45,\"confidence\":0.65,\"should_abstain\":false,\"rationale_short\":\"The race is competitive with no clear frontrunner, influenced by women voters and progressive dynamics. Current evidence suggests a close contest without strong indicators favoring either side.\",\"key_uncertainties\":[\"Polling accuracy\",\"Voter turnout\",\"Candidate performance\",\"Party unity\",\"Run-off likelihood\"],\"base_rate_notes\":\"Base rates for Senate races show about 40-50% chance for the incumbent, but Maine's unique dynamics and current evidence suggest a closer race.\"}",
+      "raw_response_hash": "7f4ee43dc360e7ac93b2c148c64e28a91d2b527ee46c3e20e9ba4378614596db",
+      "raw_response_contains_target_probability": true,
+      "thinking_mode_detected": false,
+      "evidence_ids": [
+        585,
+        584,
+        587,
+        588,
+        586,
+        591
+      ],
+      "evidence_count": 6,
+      "evidence_items": [
+        {
+          "id": 585,
+          "title": "The 9 Senate seats most likely to flip in 2026 - CNN",
+          "summary": "The article discusses the 9 Senate seats most likely to flip in 2026, including the Maine Senate race.",
+          "source_name": "Google News RSS",
+          "source_type": "rss",
+          "url": "https://news.google.com/rss/articles/CBMifEFVX3lxTE5MMEc1Vm5NUXhNNlRPTnhRS3JOVV9vWUh3QmhMT0hSTDBIQUlWVnJWTUJGTGZzQ21TaUszclBid0ZIYzA2dUs5SmZTOU9ra2tvOWVEcTc0NXVIdEd3amNkY1dLNUNfMFBpX1RqbkNTRGRtUkJTQjNlUHJfa0M?oc=5",
+          "published_at": "2026-08-10T10:00:29+00:00",
+          "category": "news",
+          "content_hash": "6144ab00ceba8854e478e331a658747434c0a709964d1cd4caf37472329ac67d",
+          "classifier_provider": "ollama"
+        },
+        {
+          "id": 584,
+          "title": "In a competitive Maine Senate race, women voters could be the deciders - NPR",
+          "summary": "Article discusses the potential influence of women voters in the Maine Senate race, suggesting they could be decisive in determining the outcome.",
+          "source_name": "Google News RSS",
+          "source_type": "rss",
+          "url": "https://news.google.com/rss/articles/CBMipAFBVV95cUxOT3hMLWRnRWJleFhDUzF6eFpKeW8wZk1EMkk1RnFNTGJVeVRmZWZGM0l0cW5QZFNNMll3aF9FVEtyM2ZIeWNDRDB3V0pOMDNxdmZWaU5pcmxfSWZLTVRRcnFnOXpVYzB6WXdsLWtLSF9OVHRPRkIxaGctMlZnbDl4LXZGV3hxaE13VzFDTmJHWHFQT0M5eTdYQkRvV04waTZtbkRwSw?oc=5",
+          "published_at": "2026-08-10T09:00:00+00:00",
+          "category": "news",
+          "content_hash": "67defb5f2085e6f42e4d695e14b1d9b3dc429955f44b486fd7ed191dddb9854c",
+          "classifier_provider": "ollama"
+        },
+        {
+          "id": 587,
+          "title": "Tracking key primary elections across the U.S. - LiveNOW from FOX",
+          "summary": "The article discusses tracking key primary elections across the U.S., including the Maine Senate race.",
+          "source_name": "Google News RSS",
+          "source_type": "rss",
+          "url": "https://news.google.com/rss/articles/CBMic0FVX3lxTFB3NnJ3NWk5Ul9LVDhMMF9MZXhtOUtFTjZRdEU2UUEzZk04d3VXU0ttSTFTa1ZBVUE5cG1TRlV0LVQtZm5mSmVPNmpFUHdrOEJuNERiaW56UDZCaE0xbE9ZM2xRT3o4WmhzQVB1cGVaUVhOTjTSAXhBVV95cUxOSlNhRDRhYVhFbFg3eFlWblozX1BNaFRkUWVuZl81SGhhOEtuVlAtdkllakVoTUZsUGdJTEVIblZYWi1RREp1R3EzUVlOYnFsWHJYWDRVYmhxRTh4ek9EOXhueTFmSHMwV3RaWGpGMnkwOUI5aW5mbGs?oc=5",
+          "published_at": "2026-08-08T17:53:41+00:00",
+          "category": "news",
+          "content_hash": "5ad7626dd57d23455f0dabda50788a70648cbe3f030e16ae1271881f50c0f569",
+          "classifier_provider": "ollama"
+        },
+        {
+          "id": 588,
+          "title": "Troy Jackson\u2019s Polling Lead Over Susan Collins Compared to Sara Gideon - Newsweek",
+          "summary": "Newsweek article compares Troy Jackson's polling lead over Susan Collins to Sara Gideon.",
+          "source_name": "Google News RSS",
+          "source_type": "rss",
+          "url": "https://news.google.com/rss/articles/CBMijgFBVV95cUxPVmt2aks2b2JPUGdrV3BXbjF1azdJbEI3SDlCbTZYd3pyQkhHSHdEajJUYnItM2plWEw0cVNEMUNzTGdVWGRnSzdjN281cFBUNHhTUXRRU3lGbE5KRFNMVFh0c2tfTzdWWTR6SUY5cE9xVUxnbmdDc2I3NWtJZFpyNjVUakdqT2EtLVBiOEZR?oc=5",
+          "published_at": "2026-08-06T16:35:00+00:00",
+          "category": "news",
+          "content_hash": "54f85fdbdce241c00a3377a390f9e6abc8ff978c0bd951c54e50507cfe7179a9",
+          "classifier_provider": "ollama"
+        },
+        {
+          "id": 586,
+          "title": "El-Sayed and Stevens Project Party Unity After Divisive Race - nytimes.com",
+          "summary": "Article discusses party unity after a divisive race, but does not mention the specific Maine Senate race or provide information about the race outcome.",
+          "source_name": "Google News RSS",
+          "source_type": "rss",
+          "url": "https://news.google.com/rss/articles/CBMiggFBVV95cUxQWkMzeXN5RWNSU3JyUGxpZXJZNngwc3RaOVZjR1JKb2tkRU9zN3ZRVUZ2MDlOVzdZNVRmQVdBUEgxbHF3VWtLbG9Fci1PS19NR1dPX3h4QnkzZDdnQ09Fd3kxbzQtUW1lcmplUTlJQ0xYOWE3RS1lXzJ6SjZock5FOC1R?oc=5",
+          "published_at": "2026-08-05T21:15:23+00:00",
+          "category": "news",
+          "content_hash": "d1df84b13dbaa5828e63a188bca6a7f190bc935de20079d0cc7fb3254aff260d",
+          "classifier_provider": "ollama"
+        },
+        {
+          "id": 591,
+          "title": "Progressives Rack Up Primary Wins, Testing Democratic Assumptions Ahead of the Midterms - Time Magazine",
+          "summary": "Progressive primary wins in Maine may challenge Democratic assumptions ahead of the 2026 midterms.",
+          "source_name": "Google News RSS",
+          "source_type": "rss",
+          "url": "https://news.google.com/rss/articles/CBMiekFVX3lxTFA0dFRRVThjbWp6OTZXNGJGSDMyQVBWQ0VVeEcxeGJFbzFOVjFKN0toMEZOdDVCZ1h0RUk4Qmx3VlBHR1QzcUVyYmplTWdXVzBINmtsNS1HRTFFdHJtd01abThic2dHbmZGRmtKTUo5WVJyalJjQjRZbTJ3?oc=5",
+          "published_at": "2026-08-05T18:26:32+00:00",
+          "category": "news",
+          "content_hash": "bee4826c5df624cec5d3793d3f71584157c6ad183fa9ac5a28327aedd72d3d46",
+          "classifier_provider": "ollama"
+        }
+      ],
+      "evidence_packet_hash": "34e97d0f18058e4345f909ea30adc64e8da6ed519ae847c6a8794ed20e3f6c19",
+      "evidence_all_live_classified": true,
+      "error_message": null,
+      "reviewed_status": "UNREVIEWED",
+      "generated_at": "2026-08-11T02:27:46.074797+00:00"
+    },
+    {
+      "forecast_id": 4,
+      "market_id": 4,
+      "market_slug": "will-the-republicans-win-the-texas-senate-race-in-2026",
+      "market_question": "Will the Republicans win the Texas Senate race in 2026?",
+      "market_category": "politics",
+      "market_region": "US",
+      "market_end_date": null,
+      "market_resolution_criteria": "This market will resolve according to the winner of the 2026 midterm Texas U.S. Senate election, inclusive of any run-offs.\n\nA candidate shall be considered to represent a party in the event that he or she is the nominee of the party in question. Candidates other than the Democratic or Republican nominee (e.g., Greens, Libertarian, independent) may be added at a later date.\n\nCandidates who run as independents will not be encompassed by the \u201cDemocrat\u201d or \u201cRepublican\u201d options regardless of any affiliation they may have with the party.\n\nThe resolution source for this market is the Associated Press, Fox News, and NBC. This market will resolve once all three sources call the race for the same candidate. If all three sources haven\u2019t called the race in this state for the same candidate, this market will resolve based on the official certification.",
+      "run_slot": "2026-08-11:adhoc-022850",
+      "status": "OK",
+      "fair_value": 0.45,
+      "confidence": 0.65,
+      "should_abstain": false,
+      "retries": 0,
+      "model_provider": "ollama",
+      "model_name": "qwen3:8b",
+      "prompt_version": "fair_value_v0.1",
+      "prompt_hash": "1ca44ce3fc8bd53b97dcb92e6ea26bcf4c777c90428b4f958ab5bac7eb804eb7",
+      "generation_params": {
+        "temperature": 0.15,
+        "num_ctx": 4096,
+        "max_retries": 2
+      },
+      "raw_response": "{\"fair_value\":0.45,\"confidence\":0.65,\"should_abstain\":false,\"rationale_short\":\"Recent polls show a slim Republican lead, but shifting race ratings and Democratic momentum suggest uncertainty. Multiple sources indicate potential for both outcomes.\",\"key_uncertainties\":[\"Poll accuracy and timing\",\"Incumbent impact\",\"Runoff dynamics\",\"Party mobilization\",\"Late voter turnout\"],\"base_rate_notes\":\"Base rates suggest Senate races are often competitive, with recent trends showing increased Democratic momentum in key states.\"}",
+      "raw_response_hash": "2dc78144b5f9cff6710cf6752293425e93927c374a4b4859b29a8913d31f1e9c",
+      "raw_response_contains_target_probability": true,
+      "thinking_mode_detected": false,
+      "evidence_ids": [
+        596,
+        595,
+        594,
+        592,
+        593
+      ],
+      "evidence_count": 5,
+      "evidence_items": [
+        {
+          "id": 596,
+          "title": "The 9 Senate seats most likely to flip in 2026 - CNN",
+          "summary": "The article discusses the 9 Senate seats most likely to flip in 2026, including the Texas Senate race.",
+          "source_name": "Google News RSS",
+          "source_type": "rss",
+          "url": "https://news.google.com/rss/articles/CBMifEFVX3lxTE5MMEc1Vm5NUXhNNlRPTnhRS3JOVV9vWUh3QmhMT0hSTDBIQUlWVnJWTUJGTGZzQ21TaUszclBid0ZIYzA2dUs5SmZTOU9ra2tvOWVEcTc0NXVIdEd3amNkY1dLNUNfMFBpX1RqbkNTRGRtUkJTQjNlUHJfa0M?oc=5",
+          "published_at": "2026-08-10T10:00:29+00:00",
+          "category": "news",
+          "content_hash": "6144ab00ceba8854e478e331a658747434c0a709964d1cd4caf37472329ac67d",
+          "classifier_provider": "ollama"
+        },
+        {
+          "id": 595,
+          "title": "Florida may be a Republican redoubt on the 2026 Senate map - Decision Desk HQ | Substack",
+          "summary": "Article discusses Florida's potential as a Republican stronghold in the 2026 Senate map, but does not directly mention Texas or the specific Senate race.",
+          "source_name": "Google News RSS",
+          "source_type": "rss",
+          "url": "https://news.google.com/rss/articles/CBMilwFBVV95cUxOOGlpSVF6cG5KeTJ1LTJ3ZmktSzUwVkxqb0Z1YmMyM1pVRTRhd3FQQ2dqbk1DNGNlaWpLQmZKVTdpbUZ3VW5SSnRYbWdXenFVbGtTU0RsVlRzSUtRTktNemJvbjdUTlVaVm5oUy0yNVltTnZGNEQ2ZlNDMzNVZl9CeEtlY3pjRW9QU0ltTVUxQ3g0Nlhua1E4?oc=5",
+          "published_at": "2026-08-09T18:24:19+00:00",
+          "category": "news",
+          "content_hash": "baf3296018ece44ffcacd64ea7fd3847a69962fe1932077e11258ede090f8f66",
+          "classifier_provider": "ollama"
+        },
+        {
+          "id": 594,
+          "title": "NEW: Race Raters Shift FOUR Senate Races Toward Democrats as Momentum Builds for Democrats - dscc.org",
+          "summary": "News article indicating that race raters have shifted four Senate races, including Texas, toward Democrats.",
+          "source_name": "Google News RSS",
+          "source_type": "rss",
+          "url": "https://news.google.com/rss/articles/CBMiuwFBVV95cUxQVE5obGY1R091dlQzdUplOXIxZXhVdXl2eGpHUElIbGYzdlNoRVFYcG42cmMyU01RdDJlc2Y3U0VyTTU5dW1NTDJyZEpYUEpEcUMtZHF6a3JGSDJQeDVfWkhkdmdlX0llTWZjNFV5WUF2OXppWmhZM3BHaFdvelRBUkZRalozN3h5ek5kdm9OXzJlTXNVX3ZldWo2MGh0d0hlTVlIV2hhOUhsdXZqNUlDVlRuMmJCVzFLYlJj?oc=5",
+          "published_at": "2026-08-08T00:24:29+00:00",
+          "category": "news",
+          "content_hash": "fb01a1e26d94003f6e50e382efb9de8b1449c0aab9a86e7288e953f2bb8e9b91",
+          "classifier_provider": "ollama"
+        },
+        {
+          "id": 592,
+          "title": "Democrats gain momentum in pivotal US Senate and governor\u2019s races in Texas - Al Jazeera",
+          "summary": "Article discusses Democrats gaining momentum in Texas Senate and governor's races, implying potential shift in Republican advantage.",
+          "source_name": "Google News RSS",
+          "source_type": "rss",
+          "url": "https://news.google.com/rss/articles/CBMiswFBVV95cUxNek4tX0N2c2llU1l4N0xPVmRodTFYSm1ra0s4VlBValNwalRKU0t5aGFHeWRfUVMyanhIeGtFaUstNnh5ME9yZW5tdEFTdlJHYnprbU9hek4zTkRqMzRHOThsdTBQQzdISHlwUHFPYWxBTG1zLWRBcTR5c2tIYmdYbGN6R0hVbHdWT0lzZnNPSDk4bVpDV2FDVlRITnAxNFdiVW4yYUlnd1A3ZHRFczFHOFkzc9IBuAFBVV95cUxPaUIwNzBVS2NhNi1qQXFMdjVCX2dwYlBTM3k3UHhWcTJwV1VUaU5UZl96Ri1zb3NvUWdkeE11NHZjZHgyUlJtZ0lNbW50OE81Zy1FUDNkUldRbktHNWJTSF9WTHZ4Q21qUFNHWFVid3ZKSHhCMTNDbWMwSDJzNXlrUWhwNGdacVVuNTJUUlE2emoxZVhaVUtManIwbDFaOWhsc2NpWEYxdWdaZXlYSmxObUdiYVNaeDBf?oc=5",
+          "published_at": "2026-08-07T22:12:49+00:00",
+          "category": "news",
+          "content_hash": "c7964470f7f62ad08866298d5e467130cb9467821c4096504e36c30047526548",
+          "classifier_provider": "ollama"
+        },
+        {
+          "id": 593,
+          "title": "Poll: Talarico has slim lead over Paxton in Texas Senate race - axios.com",
+          "summary": "A poll indicates Talarico has a slim lead over Paxton in the Texas Senate race.",
+          "source_name": "Google News RSS",
+          "source_type": "rss",
+          "url": "https://news.google.com/rss/articles/CBMimAFBVV95cUxPcDZOUlRQQjkwcU5wZUh2aGNyd3FsR185enNyeFRXcEl1M0FOS0JwMXZSYlkxTEJDTnA4bDNIakswaWtyeUlvMmZDbjVTclp0VU1NakZhS2RwYzliZk8xR0xtZXlZRlQ3WVBRTmp3MzZIY0pYbWRMLXRvM3RMYWFqd3lmeXVSLTV5dnJPQ2R5RUxxMzNYZVJSSQ?oc=5",
+          "published_at": "2026-08-04T09:04:37+00:00",
+          "category": "polling",
+          "content_hash": "5c54277d48d572e61c20d7217fefe4ea782cbc1a61394d12ff0223f482e55b11",
+          "classifier_provider": "ollama"
+        }
+      ],
+      "evidence_packet_hash": "9fc48c40fa3bd060e6e900f2daf9c6189a6a72cad811902756133422364c977b",
+      "evidence_all_live_classified": true,
+      "error_message": null,
+      "reviewed_status": "UNREVIEWED",
+      "generated_at": "2026-08-11T02:28:50.800484+00:00"
+    },
+    {
+      "forecast_id": 5,
+      "market_id": 5,
+      "market_slug": "will-the-democrats-win-the-michigan-senate-race-in-2026",
+      "market_question": "Will the Democrats win the Michigan Senate race in 2026?",
+      "market_category": "politics",
+      "market_region": "US",
+      "market_end_date": null,
+      "market_resolution_criteria": "This market will resolve according to the winner of the 2026 midterm Michigan U.S. Senate election, inclusive of any run-offs.\n\nA candidate shall be considered to represent a party in the event that he or she is the nominee of the party in question. Candidates other than the Democratic or Republican nominee (e.g., Greens, Libertarian, independent) may be added at a later date.\n\nCandidates who run as independents will not be encompassed by the \u201cDemocrat\u201d or \u201cRepublican\u201d options regardless of any affiliation they may have with the party.\n\nThe resolution source for this market is the Associated Press, Fox News, and NBC. This market will resolve once all three sources call the race for the same candidate. If all three sources haven\u2019t called the race in this state for the same candidate, this market will resolve based on the official certification.",
+      "run_slot": "2026-08-11:adhoc-023004",
+      "status": "OK",
+      "fair_value": 0.65,
+      "confidence": 0.75,
+      "should_abstain": false,
+      "retries": 0,
+      "model_provider": "ollama",
+      "model_name": "qwen3:8b",
+      "prompt_version": "fair_value_v0.1",
+      "prompt_hash": "924802e21bd2016ac517316c444aef2cd0fe1a7ef8c472b2da0a510cf5c2043e",
+      "generation_params": {
+        "temperature": 0.15,
+        "num_ctx": 4096,
+        "max_retries": 2
+      },
+      "raw_response": "{\"fair_value\":0.65,\"confidence\":0.75,\"should_abstain\":false,\"rationale_short\":\"Abdul El-Sayed's primary victory and recent news suggest Democratic chances are above 50%, but final outcome depends on general election dynamics and candidate performance.\",\"key_uncertainties\":[\"General election competitiveness\",\"El-Sayed's viability as nominee\",\"Run-off possibilities\",\"Opponent strength\",\"Certification process delays\"],\"base_rate_notes\":\"Base rate for Senate races favors incumbents and established parties, but 2026 is a midterm with potential for shifts.\"}",
+      "raw_response_hash": "7a2dae2e007e74503ecae5c85a8f9c3a944509bfca51f424736d23ca31357bb2",
+      "raw_response_contains_target_probability": false,
+      "thinking_mode_detected": false,
+      "evidence_ids": [
+        599,
+        597,
+        598,
+        601,
+        602,
+        600
+      ],
+      "evidence_count": 6,
+      "evidence_items": [
+        {
+          "id": 599,
+          "title": "Abdul El-Sayed wins Michigan Senate primary in defining race for Democrats - The Guardian",
+          "summary": "Abdul El-Sayed won the Michigan Senate primary, which is a defining race for the Democrats.",
+          "source_name": "Google News RSS",
+          "source_type": "rss",
+          "url": "https://news.google.com/rss/articles/CBMimgFBVV95cUxNXzFNSG4zTFNIZEYwZ0RqekVULTZ6MkNnSFJJZ0RUakZPMWR3bERUQVY0cUxzSzFUSkJPVlZ5VHByZzZLNlE3bGdWT25VRUhKaVNXcHhvSjMyUHkwVGJyb3g5STlBcVFWaU9rOGszaU5DQVNYdW43ZldJT0szQW9UV0w2UTNVa2ZiWFZVN1Z4dEV4Tjd5YUNhbl9B?oc=5",
+          "published_at": "2026-08-06T13:47:00+00:00",
+          "category": "news",
+          "content_hash": "fd86e211f4f657dfeef422cd4ccc1e12ffed45f0e4cbc3b86f8f14441c8e891a",
+          "classifier_provider": "ollama"
+        },
+        {
+          "id": 597,
+          "title": "How Abdul El-Sayed went from political oblivion to progressive breakthrough in Michigan Senate race - AP News",
+          "summary": "Article discusses Abdul El-Sayed's rise in the Michigan Senate race, indicating potential Democratic victory.",
+          "source_name": "Google News RSS",
+          "source_type": "rss",
+          "url": "https://news.google.com/rss/articles/CBMioAFBVV95cUxOb21OakF0VFB5eUd5WV84MmZLTDJUaTA5SjhMbjVKX3pOMGczZWE0X2tjZkplbV94TkJjejZNbmpVNkREc242Zk9MTDI0SVhid1ViUjVucFpIazNGdld1a2pHY1JvaEZfZjE3YmlVajlLU0pJV2FfMVdYbVl4cmttRGVRQk1JYXY5VVVjS2o1TzhRY3A0SkJZd0FjVC1tRmFX?oc=5",
+          "published_at": "2026-08-06T02:39:00+00:00",
+          "category": "news",
+          "content_hash": "974a83e2506e959ffa9c821f6e45138f7deb30224ebd2c1871efd980ff34dd19",
+          "classifier_provider": "ollama"
+        },
+        {
+          "id": 598,
+          "title": "El-Sayed and Stevens Project Party Unity After Divisive Race - nytimes.com",
+          "summary": "Article discusses party unity after a divisive race, but does not mention specific candidates or outcomes related to the 2026 Michigan Senate race.",
+          "source_name": "Google News RSS",
+          "source_type": "rss",
+          "url": "https://news.google.com/rss/articles/CBMiggFBVV95cUxQWkMzeXN5RWNSU3JyUGxpZXJZNngwc3RaOVZjR1JKb2tkRU9zN3ZRVUZ2MDlOVzdZNVRmQVdBUEgxbHF3VWtLbG9Fci1PS19NR1dPX3h4QnkzZDdnQ09Fd3kxbzQtUW1lcmplUTlJQ0xYOWE3RS1lXzJ6SjZock5FOC1R?oc=5",
+          "published_at": "2026-08-05T21:15:23+00:00",
+          "category": "news",
+          "content_hash": "d1df84b13dbaa5828e63a188bca6a7f190bc935de20079d0cc7fb3254aff260d",
+          "classifier_provider": "ollama"
+        },
+        {
+          "id": 601,
+          "title": "Michigan Senate Race's Winners and Losers: AIPAC, CAIR, Whitmer - Time Magazine",
+          "summary": "News article from Google News RSS discussing the Michigan Senate race's winners and losers, mentioning AIPAC, CAIR, and Whitmer.",
+          "source_name": "Google News RSS",
+          "source_type": "rss",
+          "url": "https://news.google.com/rss/articles/CBMimwFBVV95cUxOR2ZaeFQwem8wTGh0dFU3NFR0czYwVlVZbFl5djRUcWcxaDdhckNGSkNzV1pFaEYwUzZtLVdlb3N5UWgwXzlIUVhxSDNhOUtENkIyUS1rSjI1anFWU01JSDhqYXlLZHFZTXhjMFZicXhiX0FrN1JSbDY5MlZMblE1a09HTG16bUJ2ZkFPSTQ4b2ZvMzBaOG9jY3NXcw?oc=5",
+          "published_at": "2026-08-05T14:54:44+00:00",
+          "category": "news",
+          "content_hash": "8e40c5f114b68ce7536f167332825acdf37b6e24e5577a4171c7952b7e18e004",
+          "classifier_provider": "ollama"
+        },
+        {
+          "id": 602,
+          "title": "Race Too Close to Call in Democratic Primary for Michigan Senate Seat - nytimes.com",
+          "summary": "News article about the Democratic primary race for the Michigan Senate seat being too close to call.",
+          "source_name": "Google News RSS",
+          "source_type": "rss",
+          "url": "https://news.google.com/rss/articles/CBMihgFBVV95cUxPbWpKeVFhVFlyMV9FX09pTEdJVFUzeGI1ajkxajlQb3FyX0gwdkM0c2VwYUpnTlVZdkJIaDVBRkxJZFBwVVJxMklaQ1dGVEFUTmU1T1dfM05KXzQteU5OSUVwdnFvTS1XaVRNZDluRGdjVklKU1FiXzRYNXFYSjgxeXdwQnY2Zw?oc=5",
+          "published_at": "2026-08-05T03:39:00+00:00",
+          "category": "news",
+          "content_hash": "9c1f795858514f12655330e0881df723e2d3b29193b597599d12651a41c04640",
+          "classifier_provider": "ollama"
+        },
+        {
+          "id": 600,
+          "title": "Live Results: Michigan midterm primaries - PBS",
+          "summary": "Live results from Michigan midterm primaries indicate a potential Democratic lead in the Senate race.",
+          "source_name": "Google News RSS",
+          "source_type": "rss",
+          "url": "https://news.google.com/rss/articles/CBMigwFBVV95cUxNaDlPelNaWEpUWU5TbEtGNkV2cjdnSXVLSTVGQ2VnUmJQaFduT2ozd1Z3cFFDVVY2WW0zMWlFbXlUU2tnMXlvNHhIb0gtTElMeDVZWVhxZWc0QThnOENKLTRhMXljWlJNQ2ZZLXUwN2FFRHUyZzdPRDhnY1dFc0hPd3NBQdIBiAFBVV95cUxNMnNBY29yX1M1Mmw0dUQ5eTlSWVJtanBTaUI4T3V4TGJZLUFWYmZaLVJkSnVKc0lnZUJlakFjelZWSko5dlFlWDNaV0lCOGR3UHRjc1RHQ0x3VEptX08xNXBadWJXY25UTmFaZ1dBeEhEOEE0TXA0NzhJaC1WUS0tZ2hZd2xLUVE0?oc=5",
+          "published_at": "2026-08-04T13:51:21+00:00",
+          "category": "news",
+          "content_hash": "f8f953ec650f8aa553ba4e34f3121314d8d08d08158bdf2fa843b58e073e06aa",
+          "classifier_provider": "ollama"
+        }
+      ],
+      "evidence_packet_hash": "eec07c64d8a1438986fcffcb2b0aaf4f6a3ac445b182c13ee1ac8ebcefe2c240",
+      "evidence_all_live_classified": true,
+      "error_message": null,
+      "reviewed_status": "UNREVIEWED",
+      "generated_at": "2026-08-11T02:30:04.523134+00:00"
+    },
+    {
+      "forecast_id": 6,
+      "market_id": 6,
+      "market_slug": "will-the-democrats-win-the-ohio-senate-race-in-2026",
+      "market_question": "Will the Democrats win the Ohio Senate race in 2026?",
+      "market_category": "politics",
+      "market_region": "US",
+      "market_end_date": null,
+      "market_resolution_criteria": "This market will resolve according to the winner of the 2026 Ohio U.S. Senate special election currently scheduled for November 3, inclusive of any run-offs.\n\nA candidate shall be considered to represent a party in the event that he or she is the nominee of the party in question. Candidates other than the Democratic or Republican nominee (e.g., Greens, Libertarian, independent) may be added at a later date.\n\nCandidates who run as independents will not be encompassed by the \u201cDemocrat\u201d or \u201cRepublican\u201d options regardless of any affiliation they may have with the party.\n\nThe resolution source for this market is the Associated Press, Fox News, and NBC. This market will resolve once all three sources call the race for the same candidate. If all three sources haven\u2019t called the race in this state for the same candidate, this market will resolve based on the official certification.",
+      "run_slot": "2026-08-11:adhoc-023128",
+      "status": "OK",
+      "fair_value": 0.45,
+      "confidence": 0.6,
+      "should_abstain": false,
+      "retries": 0,
+      "model_provider": "ollama",
+      "model_name": "qwen3:8b",
+      "prompt_version": "fair_value_v0.1",
+      "prompt_hash": "567abef9c478e718ff965575c0b6d2bbe8dd8346066e7afdc46889efee355520",
+      "generation_params": {
+        "temperature": 0.15,
+        "num_ctx": 4096,
+        "max_retries": 2
+      },
+      "raw_response": "{\"fair_value\":0.45,\"confidence\":0.6,\"should_abstain\":false,\"rationale_short\":\"Ohio Senate race is competitive with GOP facing challenges, but no clear winner yet. Evidence suggests it's a tossup with moderate Democratic advantage.\",\"key_uncertainties\":[\"Incumbent's health status\",\"Voter turnout dynamics\",\"Third-party impact\",\"Runoff likelihood\",\"National political climate\"],\"base_rate_notes\":\"Base rate for Senate races in competitive states is around 40-50% chance for the incumbent party, but 2026 is a midterm with potential shifts.\"}",
+      "raw_response_hash": "899b91c76b0a99ad97ec8c4ada7ad2af48728b12f2f4cb7da08411cfe8651a48",
+      "raw_response_contains_target_probability": true,
+      "thinking_mode_detected": false,
+      "evidence_ids": [
+        606,
+        605,
+        603,
+        608,
+        604
+      ],
+      "evidence_count": 5,
+      "evidence_items": [
+        {
+          "id": 606,
+          "title": "The 9 Senate seats most likely to flip in 2026 - CNN",
+          "summary": "The article discusses the 9 Senate seats most likely to flip in 2026, including the Ohio Senate race.",
+          "source_name": "Google News RSS",
+          "source_type": "rss",
+          "url": "https://news.google.com/rss/articles/CBMifEFVX3lxTE5MMEc1Vm5NUXhNNlRPTnhRS3JOVV9vWUh3QmhMT0hSTDBIQUlWVnJWTUJGTGZzQ21TaUszclBid0ZIYzA2dUs5SmZTOU9ra2tvOWVEcTc0NXVIdEd3amNkY1dLNUNfMFBpX1RqbkNTRGRtUkJTQjNlUHJfa0M?oc=5",
+          "published_at": "2026-08-10T10:00:29+00:00",
+          "category": "news",
+          "content_hash": "6144ab00ceba8854e478e331a658747434c0a709964d1cd4caf37472329ac67d",
+          "classifier_provider": "ollama"
+        },
+        {
+          "id": 605,
+          "title": "Tracking key primary elections across the U.S. - LiveNOW from FOX",
+          "summary": "News article from Google News RSS discussing tracking of key primary elections across the U.S., including the Ohio Senate race.",
+          "source_name": "Google News RSS",
+          "source_type": "rss",
+          "url": "https://news.google.com/rss/articles/CBMic0FVX3lxTFB3NnJ3NWk5Ul9LVDhMMF9MZXhtOUtFTjZRdEU2UUEzZk04d3VXU0ttSTFTa1ZBVUE5cG1TRlV0LVQtZm5mSmVPNmpFUHdrOEJuNERiaW56UDZCaE0xbE9ZM2xRT3o4WmhzQVB1cGVaUVhOTjTSAXhBVV95cUxOSlNhRDRhYVhFbFg3eFlWblozX1BNaFRkUWVuZl81SGhhOEtuVlAtdkllakVoTUZsUGdJTEVIblZYWi1RREp1R3EzUVlOYnFsWHJYWDRVYmhxRTh4ek9EOXhueTFmSHMwV3RaWGpGMnkwOUI5aW5mbGs?oc=5",
+          "published_at": "2026-08-08T17:53:41+00:00",
+          "category": "news",
+          "content_hash": "5ad7626dd57d23455f0dabda50788a70648cbe3f030e16ae1271881f50c0f569",
+          "classifier_provider": "ollama"
+        },
+        {
+          "id": 603,
+          "title": "How Abdul El-Sayed went from political oblivion to progressive breakthrough in Michigan Senate race - AP News",
+          "summary": "Article discusses Abdul El-Sayed's political rise in Michigan Senate race, not directly related to Ohio Senate race.",
+          "source_name": "Google News RSS",
+          "source_type": "rss",
+          "url": "https://news.google.com/rss/articles/CBMioAFBVV95cUxOb21OakF0VFB5eUd5WV84MmZLTDJUaTA5SjhMbjVKX3pOMGczZWE0X2tjZkplbV94TkJjejZNbmpVNkREc242Zk9MTDI0SVhid1ViUjVucFpIazNGdld1a2pHY1JvaEZfZjE3YmlVajlLU0pJV2FfMVdYbVl4cmttRGVRQk1JYXY5VVVjS2o1TzhRY3A0SkJZd0FjVC1tRmFX?oc=5",
+          "published_at": "2026-08-06T02:39:00+00:00",
+          "category": "news",
+          "content_hash": "974a83e2506e959ffa9c821f6e45138f7deb30224ebd2c1871efd980ff34dd19",
+          "classifier_provider": "ollama"
+        },
+        {
+          "id": 608,
+          "title": "Race Too Close to Call in Democratic Primary for Michigan Senate Seat - nytimes.com",
+          "summary": "News article about a Democratic primary race in Michigan, not directly related to the Ohio Senate race.",
+          "source_name": "Google News RSS",
+          "source_type": "rss",
+          "url": "https://news.google.com/rss/articles/CBMihgFBVV95cUxPbWpKeVFhVFlyMV9FX09pTEdJVFUzeGI1ajkxajlQb3FyX0gwdkM0c2VwYUpnTlVZdkJIaDVBRkxJZFBwVVJxMklaQ1dGVEFUTmU1T1dfM05KXzQteU5OSUVwdnFvTS1XaVRNZDluRGdjVklKU1FiXzRYNXFYSjgxeXdwQnY2Zw?oc=5",
+          "published_at": "2026-08-05T03:39:00+00:00",
+          "category": "news",
+          "content_hash": "9c1f795858514f12655330e0881df723e2d3b29193b597599d12651a41c04640",
+          "classifier_provider": "ollama"
+        },
+        {
+          "id": 604,
+          "title": "Reliably red Ohio suddenly a red-hot mess for GOP - axios.com",
+          "summary": "Article discusses challenges faced by GOP in Ohio Senate race, suggesting potential difficulties for their candidate.",
+          "source_name": "Google News RSS",
+          "source_type": "rss",
+          "url": "https://news.google.com/rss/articles/CBMibkFVX3lxTE8wOW4tZ3FKVEdkby11dGJPeW04Q0VTUFlTdFE0TkluLUp2Z0dWYk1QbkJUMTdhVjF3Y0JRXzA2U2RybWJva3ZDTW5nX2R4dGE2N3o0V3hXSkI5Nk5XSnJVd3c1bFJJcF96LWhTMlNn?oc=5",
+          "published_at": "2026-08-04T09:14:37+00:00",
+          "category": "news",
+          "content_hash": "0fc04413afaa463769591844beb4a350280f48d8ba56205b7d356b4e969e335e",
+          "classifier_provider": "ollama"
+        }
+      ],
+      "evidence_packet_hash": "1a3e85530dc1ed0417b0c01fcbc86956c80d17e3ac4d829e69a2cdbfdf9a96a1",
+      "evidence_all_live_classified": true,
+      "error_message": null,
+      "reviewed_status": "UNREVIEWED",
+      "generated_at": "2026-08-11T02:31:28.608746+00:00"
+    },
+    {
+      "forecast_id": 7,
+      "market_id": 7,
+      "market_slug": "will-the-democrats-win-the-north-carolina-senate-race-in-2026",
+      "market_question": "Will the Democrats win the North Carolina Senate race in 2026?",
+      "market_category": "politics",
+      "market_region": "US",
+      "market_end_date": null,
+      "market_resolution_criteria": "This market will resolve according to the winner of the 2026 midterm North Carolina U.S. Senate election, inclusive of any run-offs.\n\nA candidate shall be considered to represent a party in the event that he or she is the nominee of the party in question. Candidates other than the Democratic or Republican nominee (e.g., Greens, Libertarian, independent) may be added at a later date.\n\nCandidates who run as independents will not be encompassed by the \u201cDemocrat\u201d or \u201cRepublican\u201d options regardless of any affiliation they may have with the party.\n\nThe resolution source for this market is the Associated Press, Fox News, and NBC. This market will resolve once all three sources call the race for the same candidate. If all three sources haven\u2019t called the race in this state for the same candidate, this market will resolve based on the official certification.",
+      "run_slot": "2026-08-11:adhoc-023250",
+      "status": "OK",
+      "fair_value": 0.55,
+      "confidence": 0.65,
+      "should_abstain": false,
+      "retries": 0,
+      "model_provider": "ollama",
+      "model_name": "qwen3:8b",
+      "prompt_version": "fair_value_v0.1",
+      "prompt_hash": "42074d18037ba8cca6dc1ff9ac66306117ff1409fd4e4443ecf30567fd016ce0",
+      "generation_params": {
+        "temperature": 0.15,
+        "num_ctx": 4096,
+        "max_retries": 2
+      },
+      "raw_response": "{\"fair_value\":0.55,\"confidence\":0.65,\"should_abstain\":false,\"rationale_short\":\"Recent articles suggest Democratic momentum in key races, but no definitive outcome. Multiple factors influence Senate races, including primary results and candidate strength.\",\"key_uncertainties\":[\"Primary outcomes\",\"Candidate strength\",\"Voter turnout\",\"Election dynamics\",\"Certification process\"],\"base_rate_notes\":\"Base rates for Senate races show frequent flips, but 2026 is a midterm with potential for shifts.\"}",
+      "raw_response_hash": "7ff009143627a4c24c2b68abbf2cc78a3e0466122bbf65c9f50d4790f9483d8f",
+      "raw_response_contains_target_probability": false,
+      "thinking_mode_detected": false,
+      "evidence_ids": [
+        613,
+        612,
+        610,
+        616
+      ],
+      "evidence_count": 4,
+      "evidence_items": [
+        {
+          "id": 613,
+          "title": "The 9 Senate seats most likely to flip in 2026 - CNN",
+          "summary": "The article discusses the 9 Senate seats most likely to flip in 2026, including North Carolina.",
+          "source_name": "Google News RSS",
+          "source_type": "rss",
+          "url": "https://news.google.com/rss/articles/CBMifEFVX3lxTE5MMEc1Vm5NUXhNNlRPTnhRS3JOVV9vWUh3QmhMT0hSTDBIQUlWVnJWTUJGTGZzQ21TaUszclBid0ZIYzA2dUs5SmZTOU9ra2tvOWVEcTc0NXVIdEd3amNkY1dLNUNfMFBpX1RqbkNTRGRtUkJTQjNlUHJfa0M?oc=5",
+          "published_at": "2026-08-10T10:00:29+00:00",
+          "category": "news",
+          "content_hash": "6144ab00ceba8854e478e331a658747434c0a709964d1cd4caf37472329ac67d",
+          "classifier_provider": "ollama"
+        },
+        {
+          "id": 612,
+          "title": "Tracking key primary elections across the U.S. - LiveNOW from FOX",
+          "summary": "News article from Google News RSS discussing tracking of key primary elections across the U.S., including the North Carolina Senate race.",
+          "source_name": "Google News RSS",
+          "source_type": "rss",
+          "url": "https://news.google.com/rss/articles/CBMic0FVX3lxTFB3NnJ3NWk5Ul9LVDhMMF9MZXhtOUtFTjZRdEU2UUEzZk04d3VXU0ttSTFTa1ZBVUE5cG1TRlV0LVQtZm5mSmVPNmpFUHdrOEJuNERiaW56UDZCaE0xbE9ZM2xRT3o4WmhzQVB1cGVaUVhOTjTSAXhBVV95cUxOSlNhRDRhYVhFbFg3eFlWblozX1BNaFRkUWVuZl81SGhhOEtuVlAtdkllakVoTUZsUGdJTEVIblZYWi1RREp1R3EzUVlOYnFsWHJYWDRVYmhxRTh4ek9EOXhueTFmSHMwV3RaWGpGMnkwOUI5aW5mbGs?oc=5",
+          "published_at": "2026-08-08T17:53:41+00:00",
+          "category": "news",
+          "content_hash": "5ad7626dd57d23455f0dabda50788a70648cbe3f030e16ae1271881f50c0f569",
+          "classifier_provider": "ollama"
+        },
+        {
+          "id": 610,
+          "title": "NEW: Race Raters Shift FOUR Senate Races Toward Democrats as Momentum Builds for Democrats - dscc.org",
+          "summary": "News article indicates that race raters have shifted four Senate races, including North Carolina, toward Democrats as momentum builds for Democrats.",
+          "source_name": "Google News RSS",
+          "source_type": "rss",
+          "url": "https://news.google.com/rss/articles/CBMiuwFBVV95cUxQVE5obGY1R091dlQzdUplOXIxZXhVdXl2eGpHUElIbGYzdlNoRVFYcG42cmMyU01RdDJlc2Y3U0VyTTU5dW1NTDJyZEpYUEpEcUMtZHF6a3JGSDJQeDVfWkhkdmdlX0llTWZjNFV5WUF2OXppWmhZM3BHaFdvelRBUkZRalozN3h5ek5kdm9OXzJlTXNVX3ZldWo2MGh0d0hlTVlIV2hhOUhsdXZqNUlDVlRuMmJCVzFLYlJj?oc=5",
+          "published_at": "2026-08-08T00:24:29+00:00",
+          "category": "news",
+          "content_hash": "fb01a1e26d94003f6e50e382efb9de8b1449c0aab9a86e7288e953f2bb8e9b91",
+          "classifier_provider": "ollama"
+        },
+        {
+          "id": 616,
+          "title": "El-Sayed and Stevens Project Party Unity After Divisive Race - nytimes.com",
+          "summary": "Article discusses party unity after a divisive race, but does not mention North Carolina Senate race or specific candidates.",
+          "source_name": "Google News RSS",
+          "source_type": "rss",
+          "url": "https://news.google.com/rss/articles/CBMiggFBVV95cUxQWkMzeXN5RWNSU3JyUGxpZXJZNngwc3RaOVZjR1JKb2tkRU9zN3ZRVUZ2MDlOVzdZNVRmQVdBUEgxbHF3VWtLbG9Fci1PS19NR1dPX3h4QnkzZDdnQ09Fd3kxbzQtUW1lcmplUTlJQ0xYOWE3RS1lXzJ6SjZock5FOC1R?oc=5",
+          "published_at": "2026-08-05T21:15:23+00:00",
+          "category": "news",
+          "content_hash": "d1df84b13dbaa5828e63a188bca6a7f190bc935de20079d0cc7fb3254aff260d",
+          "classifier_provider": "ollama"
+        }
+      ],
+      "evidence_packet_hash": "40a270453d8145994a4ae72a7fcdc5a5ccea52c7cc78fd6a1f08d2154970ba28",
+      "evidence_all_live_classified": true,
+      "error_message": null,
+      "reviewed_status": "UNREVIEWED",
+      "generated_at": "2026-08-11T02:32:50.458967+00:00"
+    },
+    {
+      "forecast_id": 8,
+      "market_id": 8,
+      "market_slug": "will-the-democrats-win-the-georgia-senate-race-in-2026",
+      "market_question": "Will the Democrats win the Georgia Senate race in 2026?",
+      "market_category": "politics",
+      "market_region": "US",
+      "market_end_date": null,
+      "market_resolution_criteria": "This market will resolve according to the winner of the 2026 midterm Georgia U.S. Senate election, inclusive of any run-offs.\n\nA candidate shall be considered to represent a party in the event that he or she is the nominee of the party in question. Candidates other than the Democratic or Republican nominee (e.g., Greens, Libertarian, independent) may be added at a later date.\n\nCandidates who run as independents will not be encompassed by the \u201cDemocrat\u201d or \u201cRepublican\u201d options regardless of any affiliation they may have with the party.\n\nThe resolution source for this market is the Associated Press, Fox News, and NBC. This market will resolve once all three sources call the race for the same candidate. If all three sources haven\u2019t called the race in this state for the same candidate, this market will resolve based on the official certification.",
+      "run_slot": "2026-08-11:adhoc-023345",
+      "status": "OK",
+      "fair_value": 0.45,
+      "confidence": 0.6,
+      "should_abstain": false,
+      "retries": 0,
+      "model_provider": "ollama",
+      "model_name": "qwen3:8b",
+      "prompt_version": "fair_value_v0.1",
+      "prompt_hash": "3365cda58e66460ab0302ce0c0052b6f43b863dd445eba7baf23355d276d96ec",
+      "generation_params": {
+        "temperature": 0.15,
+        "num_ctx": 4096,
+        "max_retries": 2
+      },
+      "raw_response": "{\"fair_value\":0.45,\"confidence\":0.6,\"should_abstain\":false,\"rationale_short\":\"Recent articles suggest Democrats have shifted momentum in Georgia Senate race, but multiple sources are needed for resolution. Current evidence indicates a competitive race with Democratic chances improving.\",\"key_uncertainties\":[\"Timing of final election results\",\"Potential for run-off scenarios\",\"Accuracy of media projections\",\"Candidate performance post-primary\",\"Official certification delays\"],\"base_rate_notes\":\"Base rate for Senate races is around 50% for competitive seats, but Georgia's specific dynamics and recent momentum shifts influence the probability.\"}",
+      "raw_response_hash": "56b4fc2a3a06f6f53a0eac1323204f27040f73bcd4193e56a48d34ef4201182c",
+      "raw_response_contains_target_probability": true,
+      "thinking_mode_detected": false,
+      "evidence_ids": [
+        620,
+        619,
+        618,
+        617
+      ],
+      "evidence_count": 4,
+      "evidence_items": [
+        {
+          "id": 620,
+          "title": "Tracking Competitive Races in the House and Senate - The New York Times",
+          "summary": "News article from Google News RSS discussing competitive races in the House and Senate, including the Georgia Senate race.",
+          "source_name": "Google News RSS",
+          "source_type": "rss",
+          "url": "https://news.google.com/rss/articles/CBMilAFBVV95cUxQZ0ZhWGZlU2pYdmYwbk9SNk9JMWd6aTN1SjNudktsVkFoWEt3T3FJR1RjTC1ZU3Q3YU9ReTV0WUJJQkdDOWpzTWJ1X0liWk91MlpFdmxvX2F2THY3VnBVRDlRQlZFY19fYjRrZDQ1UlN6TGRueERkdmNIQkVveEZHMjd3eFVlM0VFWVN6WDEzcFBDSzdt?oc=5",
+          "published_at": "2026-08-10T22:32:27+00:00",
+          "category": "news",
+          "content_hash": "ea11e1936b138e800b0cfe38c7013c70f6ea48c9a3f431ab77ab15de96e09493",
+          "classifier_provider": "ollama"
+        },
+        {
+          "id": 619,
+          "title": "The 9 Senate seats most likely to flip in 2026 - CNN",
+          "summary": "Article discusses the 9 Senate seats most likely to flip in 2026, including Georgia.",
+          "source_name": "Google News RSS",
+          "source_type": "rss",
+          "url": "https://news.google.com/rss/articles/CBMifEFVX3lxTE5MMEc1Vm5NUXhNNlRPTnhRS3JOVV9vWUh3QmhMT0hSTDBIQUlWVnJWTUJGTGZzQ21TaUszclBid0ZIYzA2dUs5SmZTOU9ra2tvOWVEcTc0NXVIdEd3amNkY1dLNUNfMFBpX1RqbkNTRGRtUkJTQjNlUHJfa0M?oc=5",
+          "published_at": "2026-08-10T10:00:29+00:00",
+          "category": "news",
+          "content_hash": "6144ab00ceba8854e478e331a658747434c0a709964d1cd4caf37472329ac67d",
+          "classifier_provider": "ollama"
+        },
+        {
+          "id": 618,
+          "title": "Tracking key primary elections across the U.S. - LiveNOW from FOX",
+          "summary": "News article from Google News RSS discussing tracking of key primary elections across the U.S., including Georgia Senate race.",
+          "source_name": "Google News RSS",
+          "source_type": "rss",
+          "url": "https://news.google.com/rss/articles/CBMic0FVX3lxTFB3NnJ3NWk5Ul9LVDhMMF9MZXhtOUtFTjZRdEU2UUEzZk04d3VXU0ttSTFTa1ZBVUE5cG1TRlV0LVQtZm5mSmVPNmpFUHdrOEJuNERiaW56UDZCaE0xbE9ZM2xRT3o4WmhzQVB1cGVaUVhOTjTSAXhBVV95cUxOSlNhRDRhYVhFbFg3eFlWblozX1BNaFRkUWVuZl81SGhhOEtuVlAtdkllakVoTUZsUGdJTEVIblZYWi1RREp1R3EzUVlOYnFsWHJYWDRVYmhxRTh4ek9EOXhueTFmSHMwV3RaWGpGMnkwOUI5aW5mbGs?oc=5",
+          "published_at": "2026-08-08T17:53:41+00:00",
+          "category": "news",
+          "content_hash": "5ad7626dd57d23455f0dabda50788a70648cbe3f030e16ae1271881f50c0f569",
+          "classifier_provider": "ollama"
+        },
+        {
+          "id": 617,
+          "title": "NEW: Race Raters Shift FOUR Senate Races Toward Democrats as Momentum Builds for Democrats - dscc.org",
+          "summary": "News article indicating that race raters have shifted four Senate races, including Georgia, toward Democrats as momentum builds for Democrats.",
+          "source_name": "Google News RSS",
+          "source_type": "rss",
+          "url": "https://news.google.com/rss/articles/CBMiuwFBVV95cUxQVE5obGY1R091dlQzdUplOXIxZXhVdXl2eGpHUElIbGYzdlNoRVFYcG42cmMyU01RdDJlc2Y3U0VyTTU5dW1NTDJyZEpYUEpEcUMtZHF6a3JGSDJQeDVfWkhkdmdlX0llTWZjNFV5WUF2OXppWmhZM3BHaFdvelRBUkZRalozN3h5ek5kdm9OXzJlTXNVX3ZldWo2MGh0d0hlTVlIV2hhOUhsdXZqNUlDVlRuMmJCVzFLYlJj?oc=5",
+          "published_at": "2026-08-08T00:24:29+00:00",
+          "category": "news",
+          "content_hash": "fb01a1e26d94003f6e50e382efb9de8b1449c0aab9a86e7288e953f2bb8e9b91",
+          "classifier_provider": "ollama"
+        }
+      ],
+      "evidence_packet_hash": "42b2f91b212186b0aece74644d8badf855a8804f6bdcbbbbbb45f541cdb4e417",
+      "evidence_all_live_classified": true,
+      "error_message": null,
+      "reviewed_status": "UNREVIEWED",
+      "generated_at": "2026-08-11T02:33:45.163383+00:00"
+    },
+    {
+      "forecast_id": 9,
+      "market_id": 9,
+      "market_slug": "will-the-democrats-win-the-michigan-governor-race-in-2026",
+      "market_question": "Will the Democrats win the Michigan governor race in 2026?",
+      "market_category": "politics",
+      "market_region": "US",
+      "market_end_date": null,
+      "market_resolution_criteria": "This market will resolve according to the winner of the 2026 Michigan gubernatorial election.\n\nA candidate shall be considered to represent a party in the event that he or she is the nominee of the party in question. Candidates other than the Democratic or Republican nominee (e.g., Greens, Libertarian, independent) may be added at a later date.\n\nCandidates who run as independents will not be encompassed by the \u201cDemocrat\u201d or \u201cRepublican\u201d options regardless of any affiliation they may have with the party.\n\nThe resolution source for this market is the Associated Press, Fox News, and NBC. This market will resolve once all three sources call the race for the same candidate. If all three sources haven\u2019t called the race in this state for the same candidate, this market will resolve based on the official certification.",
+      "run_slot": "2026-08-11:adhoc-023452",
+      "status": "OK",
+      "fair_value": 0.5,
+      "confidence": 0.7,
+      "should_abstain": false,
+      "retries": 0,
+      "model_provider": "ollama",
+      "model_name": "qwen3:8b",
+      "prompt_version": "fair_value_v0.1",
+      "prompt_hash": "ff940b117d740a639595c4e56ecadfafb380be66df41bf1d7f8d9b908e476407",
+      "generation_params": {
+        "temperature": 0.15,
+        "num_ctx": 4096,
+        "max_retries": 2
+      },
+      "raw_response": "{\"fair_value\":0.5,\"confidence\":0.7,\"should_abstain\":false,\"rationale_short\":\"The race is between Democratic nominee Jocelyn Benson and Republican John James. Current evidence does not indicate a clear winner, and the election is in 2026 with no recent polling data provided.\",\"key_uncertainties\":[\"Candidate viability\",\"Polling data\",\"Voter turnout\",\"Campaign effectiveness\",\"Election day factors\"],\"base_rate_notes\":\"Base rates for gubernatorial elections in Michigan are typically close, with recent races often decided by narrow margins.\"}",
+      "raw_response_hash": "4fefe1de8e1f1916914a9cca96b370318a9d4201a9f38d1d27bd7807151409fb",
+      "raw_response_contains_target_probability": false,
+      "thinking_mode_detected": false,
+      "evidence_ids": [
+        622,
+        621,
+        625,
+        623,
+        624
+      ],
+      "evidence_count": 5,
+      "evidence_items": [
+        {
+          "id": 622,
+          "title": "Meet the candidates running in the 2026 Michigan gubernatorial race - ClickOnDetroit | WDIV Local 4",
+          "summary": "News article introducing candidates for the 2026 Michigan gubernatorial race.",
+          "source_name": "Google News RSS",
+          "source_type": "rss",
+          "url": "https://news.google.com/rss/articles/CBMivgFBVV95cUxNQk5jM19la0xQVWRJZ1Bkd05HdVFMVGtzUnFqd0luY0ZWOVhmR2VYanMtQWNEOEtlOER3VTVDcWh4aHJKSzJaRVNad3NHX1pKeV81R2xPQ1FQS0p4RnQ5cjltaGFUWVNDYkhnZmZVNDRsX3hkdElsU1ZzTXhiQk9fLWxySk9FN0hETGNWSjUyWDlabkktOGhtbkVUaDV1SmlzMnA0S21OdDhWcHU5aEVLMUxMODl4Nnc2R0NjNXhn?oc=5",
+          "published_at": "2026-08-08T09:00:01+00:00",
+          "category": "news",
+          "content_hash": "d63716c0c95e7bebe697875c32e657d98716fcf8f7f44c59fef53cbebe683141",
+          "classifier_provider": "ollama"
+        },
+        {
+          "id": 621,
+          "title": "How Abdul El-Sayed went from political oblivion to progressive breakthrough in Michigan Senate race - AP News",
+          "summary": "Article discusses Abdul El-Sayed's rise in the Michigan Senate race, indicating potential impact on the 2026 gubernatorial election.",
+          "source_name": "Google News RSS",
+          "source_type": "rss",
+          "url": "https://news.google.com/rss/articles/CBMioAFBVV95cUxOb21OakF0VFB5eUd5WV84MmZLTDJUaTA5SjhMbjVKX3pOMGczZWE0X2tjZkplbV94TkJjejZNbmpVNkREc242Zk9MTDI0SVhid1ViUjVucFpIazNGdld1a2pHY1JvaEZfZjE3YmlVajlLU0pJV2FfMVdYbVl4cmttRGVRQk1JYXY5VVVjS2o1TzhRY3A0SkJZd0FjVC1tRmFX?oc=5",
+          "published_at": "2026-08-06T02:39:00+00:00",
+          "category": "news",
+          "content_hash": "974a83e2506e959ffa9c821f6e45138f7deb30224ebd2c1871efd980ff34dd19",
+          "classifier_provider": "ollama"
+        },
+        {
+          "id": 625,
+          "title": "Education will be a key topic as Benson and James head into the November election - Chalkbeat",
+          "summary": "News article discussing education as a key topic in the November election between Benson and James.",
+          "source_name": "Google News RSS",
+          "source_type": "rss",
+          "url": "https://news.google.com/rss/articles/CBMirwFBVV95cUxPZ25pQ0NPdnk0M2I5MTlZSmVKWmVGcnp6N2hnVzJxVjhMU1dLR1JabzEzZWtGRzAtR0NfZzd0b1A4WlBjT3F1Ujd0ckU4ZjNzNlNmVTdFcmthbG1sQ0JOdkxzMFNhcGNYMXJ2aFpuTGhYdGRVMEYxWGhBTGJNbUIwejE0eEYwSGcyTjZQcDlpMnZMc3BPTWc5M0IyVjcxUjAyQWlVU2tUZm9hUkFQV1Qw?oc=5",
+          "published_at": "2026-08-05T03:55:00+00:00",
+          "category": "news",
+          "content_hash": "6552586a294bc7c9f5d0d5cee14a3c9264abcb74ac8036851479fb59cba78bd7",
+          "classifier_provider": "ollama"
+        },
+        {
+          "id": 623,
+          "title": "John James wins Republican nomination for Michigan governor, will face Democrat Jocelyn Benson - Michigan Public",
+          "summary": "John James has won the Republican nomination for Michigan governor and will face Democrat Jocelyn Benson in the 2026 election.",
+          "source_name": "Google News RSS",
+          "source_type": "rss",
+          "url": "https://news.google.com/rss/articles/CBMitgFBVV95cUxPY1lZcVVoQjMyVXctc1hZdlFJWG0wSHhNSExDYThNNWh2akNqY2x1am9NUWZBRURRN1dlb1Rjc1EyNjIxMUJ1a2dXUkJ5NXBIM3ZZRE9GNXljUUJvZjdLcEdCZlFtU01OTWFPN0twZ2dMU214TXk3aXZqdUhHQjBSRzV6RTMtcDBCTVVkblhUMkxBTVBkV3FBc0FfWVRxZ2NocnlSWUxSa3NSS2xxWG5Xa2Y3R1l3Zw?oc=5",
+          "published_at": "2026-08-05T02:32:00+00:00",
+          "category": "news",
+          "content_hash": "1874e0e70b5bfb90c90a53f204fe6a2b837f9b1aa99721df87811a884d3f40d2",
+          "classifier_provider": "ollama"
+        },
+        {
+          "id": 624,
+          "title": "Michigan\u2019s top election official wins Democratic primary for governor, advances to battleground race - Fox News",
+          "summary": "Michigan's top election official wins Democratic primary for governor, advancing to the 2026 battleground race.",
+          "source_name": "Google News RSS",
+          "source_type": "rss",
+          "url": "https://news.google.com/rss/articles/CBMiwgFBVV95cUxOLXBHVWU2Ri1RQlRKbklqMjNRS1h3WHdXRS14c0RWUUpuTXloTHEtNndmMzRFMFlndERPRXlrdkIxdGF6d1hqTi1rZWRFUEl5T1ZBSWxGUkNYTUpkbTdGYU40TWFjWm1FdTNsTXRWMXNKTnNlazl0MUdoYVhKU3hHVU9DZ2g0cEcxWndwaG1oVndhNzhJejllWmt4RmFBdmxuOUVzcGZHNkZiZVJYR3h0cEE3aW9RQmd4azBUWTlGeTRuZ9IBxwFBVV95cUxOQnlMbEh1RkllaDFhTkV3aVVVY2NJVFNkcDFweUlkWU9qSWY3dG96Z0xJWUV0WlVLWTZTaXZpSUZacDJ6NDB1RU9xNVRNekxSMHdhckxTd0tnbXNRRE82OFpwdDdWTTVnX0xjYjVhd1RUa1YtbWJJTzVJMXhBR1RBd3dGdi1QUUlrNmhXU04zbmg0c0Frak1NcUVBYTRFX3l4bEx3bERGQ2pndE5rV3pCb2hwazhLaEZVaG9CaDlXbDh4b3Q2cDJR?oc=5",
+          "published_at": "2026-08-05T01:06:01+00:00",
+          "category": "news",
+          "content_hash": "6e4728336748df5bae4f737c9f9582c80cae65f5e1d0b285b2fdf88bce99308a",
+          "classifier_provider": "ollama"
+        }
+      ],
+      "evidence_packet_hash": "1fdd73773c3e146ea5d5282b20e74ceae3d1a6b2494a4a6c652bc3d32f2b63df",
+      "evidence_all_live_classified": true,
+      "error_message": null,
+      "reviewed_status": "UNREVIEWED",
+      "generated_at": "2026-08-11T02:34:52.115241+00:00"
+    },
+    {
+      "forecast_id": 10,
+      "market_id": 10,
+      "market_slug": "will-the-republicans-win-the-ohio-governor-race-in-2026",
+      "market_question": "Will the Republicans win the Ohio governor race in 2026?",
+      "market_category": "politics",
+      "market_region": "US",
+      "market_end_date": null,
+      "market_resolution_criteria": "This market will resolve according to the winner of the 2026 Ohio gubernatorial election.\n\nA candidate shall be considered to represent a party in the event that he or she is the nominee of the party in question. Candidates other than the Democratic or Republican nominee (e.g., Greens, Libertarian, independent) may be added at a later date.\n\nCandidates who run as independents will not be encompassed by the \u201cDemocrat\u201d or \u201cRepublican\u201d options regardless of any affiliation they may have with the party.\n\nThe resolution source for this market is the Associated Press, Fox News, and NBC. This market will resolve once all three sources call the race for the same candidate. If all three sources haven\u2019t called the race in this state for the same candidate, this market will resolve based on the official certification.",
+      "run_slot": "2026-08-11:adhoc-023542",
+      "status": "OK",
+      "fair_value": 0.45,
+      "confidence": 0.6,
+      "should_abstain": false,
+      "retries": 0,
+      "model_provider": "ollama",
+      "model_name": "qwen3:8b",
+      "prompt_version": "fair_value_v0.1",
+      "prompt_hash": "d1cf28286870120ae2f55b1a633df7217681b59c76ebc6aa752160bcc62beff2",
+      "generation_params": {
+        "temperature": 0.15,
+        "num_ctx": 4096,
+        "max_retries": 2
+      },
+      "raw_response": "{\"fair_value\":0.45,\"confidence\":0.6,\"should_abstain\":false,\"rationale_short\":\"Recent articles suggest both Democratic and Republican challenges, with no clear consensus. The race remains competitive with multiple factors influencing the outcome.\",\"key_uncertainties\":[\"Candidate viability\",\"Voter turnout\",\"Economic conditions\",\"Media influence\",\"Final campaign momentum\"],\"base_rate_notes\":\"Base rate for gubernatorial elections is around 50%, with recent Ohio races showing competitive dynamics.\"}",
+      "raw_response_hash": "68b275b4dee8c6c59e7875e110da22311e282af4d0e2405357fe4f3a55da4e22",
+      "raw_response_contains_target_probability": true,
+      "thinking_mode_detected": false,
+      "evidence_ids": [
+        626,
+        627
+      ],
+      "evidence_count": 2,
+      "evidence_items": [
+        {
+          "id": 626,
+          "title": "Could the last time a Democrat was elected Ohio governor foreshadow this year's election? - The Statehouse News Bureau",
+          "summary": "Article discusses potential parallels between past Democratic Ohio governor election and current Republican gubernatorial race.",
+          "source_name": "Google News RSS",
+          "source_type": "rss",
+          "url": "https://news.google.com/rss/articles/CBMi3AFBVV95cUxNZXdmUTUtMmVSdzA4NTdpZTMzWHB5QnctV1ZHYk44QzhMbWh4RThxS2U1U3BLMzhtRW5iUnlWOXNmMEdyYmpGWVdlX3hGZlZDNGt2R0FZUGp2M09lWFk5Q1BEcGpNYzJtR1lTZXE0OExlckt4YUpEYnYyenhMSUo1REV1NmNYQWx6YnVxUDhjNW9RS3ZBakh5aldxQThHWFVBX3NlQjR4QlVkRmx4YXFVMk1vVFI2ZlozbVRSbjBVenZ6V29YaFVTWG5IdVNtZU96aUtDemE4a0phUUVP?oc=5",
+          "published_at": "2026-08-08T00:15:00+00:00",
+          "category": "news",
+          "content_hash": "381de61c8e6c68ce01ca346fe6c0e08a08118b589c0973020e631a79ff86375c",
+          "classifier_provider": "ollama"
+        },
+        {
+          "id": 627,
+          "title": "Reliably red Ohio suddenly a red-hot mess for GOP - axios.com",
+          "summary": "Article discusses challenges faced by Republicans in Ohio governor race 2026, indicating potential difficulties for GOP candidates.",
+          "source_name": "Google News RSS",
+          "source_type": "rss",
+          "url": "https://news.google.com/rss/articles/CBMibkFVX3lxTE8wOW4tZ3FKVEdkby11dGJPeW04Q0VTUFlTdFE0TkluLUp2Z0dWYk1QbkJUMTdhVjF3Y0JRXzA2U2RybWJva3ZDTW5nX2R4dGE2N3o0V3hXSkI5Nk5XSnJVd3c1bFJJcF96LWhTMlNn?oc=5",
+          "published_at": "2026-08-04T09:14:37+00:00",
+          "category": "news",
+          "content_hash": "0fc04413afaa463769591844beb4a350280f48d8ba56205b7d356b4e969e335e",
+          "classifier_provider": "ollama"
+        }
+      ],
+      "evidence_packet_hash": "a9d4701687b59067a31b13a6bf2bdebe21d144815ae3c2ce063fa19b2e999b36",
+      "evidence_all_live_classified": true,
+      "error_message": null,
+      "reviewed_status": "UNREVIEWED",
+      "generated_at": "2026-08-11T02:35:42.301639+00:00"
+    },
+    {
+      "forecast_id": 11,
+      "market_id": 11,
+      "market_slug": "will-the-democrats-win-the-georgia-governor-race-in-2026",
+      "market_question": "Will the Democrats win the Georgia governor race in 2026?",
+      "market_category": "politics",
+      "market_region": "US",
+      "market_end_date": null,
+      "market_resolution_criteria": "This market will resolve according to the winner of the 2026 Georgia gubernatorial election.\n\nA candidate shall be considered to represent a party in the event that he or she is the nominee of the party in question. Candidates other than the Democratic or Republican nominee (e.g., Greens, Libertarian, independent) may be added at a later date.\n\nCandidates who run as independents will not be encompassed by the \u201cDemocrat\u201d or \u201cRepublican\u201d options regardless of any affiliation they may have with the party.\n\nThe resolution source for this market is the Associated Press, Fox News, and NBC. This market will resolve once all three sources call the race for the same candidate. If all three sources haven\u2019t called the race in this state for the same candidate, this market will resolve based on the official certification.",
+      "run_slot": "2026-08-11:adhoc-023607",
+      "status": "OK",
+      "fair_value": 0.45,
+      "confidence": 0.6,
+      "should_abstain": false,
+      "retries": 0,
+      "model_provider": "ollama",
+      "model_name": "qwen3:8b",
+      "prompt_version": "fair_value_v0.1",
+      "prompt_hash": "50e9532370f86401f4d99a5d3db0e3b3f7e231d3666b1f3b5e3b62e1308d0f0e",
+      "generation_params": {
+        "temperature": 0.15,
+        "num_ctx": 4096,
+        "max_retries": 2
+      },
+      "raw_response": "{\"fair_value\":0.45,\"confidence\":0.6,\"should_abstain\":false,\"rationale_short\":\"Current evidence suggests a competitive race with no clear advantage for either party, based on recent tracking data from reputable sources.\",\"key_uncertainties\":[\"Candidate viability and fundraising\",\"Voter turnout dynamics\",\"Potential for third-party impact\",\"Election-day logistics\",\"National political climate influence\"],\"base_rate_notes\":\"Base rates from recent gubernatorial races indicate a tendency for close contests, often decided by narrow margins.\"}",
+      "raw_response_hash": "5cfd9b16be725f6bcb69bfd225d0a5a47666fe78394fb00759cb29397f7f473e",
+      "raw_response_contains_target_probability": true,
+      "thinking_mode_detected": false,
+      "evidence_ids": [
+        630
+      ],
+      "evidence_count": 1,
+      "evidence_items": [
+        {
+          "id": 630,
+          "title": "Tracking Competitive Races in the House and Senate - The New York Times",
+          "summary": "News article from Google News RSS discussing competitive races in the House and Senate, including the Georgia governor race.",
+          "source_name": "Google News RSS",
+          "source_type": "rss",
+          "url": "https://news.google.com/rss/articles/CBMilAFBVV95cUxQZ0ZhWGZlU2pYdmYwbk9SNk9JMWd6aTN1SjNudktsVkFoWEt3T3FJR1RjTC1ZU3Q3YU9ReTV0WUJJQkdDOWpzTWJ1X0liWk91MlpFdmxvX2F2THY3VnBVRDlRQlZFY19fYjRrZDQ1UlN6TGRueERkdmNIQkVveEZHMjd3eFVlM0VFWVN6WDEzcFBDSzdt?oc=5",
+          "published_at": "2026-08-10T22:32:27+00:00",
+          "category": "news",
+          "content_hash": "ea11e1936b138e800b0cfe38c7013c70f6ea48c9a3f431ab77ab15de96e09493",
+          "classifier_provider": "ollama"
+        }
+      ],
+      "evidence_packet_hash": "83f84b47b83ce8278b698cabd8b728b02791fe48253698e4ff6e0539c4e7158a",
+      "evidence_all_live_classified": true,
+      "error_message": null,
+      "reviewed_status": "UNREVIEWED",
+      "generated_at": "2026-08-11T02:36:07.183726+00:00"
+    },
+    {
+      "forecast_id": 12,
+      "market_id": 12,
+      "market_slug": "will-luiz-incio-lula-da-silva-win-the-2026-brazilian-presidential-election",
+      "market_question": "Will Luiz In\u00e1cio Lula da Silva win the 2026 Brazilian presidential election?",
+      "market_category": "politics",
+      "market_region": "Brazil",
+      "market_end_date": "2026-10-04T00:00:00+00:00",
+      "market_resolution_criteria": "A presidential election is scheduled to take place in Brazil on October 4, 2026.\n\nThis market will resolve according to the listed candidate that wins this election.\n\nThis market includes any potential second round. If the result of this election isn't known by June 30, 2027, 11:59 PM ET, the market will resolve to \"Other\".\n\nThis market will resolve based on the result of the election as indicated by a consensus of credible reporting. If there is ambiguity, this market will resolve based solely on the official results as reported by the Brazilian government, specifically the Superior Electoral Court (Tribunal Superior Eleitoral, TSE) (e.g., https://dadosabertos.tse.jus.br/).",
+      "run_slot": "2026-08-11:adhoc-023729",
+      "status": "OK",
+      "fair_value": 0.45,
+      "confidence": 0.65,
+      "should_abstain": false,
+      "retries": 0,
+      "model_provider": "ollama",
+      "model_name": "qwen3:8b",
+      "prompt_version": "fair_value_v0.1",
+      "prompt_hash": "8f24c9a7832542c9861714164cf2866281741cdaa6f5e56ee4e59c781d18bb9b",
+      "generation_params": {
+        "temperature": 0.15,
+        "num_ctx": 4096,
+        "max_retries": 2
+      },
+      "raw_response": "{\"fair_value\":0.45,\"confidence\":0.65,\"should_abstain\":false,\"rationale_short\":\"Lula has economic growth but voter sentiment is mixed. Foreign interference and Bolsonaro's campaign add uncertainty. Trump's influence is a wildcard.\",\"key_uncertainties\":[\"Voter perception of economic growth\",\"Foreign interference impact\",\"Bolsonaro's campaign effectiveness\",\"Trump's influence\",\"Election outcome clarity by June 2027\"],\"base_rate_notes\":\"Base rate considers recent Brazilian elections, Lula's historical support, and current political climate.\"}",
+      "raw_response_hash": "624a0a794ae80584d72b521e5e34dbd8b11469e297d754042b2b8d57175341fe",
+      "raw_response_contains_target_probability": true,
+      "thinking_mode_detected": false,
+      "evidence_ids": [
+        633,
+        631,
+        634,
+        636,
+        635
+      ],
+      "evidence_count": 5,
+      "evidence_items": [
+        {
+          "id": 633,
+          "title": "Brazil\u2019s economy is growing under Lula. Why don\u2019t voters feel it? - The Christian Science Monitor",
+          "summary": "Article discusses Brazil's economic growth under Lula but notes that voters are not feeling the benefits.",
+          "source_name": "Google News RSS",
+          "source_type": "rss",
+          "url": "https://news.google.com/rss/articles/CBMikwFBVV95cUxORmhvd0pXTGhQaElSdFVZTnNlRFlzMGYzS3JwOGpBcUlyLUpzYVVzYlhpeUlSb3VPcktuRVpKVG1xTS1udU9TbDJuSTNOeE1veGdHdlBVb2FNRTNpb05LNDZFUUhUQ2MxZUFKTXpqVHBnOHV1aVRYVmdvZUlfalYwYjVQc2tvYksydjVMNTVJYVoxVnPSAawBQVVfeXFMTVBDdzBoUThTNG0tcVJFa2EyQUVQM2RmS1UzbEFfdDR4eWxrOUxJTzd5QVZxQ0h3N2YyVTV2Z1dvTDRXVVhyd2ZoVmRqYjhXQmxZWFZNREkwa2hqeVdIYTd6NzhnMGNfcTlqTV9rM2RBX3dWd1ZJNkJoTzBnZWdidEVtUnhPbDhIb0RKWWtyenZ4bHJlN3lWRDdhcXZxUERqbHJFN2tJdS1PMXNXSQ?oc=5",
+          "published_at": "2026-08-07T17:15:10+00:00",
+          "category": "news",
+          "content_hash": "81aab3f653f92d30e9c5e2457fd364e69b8c1860d5f50b40a422c594482291c1",
+          "classifier_provider": "ollama"
+        },
+        {
+          "id": 631,
+          "title": "Amid foreign interference, Brazil\u2019s election kicks off with a whimper - The Economist",
+          "summary": "The Economist article discusses foreign interference in Brazil's election, which may impact the outcome.",
+          "source_name": "Google News RSS",
+          "source_type": "rss",
+          "url": "https://news.google.com/rss/articles/CBMiuAFBVV95cUxOYTZHRWQzOVZBQW5UOWduV3oxbUo3c3JneU9OTGw2cXVtUGR6Sm54d0VrNFp2TWx1ZjBwUzFySFkyeGRZd3BTb2EzUkJhT0RIUXFWYUNQODN4SXZXU2R5dlBHcjdodV9JM2ZydXhURUUzN2J1QUE1ZnhJUFRVeV8xeURyLWdBZmNRLUNNVUlwU2tldFdpWC1COEowaDdONkhhWFFFVF9jd2gzd3Q0UWRqY1paSjVHZkot?oc=5",
+          "published_at": "2026-08-06T13:00:25+00:00",
+          "category": "news",
+          "content_hash": "02b03a3e2d822704cead92cd198716cc7991eeacfe0d03aa1ee282dd32b9d520",
+          "classifier_provider": "ollama"
+        },
+        {
+          "id": 634,
+          "title": "Fl\u00e1vio Bolsonaro announces his running mate for Brazil's October election in a bid against Lula - ABC News - Breaking News, Latest News and Videos",
+          "summary": "Fl\u00e1vio Bolsonaro announces his running mate for Brazil's October election, positioning against Lula.",
+          "source_name": "Google News RSS",
+          "source_type": "rss",
+          "url": "https://news.google.com/rss/articles/CBMiuAFBVV95cUxNX00tZkdmdGtWT0xieURQb29QbllTNVQ1VUxDb2UzUE9oUmF4ZTV4a19zVEJMUEdqalE5Zmk2YWpjNXl5M0NHNUZWLXJCbUxXNTJ6NG9La0V2VDhZYTNnU0VnM0FTTDdzOTJqRWdhN1ZBLVZ6N1FQRmlTaEZ5Wkk0QnA2TVljLW9UZ3lqVUliNGQ0SGZ5TndxajQzWkY5NXBCbkZiTjdFY19LRW1GcXBYNUhmTklmVUxh0gG-AUFVX3lxTE9OOW15eENURXZ4SG0zZndTREhiWDljaG8wSW45cHlDMHZZYzY3ZWFYcjZaMzN1MHY0Y3IwRVFhY1BRQmZtaDlteDI2ZmRXa0FCTXVUY0UtZzFPbFdoRUJzMlVuWmJRZUZXRzVmMXl2NFozbEhfY0k3ZWg3bFhrQkU4VHBFMGFtaC0yUVRaaHd1N0VYdHhPejRYUWt1bkJ2MVNUUHhtdWRMRE96T2haRGNFUm14dF9HM0ZoU2FBSnc?oc=5",
+          "published_at": "2026-08-05T19:17:08+00:00",
+          "category": "news",
+          "content_hash": "890bd798ee4a3763c7d86e118d328dd256b1b1d15bfe5742df40cff4057b7daf",
+          "classifier_provider": "ollama"
+        },
+        {
+          "id": 636,
+          "title": "Brazil's Lula launches reelection bid as concerns rise over foreign interference - Bozeman Daily Chronicle",
+          "summary": "Lula launches reelection bid amid foreign interference concerns",
+          "source_name": "Google News RSS",
+          "source_type": "rss",
+          "url": "https://news.google.com/rss/articles/CBMilAJBVV95cUxPZ2NGMDlkbUttMkcxY2MxYjM4OG56Q3d1eVItM2h6Q0k3blVENTlldWFEc1NUbHF2YTBVQTlEM2VyVEVnTklFd2kxNzhGb0ZiUGY1bzNPbFQ5MDl4MFoxRG12dWVIajBDQWRhellQTzBjNVB3TTVBSUk5VWRTY00yX3hicFlvZEpwWjVfTHczX0FSZEhYVGp1eUhBTnpKTzl0THJERmlKZzFoOHlNNGhlandNNnk3ZXdGX1pTMlRXUElVR0VGS2pGbmt0LWtjRlRFRHVXYkpVc1k3blVBNFRvaUNtOFBqZjNodm9hUGhXeDlIZDBPQmlYOWJXSTVfc0pOVElkY2RTSkRwUnROTG9zX21Dam0?oc=5",
+          "published_at": "2026-08-05T17:30:01+00:00",
+          "category": "news",
+          "content_hash": "c169c9b9f832e17a8d45c29feb5481f9e7a02cae6d0b7e71899da8b90e0866be",
+          "classifier_provider": "ollama"
+        },
+        {
+          "id": 635,
+          "title": "Trump Looms Over Brazil\u2019s Closely Fought Election - WSJ",
+          "summary": "Article discusses Trump's influence on Brazil's election, which could impact Lula's chances.",
+          "source_name": "Google News RSS",
+          "source_type": "rss",
+          "url": "https://news.google.com/rss/articles/CBMinAFBVV95cUxOYUpvQS0yU1VURFJOSkVXUi1NcnN5TUtxcV9fTkRJYk8tMTBZaXVJWW55TEZTN0g0U0duNUpRU05zaUFTcHNzbTNXRlpNeXcwQkhtaUhWTS1MT3lrS0VvYk5DX295NVg5RGZ3UlpQblJtQkdzbExFMkdocE9hVjI3c2FGZ1RraXZiWFJidTd3anR0Z09Ec3JwT3A1LTg?oc=5",
+          "published_at": "2026-08-05T16:55:00+00:00",
+          "category": "news",
+          "content_hash": "36a0a6a91a92b1252e6879abc1dec81214c5fbf66569f783f3d0db11387148df",
+          "classifier_provider": "ollama"
+        }
+      ],
+      "evidence_packet_hash": "bf8a404d4f70993113bc027607e92cf174d781eacd13d86fc592e502eedfa876",
+      "evidence_all_live_classified": true,
+      "error_message": null,
+      "reviewed_status": "UNREVIEWED",
+      "generated_at": "2026-08-11T02:37:29.530361+00:00"
+    }
+  ],
+  "aggregate": {
+    "forecast_count": 12,
+    "unique_raw_response_count": 12,
+    "unique_probability_count": 4,
+    "unique_probabilities": [
+      0.45,
+      0.5,
+      0.55,
+      0.65
+    ],
+    "count_at_target_probability": 9,
+    "target_probability": 0.45,
+    "markets_with_target_probability_in_raw_response": [
+      "will-the-republican-party-control-the-senate-after-the-2026-midterm-elections",
+      "will-the-republican-party-control-the-house-after-the-2026-midterm-elections",
+      "will-the-democrats-win-the-maine-senate-race-in-2026",
+      "will-the-republicans-win-the-texas-senate-race-in-2026",
+      "will-the-democrats-win-the-ohio-senate-race-in-2026",
+      "will-the-democrats-win-the-georgia-senate-race-in-2026",
+      "will-the-republicans-win-the-ohio-governor-race-in-2026",
+      "will-the-democrats-win-the-georgia-governor-race-in-2026",
+      "will-luiz-incio-lula-da-silva-win-the-2026-brazilian-presidential-election"
+    ],
+    "evidence_pair_overlaps": [
+      {
+        "market_id_a": 1,
+        "market_id_b": 2,
+        "shared_content_hashes": [
+          "5ad7626dd57d23455f0dabda50788a70648cbe3f030e16ae1271881f50c0f569"
+        ],
+        "overlap_count": 1
+      },
+      {
+        "market_id_a": 1,
+        "market_id_b": 3,
+        "shared_content_hashes": [
+          "5ad7626dd57d23455f0dabda50788a70648cbe3f030e16ae1271881f50c0f569"
+        ],
+        "overlap_count": 1
+      },
+      {
+        "market_id_a": 1,
+        "market_id_b": 6,
+        "shared_content_hashes": [
+          "5ad7626dd57d23455f0dabda50788a70648cbe3f030e16ae1271881f50c0f569"
+        ],
+        "overlap_count": 1
+      },
+      {
+        "market_id_a": 1,
+        "market_id_b": 7,
+        "shared_content_hashes": [
+          "5ad7626dd57d23455f0dabda50788a70648cbe3f030e16ae1271881f50c0f569"
+        ],
+        "overlap_count": 1
+      },
+      {
+        "market_id_a": 1,
+        "market_id_b": 8,
+        "shared_content_hashes": [
+          "5ad7626dd57d23455f0dabda50788a70648cbe3f030e16ae1271881f50c0f569"
+        ],
+        "overlap_count": 1
+      },
+      {
+        "market_id_a": 2,
+        "market_id_b": 3,
+        "shared_content_hashes": [
+          "5ad7626dd57d23455f0dabda50788a70648cbe3f030e16ae1271881f50c0f569"
+        ],
+        "overlap_count": 1
+      },
+      {
+        "market_id_a": 2,
+        "market_id_b": 6,
+        "shared_content_hashes": [
+          "5ad7626dd57d23455f0dabda50788a70648cbe3f030e16ae1271881f50c0f569"
+        ],
+        "overlap_count": 1
+      },
+      {
+        "market_id_a": 2,
+        "market_id_b": 7,
+        "shared_content_hashes": [
+          "5ad7626dd57d23455f0dabda50788a70648cbe3f030e16ae1271881f50c0f569"
+        ],
+        "overlap_count": 1
+      },
+      {
+        "market_id_a": 2,
+        "market_id_b": 8,
+        "shared_content_hashes": [
+          "5ad7626dd57d23455f0dabda50788a70648cbe3f030e16ae1271881f50c0f569"
+        ],
+        "overlap_count": 1
+      },
+      {
+        "market_id_a": 3,
+        "market_id_b": 4,
+        "shared_content_hashes": [
+          "6144ab00ceba8854e478e331a658747434c0a709964d1cd4caf37472329ac67d"
+        ],
+        "overlap_count": 1
+      },
+      {
+        "market_id_a": 3,
+        "market_id_b": 5,
+        "shared_content_hashes": [
+          "d1df84b13dbaa5828e63a188bca6a7f190bc935de20079d0cc7fb3254aff260d"
+        ],
+        "overlap_count": 1
+      },
+      {
+        "market_id_a": 3,
+        "market_id_b": 6,
+        "shared_content_hashes": [
+          "5ad7626dd57d23455f0dabda50788a70648cbe3f030e16ae1271881f50c0f569",
+          "6144ab00ceba8854e478e331a658747434c0a709964d1cd4caf37472329ac67d"
+        ],
+        "overlap_count": 2
+      },
+      {
+        "market_id_a": 3,
+        "market_id_b": 7,
+        "shared_content_hashes": [
+          "5ad7626dd57d23455f0dabda50788a70648cbe3f030e16ae1271881f50c0f569",
+          "6144ab00ceba8854e478e331a658747434c0a709964d1cd4caf37472329ac67d",
+          "d1df84b13dbaa5828e63a188bca6a7f190bc935de20079d0cc7fb3254aff260d"
+        ],
+        "overlap_count": 3
+      },
+      {
+        "market_id_a": 3,
+        "market_id_b": 8,
+        "shared_content_hashes": [
+          "5ad7626dd57d23455f0dabda50788a70648cbe3f030e16ae1271881f50c0f569",
+          "6144ab00ceba8854e478e331a658747434c0a709964d1cd4caf37472329ac67d"
+        ],
+        "overlap_count": 2
+      },
+      {
+        "market_id_a": 4,
+        "market_id_b": 6,
+        "shared_content_hashes": [
+          "6144ab00ceba8854e478e331a658747434c0a709964d1cd4caf37472329ac67d"
+        ],
+        "overlap_count": 1
+      },
+      {
+        "market_id_a": 4,
+        "market_id_b": 7,
+        "shared_content_hashes": [
+          "6144ab00ceba8854e478e331a658747434c0a709964d1cd4caf37472329ac67d",
+          "fb01a1e26d94003f6e50e382efb9de8b1449c0aab9a86e7288e953f2bb8e9b91"
+        ],
+        "overlap_count": 2
+      },
+      {
+        "market_id_a": 4,
+        "market_id_b": 8,
+        "shared_content_hashes": [
+          "6144ab00ceba8854e478e331a658747434c0a709964d1cd4caf37472329ac67d",
+          "fb01a1e26d94003f6e50e382efb9de8b1449c0aab9a86e7288e953f2bb8e9b91"
+        ],
+        "overlap_count": 2
+      },
+      {
+        "market_id_a": 5,
+        "market_id_b": 6,
+        "shared_content_hashes": [
+          "974a83e2506e959ffa9c821f6e45138f7deb30224ebd2c1871efd980ff34dd19",
+          "9c1f795858514f12655330e0881df723e2d3b29193b597599d12651a41c04640"
+        ],
+        "overlap_count": 2
+      },
+      {
+        "market_id_a": 5,
+        "market_id_b": 7,
+        "shared_content_hashes": [
+          "d1df84b13dbaa5828e63a188bca6a7f190bc935de20079d0cc7fb3254aff260d"
+        ],
+        "overlap_count": 1
+      },
+      {
+        "market_id_a": 5,
+        "market_id_b": 9,
+        "shared_content_hashes": [
+          "974a83e2506e959ffa9c821f6e45138f7deb30224ebd2c1871efd980ff34dd19"
+        ],
+        "overlap_count": 1
+      },
+      {
+        "market_id_a": 6,
+        "market_id_b": 7,
+        "shared_content_hashes": [
+          "5ad7626dd57d23455f0dabda50788a70648cbe3f030e16ae1271881f50c0f569",
+          "6144ab00ceba8854e478e331a658747434c0a709964d1cd4caf37472329ac67d"
+        ],
+        "overlap_count": 2
+      },
+      {
+        "market_id_a": 6,
+        "market_id_b": 8,
+        "shared_content_hashes": [
+          "5ad7626dd57d23455f0dabda50788a70648cbe3f030e16ae1271881f50c0f569",
+          "6144ab00ceba8854e478e331a658747434c0a709964d1cd4caf37472329ac67d"
+        ],
+        "overlap_count": 2
+      },
+      {
+        "market_id_a": 6,
+        "market_id_b": 9,
+        "shared_content_hashes": [
+          "974a83e2506e959ffa9c821f6e45138f7deb30224ebd2c1871efd980ff34dd19"
+        ],
+        "overlap_count": 1
+      },
+      {
+        "market_id_a": 6,
+        "market_id_b": 10,
+        "shared_content_hashes": [
+          "0fc04413afaa463769591844beb4a350280f48d8ba56205b7d356b4e969e335e"
+        ],
+        "overlap_count": 1
+      },
+      {
+        "market_id_a": 7,
+        "market_id_b": 8,
+        "shared_content_hashes": [
+          "5ad7626dd57d23455f0dabda50788a70648cbe3f030e16ae1271881f50c0f569",
+          "6144ab00ceba8854e478e331a658747434c0a709964d1cd4caf37472329ac67d",
+          "fb01a1e26d94003f6e50e382efb9de8b1449c0aab9a86e7288e953f2bb8e9b91"
+        ],
+        "overlap_count": 3
+      },
+      {
+        "market_id_a": 8,
+        "market_id_b": 11,
+        "shared_content_hashes": [
+          "ea11e1936b138e800b0cfe38c7013c70f6ea48c9a3f431ab77ab15de96e09493"
+        ],
+        "overlap_count": 1
+      }
+    ],
+    "repeated_evidence_sources": [
+      {
+        "content_hash": "5ad7626dd57d23455f0dabda50788a70648cbe3f030e16ae1271881f50c0f569",
+        "title": "Tracking key primary elections across the U.S. - LiveNOW from FOX",
+        "market_count": 6,
+        "market_ids": [
+          1,
+          2,
+          3,
+          6,
+          7,
+          8
+        ]
+      },
+      {
+        "content_hash": "6144ab00ceba8854e478e331a658747434c0a709964d1cd4caf37472329ac67d",
+        "title": "The 9 Senate seats most likely to flip in 2026 - CNN",
+        "market_count": 5,
+        "market_ids": [
+          3,
+          4,
+          6,
+          7,
+          8
+        ]
+      },
+      {
+        "content_hash": "d1df84b13dbaa5828e63a188bca6a7f190bc935de20079d0cc7fb3254aff260d",
+        "title": "El-Sayed and Stevens Project Party Unity After Divisive Race - nytimes.com",
+        "market_count": 3,
+        "market_ids": [
+          3,
+          5,
+          7
+        ]
+      },
+      {
+        "content_hash": "fb01a1e26d94003f6e50e382efb9de8b1449c0aab9a86e7288e953f2bb8e9b91",
+        "title": "NEW: Race Raters Shift FOUR Senate Races Toward Democrats as Momentum Builds for Democrats - dscc.org",
+        "market_count": 3,
+        "market_ids": [
+          4,
+          7,
+          8
+        ]
+      },
+      {
+        "content_hash": "974a83e2506e959ffa9c821f6e45138f7deb30224ebd2c1871efd980ff34dd19",
+        "title": "How Abdul El-Sayed went from political oblivion to progressive breakthrough in Michigan Senate race - AP News",
+        "market_count": 3,
+        "market_ids": [
+          5,
+          6,
+          9
+        ]
+      },
+      {
+        "content_hash": "9c1f795858514f12655330e0881df723e2d3b29193b597599d12651a41c04640",
+        "title": "Race Too Close to Call in Democratic Primary for Michigan Senate Seat - nytimes.com",
+        "market_count": 2,
+        "market_ids": [
+          5,
+          6
+        ]
+      },
+      {
+        "content_hash": "0fc04413afaa463769591844beb4a350280f48d8ba56205b7d356b4e969e335e",
+        "title": "Reliably red Ohio suddenly a red-hot mess for GOP - axios.com",
+        "market_count": 2,
+        "market_ids": [
+          6,
+          10
+        ]
+      },
+      {
+        "content_hash": "ea11e1936b138e800b0cfe38c7013c70f6ea48c9a3f431ab77ab15de96e09493",
+        "title": "Tracking Competitive Races in the House and Senate - The New York Times",
+        "market_count": 2,
+        "market_ids": [
+          8,
+          11
+        ]
+      }
+    ],
+    "identical_evidence_packets": [],
+    "thinking_mode_detected_count": 0
+  }
+}
