@@ -1,0 +1,101 @@
+name: PPI OpenRouter/DeepSeek Diagnostic (noncanonical)
+
+# On-demand, noncanonical: runs the pinned OpenRouter/DeepSeek model (Arm F, or any other arm in
+# scripts/run_shadow_experiment.py) against an already-frozen, already-committed evidence packet.
+# Never touches LLMForecast/JobRun/the production database, never publishes anywhere -- results
+# are uploaded only as a workflow artifact. See docs/research/OPENROUTER_INTEGRATION.md.
+#
+# Deliberately runs on a standard GitHub-hosted runner, unlike ppi-daily.yml: DeepSeek/OpenRouter
+# is a pure HTTPS API call, not a local Ollama instance, so it has no self-hosted-Mac dependency
+# (the same reasoning ppi-audit.yml already established for DATABASE_URL access from a hosted
+# runner). This job needs no DATABASE_URL at all -- the frozen evidence packet is a file already
+# checked into the repository (data/shadow_experiments/), not fetched at run time, so a matched
+# comparison never risks two jobs seeing different evidence.
+on:
+  workflow_dispatch:
+    inputs:
+      frozen_inputs_path:
+        description: "Path to a committed frozen-inputs JSON (audit_llm_forecast_run.py shape)"
+        required: true
+        default: "data/shadow_experiments/shadow_45pct_clustering_20260811_frozen_inputs.json"
+        type: string
+      arms:
+        description: "Comma-separated arm codes to run (see scripts/run_shadow_experiment.py ARMS)"
+        required: true
+        default: "F"
+        type: string
+      repetitions:
+        description: "Generations per market per arm"
+        required: true
+        default: "1"
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ppi-openrouter-diagnostic
+  cancel-in-progress: false
+
+jobs:
+  diagnostic:
+    name: Run noncanonical OpenRouter/DeepSeek diagnostic (never touches the database)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    env:
+      OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: requirements.txt
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Confirm OPENROUTER_API_KEY is configured (never prints the value)
+        run: |
+          if [ -z "$OPENROUTER_API_KEY" ]; then
+            echo "::error::OPENROUTER_API_KEY secret is not set. Run: gh secret set OPENROUTER_API_KEY --repo ${{ github.repository }}"
+            exit 1
+          fi
+          echo "OPENROUTER_API_KEY is configured (length: ${#OPENROUTER_API_KEY} chars)."
+
+      - name: Run noncanonical diagnostic (writes only a local JSON file, never the database)
+        run: |
+          PYTHONPATH=. python scripts/run_shadow_experiment.py \
+            --frozen-inputs "${{ inputs.frozen_inputs_path }}" \
+            --output openrouter-diagnostic-results.json \
+            --arms "${{ inputs.arms }}" \
+            --repetitions "${{ inputs.repetitions }}"
+
+      - name: Scan results for obvious secret markers before upload
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -f openrouter-diagnostic-results.json ]; then
+            if grep -qniE 'sk-or-|Authorization|Bearer [a-zA-Z0-9._-]{10,}' openrouter-diagnostic-results.json; then
+              echo "::error::Potential OpenRouter API key marker found in diagnostic output; refusing to upload."
+              exit 1
+            fi
+          fi
+          echo "Diagnostic output secret scan passed."
+
+      - name: Upload diagnostic results artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: openrouter-deepseek-diagnostic-${{ github.run_id }}
+          path: openrouter-diagnostic-results.json
+          retention-days: 30
+          if-no-files-found: ignore

@@ -17,6 +17,7 @@ from __future__ import annotations
 import hashlib
 import json
 import re
+from dataclasses import dataclass, field
 from datetime import date, datetime, timezone
 from statistics import median
 from typing import Any
@@ -36,7 +37,63 @@ MAX_RETRIES = 2
 GENERATION_TEMPERATURE = 0.15
 GENERATION_NUM_CTX = 4096
 
-AUTOMATED_PROVIDERS = {"ollama", "openai_compatible"}
+AUTOMATED_PROVIDERS = {"ollama", "openai_compatible", "openrouter"}
+
+# The headline/canonical PPI series' provider(s). Any other provider (e.g. openrouter) is a
+# separately-labelled comparison series that must never be pulled into the primary aggregate or
+# run-classification logic -- see PRIMARY_SERIES_PROVIDERS' two call sites below and in
+# app.ppi.run_classification.compute_run_classification.
+PRIMARY_SERIES_PROVIDERS = {"ollama"}
+
+# Attribution headers OpenRouter uses for its public leaderboards -- not security-sensitive, safe
+# to hardcode (see https://openrouter.ai/docs/quickstart).
+OPENROUTER_REFERER = "https://partisan-premium-index.pages.dev"
+OPENROUTER_APP_TITLE = "Partisan Premium Index"
+
+
+@dataclass(frozen=True)
+class ProviderConfig:
+    """Explicit model-provider selection for one forecast call.
+
+    ``generate_blind_forecast`` defaults to building one of these from global ``settings`` when
+    none is passed, preserving exact current (Qwen/Ollama) behavior for every existing caller.
+    Passing one explicitly is how a second, separately-versioned model series (e.g. OpenRouter)
+    is generated without touching the primary series' config path at all.
+    """
+
+    provider: str  # matches LLMForecast.model_provider, e.g. "ollama" or "openrouter"
+    base_url: str
+    model: str
+    api_key: str = ""
+    timeout: int = 90
+    temperature: float = GENERATION_TEMPERATURE
+    extra_headers: dict[str, str] = field(default_factory=dict)
+    reasoning: dict[str, Any] | None = None  # OpenRouter's unified reasoning object, or None
+    max_output_tokens: int | None = None
+
+
+def default_provider_config(settings: Any) -> ProviderConfig:
+    """The exact provider selection generate_blind_forecast has always used, unchanged."""
+    return ProviderConfig(
+        provider=settings.llm_provider,
+        base_url=settings.llm_base_url or settings.ollama_base_url,
+        model=settings.llm_model or settings.ollama_model,
+        timeout=settings.llm_timeout_seconds,
+    )
+
+
+def openrouter_provider_config(settings: Any) -> ProviderConfig:
+    """Pinned OpenRouter/DeepSeek provider config. Never an alias, never auto-routed."""
+    return ProviderConfig(
+        provider="openrouter",
+        base_url=settings.openrouter_base_url,
+        model=settings.openrouter_model,
+        api_key=settings.openrouter_api_key,
+        timeout=settings.openrouter_timeout_seconds,
+        extra_headers={"HTTP-Referer": OPENROUTER_REFERER, "X-OpenRouter-Title": OPENROUTER_APP_TITLE},
+        reasoning={"enabled": False},
+        max_output_tokens=settings.openrouter_max_output_tokens,
+    )
 
 # Any key below appearing anywhere in the evidence packet indicates a blindness leak.
 FORBIDDEN_PACKET_KEYS = {
@@ -299,6 +356,68 @@ def _call_ollama(prompt: str, base_url: str, model: str, timeout: int) -> tuple[
         return "", f"{type(exc).__name__}: {exc}"
 
 
+def _call_openrouter(prompt: str, config: ProviderConfig) -> tuple[str, str | None, dict[str, Any] | None]:
+    """Calls OpenRouter's OpenAI-compatible chat-completions endpoint for one forecast attempt.
+
+    Mirrors ``app.ppi.classifier.OpenAICompatibleClassifier``'s wire shape (bearer auth,
+    ``/chat/completions``, ``response_format: json_object``), extended with OpenRouter's unified
+    ``reasoning`` object, attribution headers, and token-usage/served-model accounting. Never
+    falls back to another provider on failure -- returns an explicit error string, same
+    two-outcome contract as ``_call_ollama`` plus one extra (usage) field. No API key is ever
+    included in the returned error strings or logged.
+    """
+    if not config.api_key:
+        return "", "MissingAPIKey: openrouter_api_key is not configured; no request was sent", None
+
+    url = config.base_url.rstrip("/") + "/chat/completions"
+    headers = {"Content-Type": "application/json", **config.extra_headers}
+    headers["Authorization"] = f"Bearer {config.api_key}"
+    body: dict[str, Any] = {
+        "model": config.model,
+        "messages": [
+            {"role": "system", "content": SYSTEM_INSTRUCTIONS},
+            {"role": "user", "content": prompt},
+        ],
+        "temperature": config.temperature,
+        "response_format": {"type": "json_object"},
+    }
+    if config.reasoning is not None:
+        body["reasoning"] = config.reasoning
+    if config.max_output_tokens is not None:
+        body["max_tokens"] = config.max_output_tokens
+
+    try:
+        response = requests.post(url, headers=headers, json=body, timeout=config.timeout)
+    except requests.exceptions.Timeout as exc:
+        return "", f"Timeout: {exc}", None
+    except requests.exceptions.RequestException as exc:
+        return "", f"{type(exc).__name__}: {exc}", None
+
+    if response.status_code == 429:
+        return "", f"RateLimited: HTTP 429 {response.text[:300]}", None
+    try:
+        response.raise_for_status()
+    except requests.exceptions.HTTPError as exc:
+        return "", f"HTTPError: {exc} :: {response.text[:300]}", None
+
+    try:
+        payload = response.json()
+        text = str(payload["choices"][0]["message"]["content"])
+    except (ValueError, KeyError, IndexError, TypeError) as exc:
+        return "", f"MalformedResponse: {type(exc).__name__}: {exc}", None
+
+    usage = payload.get("usage") or {}
+    usage_info = {
+        "requested_model": config.model,
+        "served_model": payload.get("model"),
+        "prompt_tokens": usage.get("prompt_tokens"),
+        "completion_tokens": usage.get("completion_tokens"),
+        "total_tokens": usage.get("total_tokens"),
+        "reasoning": config.reasoning,
+    }
+    return text, None, usage_info
+
+
 def generate_blind_forecast(
     session: Session,
     market: Market,
@@ -309,8 +428,9 @@ def generate_blind_forecast(
     day: date,
     now: datetime | None = None,
     strict: bool = False,
+    provider_config: ProviderConfig | None = None,
 ) -> LLMForecast:
-    """Generate (or resume) the blind Qwen forecast for one market's twice-daily run slot.
+    """Generate (or resume) the blind forecast for one market's twice-daily run slot.
 
     A slot already at status OK is returned unchanged -- a valid primary-model probability is
     final for that run and is never edited. A slot that previously failed or was skipped may be
@@ -320,28 +440,45 @@ def generate_blind_forecast(
     been classified by a live model (see ``build_blind_evidence_packet``'s
     ``require_live_classifier``), so a canonical run can never be informed by a deterministic- or
     failed-classification judgment left over from an earlier non-strict run.
+
+    ``provider_config`` selects the model/provider for this call. When omitted, it is built from
+    global ``settings`` exactly as this function has always behaved (the primary Qwen/Ollama
+    series) -- passing one explicitly is how a second, separately-versioned model series (e.g.
+    OpenRouter/DeepSeek) is generated, as an independent, non-overwriting row for the same
+    market/run_slot (see the ``(market_id, run_slot, model_provider)`` uniqueness below).
     """
     settings = get_settings()
     now = now or utcnow()
     run_slot = determine_run_slot(day, now)
+    pc = provider_config or default_provider_config(settings)
 
-    row = session.scalar(select(LLMForecast).where(LLMForecast.market_id == market.id, LLMForecast.run_slot == run_slot))
+    row = session.scalar(
+        select(LLMForecast).where(
+            LLMForecast.market_id == market.id,
+            LLMForecast.run_slot == run_slot,
+            LLMForecast.model_provider == pc.provider,
+        )
+    )
     if row and row.status == "OK":
         return row
     if row is None:
-        row = LLMForecast(market_id=market.id, run_slot=run_slot)
+        row = LLMForecast(market_id=market.id, run_slot=run_slot, model_provider=pc.provider)
         session.add(row)
 
     row.job_run_id = job.id if job else None
     row.run_key = run_key
     row.trigger_type = trigger_type
     row.generated_at = now
-    row.model_provider = settings.llm_provider
-    row.model_name = settings.llm_model or settings.ollama_model
+    row.model_provider = pc.provider
+    row.model_name = pc.model
     row.prompt_version = PROMPT_VERSION
-    row.generation_params_json = json.dumps(
-        {"temperature": GENERATION_TEMPERATURE, "num_ctx": GENERATION_NUM_CTX, "max_retries": MAX_RETRIES}
-    )
+    generation_params: dict[str, Any] = {"temperature": pc.temperature, "max_retries": MAX_RETRIES}
+    if pc.provider == "ollama":
+        generation_params["num_ctx"] = GENERATION_NUM_CTX
+    elif pc.provider == "openrouter":
+        generation_params["reasoning"] = pc.reasoning
+        generation_params["max_output_tokens"] = pc.max_output_tokens
+    row.generation_params_json = json.dumps(generation_params)
 
     packet, evidence_ids = build_blind_evidence_packet(session, market, require_live_classifier=strict)
     assert_blind_packet(packet)
@@ -350,28 +487,45 @@ def generate_blind_forecast(
     prompt = build_prompt(packet)
     row.prompt_hash = _stable_hash(prompt)
 
-    if settings.llm_provider not in AUTOMATED_PROVIDERS:
+    if pc.provider not in AUTOMATED_PROVIDERS:
         row.status = "SKIPPED_PROVIDER"
         row.error_message = (
-            f"llm_provider={settings.llm_provider!r} cannot produce an automated primary forecast; "
-            "requires llm_provider=ollama (self-hosted runner) or openai_compatible (explicit hosted fallback)."
+            f"model_provider={pc.provider!r} cannot produce an automated forecast; requires "
+            "ollama, openai_compatible, or openrouter."
         )
         row.retries = 0
         row.raw_response = None
         session.flush()
         return row
 
-    base_url = settings.llm_base_url or settings.ollama_base_url
-    model_name = settings.llm_model or settings.ollama_model
+    if pc.provider not in ("ollama", "openrouter"):
+        # Declared in AUTOMATED_PROVIDERS (e.g. the still-unimplemented generic
+        # "openai_compatible" forecast path) but no call function exists for it here yet -- fail
+        # honestly and explicitly rather than silently falling through to a mismatched request
+        # shape against whatever base_url happens to be configured.
+        row.status = "SKIPPED_PROVIDER"
+        row.error_message = (
+            f"model_provider={pc.provider!r} is not yet implemented for forecast generation "
+            "(currently supported: ollama, openrouter)."
+        )
+        row.retries = 0
+        row.raw_response = None
+        session.flush()
+        return row
+
     raw_response = ""
     call_error: str | None = None
+    usage_info: dict[str, Any] | None = None
     parsed: BlindFairValueEstimate | None = None
     parse_error: str | None = None
     attempts = 0
 
     for attempt in range(1, MAX_RETRIES + 2):
         attempts = attempt
-        raw_response, call_error = _call_ollama(prompt, base_url, model_name, settings.llm_timeout_seconds)
+        if pc.provider == "ollama":
+            raw_response, call_error = _call_ollama(prompt, pc.base_url, pc.model, pc.timeout)
+        else:
+            raw_response, call_error, usage_info = _call_openrouter(prompt, pc)
         if call_error:
             parse_error = call_error
             continue
@@ -388,6 +542,11 @@ def generate_blind_forecast(
 
     row.retries = attempts - 1
     row.raw_response = raw_response
+    if usage_info is not None:
+        # Cost/usage metadata is descriptive only -- merged into the same params blob, never read
+        # by anything that influences fair_value/confidence/status.
+        generation_params["usage"] = usage_info
+        row.generation_params_json = json.dumps(generation_params)
 
     if parsed is None:
         row.status = "FAILED"
@@ -441,7 +600,13 @@ def compute_and_persist_blind_index(session: Session, job: JobRun, run_key: str)
     """
     settings = get_settings()
     forecasts = list(
-        session.scalars(select(LLMForecast).where(LLMForecast.run_key == run_key, LLMForecast.raw_ppi.is_not(None)))
+        session.scalars(
+            select(LLMForecast).where(
+                LLMForecast.run_key == run_key,
+                LLMForecast.raw_ppi.is_not(None),
+                LLMForecast.model_provider.in_(PRIMARY_SERIES_PROVIDERS),
+            )
+        )
     )
     premiums = [f.raw_ppi for f in forecasts if f.raw_ppi is not None]
 

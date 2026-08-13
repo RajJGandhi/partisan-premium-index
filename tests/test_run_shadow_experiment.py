@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 
+from app.config import Settings
 from app.ppi.blind_forecast import FORBIDDEN_PACKET_KEYS
 from scripts.run_shadow_experiment import (
     ARMS,
@@ -239,6 +240,72 @@ def test_generate_one_records_http_failure_without_raising(monkeypatch):
     )
     assert result.status == "FAILED"
     assert "ConnectionError" in (result.error_message or "")
+
+
+def test_arm_f_is_openrouter_deepseek_pinned_and_never_falls_back(monkeypatch):
+    configs = _arm_configs()
+    assert "F" in ARMS
+    assert configs["F"].provider == "openrouter"
+    assert configs["F"].schema.__name__ == "BlindFairValueEstimate" or configs["F"].schema is not None
+
+    settings = Settings(
+        openrouter_api_key="sk-test",
+        openrouter_base_url="https://openrouter.ai/api/v1",
+        openrouter_model="deepseek/deepseek-v4-flash-0731",
+    )
+    monkeypatch.setattr("scripts.run_shadow_experiment.get_settings", lambda: settings)
+
+    captured = {}
+
+    def fake_post(url, headers=None, json=None, timeout=None):
+        captured["url"] = url
+        captured["model"] = json["model"]
+        captured["reasoning"] = json.get("reasoning")
+        body = {"fair_value": 0.58, "confidence": 0.6, "should_abstain": False, "rationale_short": "r"}
+        return _FakeResponse({"choices": [{"message": {"content": __import__("json").dumps(body)}}], "usage": {}})
+
+    monkeypatch.setattr("requests.post", fake_post)
+
+    row = _frozen_row()
+    packet = reconstruct_frozen_packet(row)
+    result = generate_one(
+        packet, row["market_id"], row["market_slug"], 1, configs["F"], base_url="unused", model="unused", timeout=30
+    )
+
+    assert result.status == "OK"
+    assert result.fair_value == 0.58
+    assert result.arm == "F"
+    assert captured["url"] == "https://openrouter.ai/api/v1/chat/completions"
+    assert captured["model"] == "deepseek/deepseek-v4-flash-0731"
+    assert captured["reasoning"] == {"enabled": False}
+
+
+def test_arm_f_failed_request_records_failed_status_no_qwen_fallback(monkeypatch):
+    import requests
+
+    settings = Settings(openrouter_api_key="sk-test")
+    monkeypatch.setattr("scripts.run_shadow_experiment.get_settings", lambda: settings)
+
+    ollama_called = {"n": 0}
+
+    def fake_post(url, headers=None, json=None, timeout=None):
+        if "chat/completions" in url:
+            raise requests.exceptions.ConnectionError("no route to host")
+        ollama_called["n"] += 1
+        return _FakeResponse({"response": "{}"})
+
+    monkeypatch.setattr("requests.post", fake_post)
+
+    row = _frozen_row()
+    packet = reconstruct_frozen_packet(row)
+    config = _arm_configs()["F"]
+    result = generate_one(
+        packet, row["market_id"], row["market_slug"], 1, config, base_url="unused", model="unused", timeout=30
+    )
+
+    assert result.status == "FAILED"
+    assert result.fair_value is None
+    assert ollama_called["n"] == 0
 
 
 def test_run_experiment_writes_incrementally_and_never_touches_a_database(tmp_path, monkeypatch):

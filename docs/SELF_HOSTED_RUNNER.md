@@ -6,6 +6,11 @@ GitHub-hosted runner cannot reach an Ollama instance running on your Mac, so the
 pipeline runs on a **self-hosted runner registered on this Mac**, twice daily at 09:00 and 21:00
 America/Toronto.
 
+This self-hosted requirement is specific to Ollama's localhost-only reachability. The OpenRouter/
+DeepSeek comparison series (`docs/research/OPENROUTER_INTEGRATION.md`) is a pure HTTPS API call
+with no such constraint -- its diagnostic workflow (`ppi-openrouter-diagnostic.yml`) runs on a
+standard GitHub-hosted `ubuntu-latest` runner instead.
+
 Scripts referenced below live in `ops/self-hosted-runner/`.
 
 ## 1. Installation

@@ -420,17 +420,21 @@ class SourceRun(Base):
 
 
 class LLMForecast(Base):
-    """Primary blind-LLM (Qwen) fair-value series.
+    """Blind-LLM fair-value forecast series (primary Qwen series plus any separately-labelled
+    comparison model series, distinguished by ``model_provider``).
 
-    Append-only per (market_id, run_slot): a scheduled run twice per day produces at most one
-    row per market per slot. A row that reached status OK is never overwritten by a later call
-    for the same slot -- only a still-pending/failed slot may be retried in place. Corrections
-    to a genuinely wrong forecast require a new run_slot, never an edit of this table.
+    Append-only per (market_id, run_slot, model_provider): a scheduled run twice per day produces
+    at most one row per market per slot per provider -- so a second, independent model series
+    (e.g. ``openrouter``) can never overwrite or be silently skipped in favor of the primary
+    ``ollama`` series' row for the same market/slot, and vice versa. A row that reached status OK
+    is never overwritten by a later call for the same (market, slot, provider) -- only a still-
+    pending/failed one may be retried in place. Corrections to a genuinely wrong forecast require
+    a new run_slot, never an edit of this table.
     """
 
     __tablename__ = "llm_forecasts"
     __table_args__ = (
-        UniqueConstraint("market_id", "run_slot", name="uq_llm_forecast_market_run_slot"),
+        UniqueConstraint("market_id", "run_slot", "model_provider", name="uq_llm_forecast_market_run_slot_provider"),
         Index("ix_llm_forecasts_market_generated", "market_id", "generated_at"),
     )
 
