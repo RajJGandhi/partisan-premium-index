@@ -16,6 +16,7 @@ from app.ppi.blind_forecast import (
     OPENROUTER_APP_TITLE,
     OPENROUTER_REFERER,
     PRIMARY_SERIES_PROVIDERS,
+    _call_openrouter,
     default_provider_config,
     generate_blind_forecast,
     openrouter_provider_config,
@@ -150,6 +151,62 @@ def test_pinned_model_is_sent_verbatim_never_an_alias_or_auto_route(tmp_path, mo
     assert captured["json"]["model"] == "deepseek/deepseek-v4-flash-0731"
     assert "auto" not in captured["json"]["model"]
     assert "latest" not in captured["json"]["model"]
+
+
+# --- Reasoning-enabled requests (reasoning audit) ----------------------------------------------
+
+
+def test_reasoning_enabled_skips_response_format_and_captures_trace(monkeypatch):
+    """Mirrors the empirically-verified Ollama/Qwen finding (format=json + think=true together
+    suppress thinking) as a defensive default on the OpenRouter path too, and proves the returned
+    reasoning trace/details are captured rather than discarded."""
+    settings = _openrouter_settings()
+    config = openrouter_provider_config(
+        settings, reasoning={"enabled": True, "exclude": False, "effort": "max"}, max_output_tokens=8000
+    )
+
+    captured = {}
+
+    def fake_post(url, headers=None, json=None, timeout=None):
+        captured["json"] = json
+        message = {
+            "role": "assistant",
+            "content": json_lib.dumps({"fair_value": 0.38, "confidence": 0.5, "should_abstain": False, "rationale_short": "r"}),
+            "reasoning": "Base rate ~50%, adjusted down for lack of polling in this race.",
+            "reasoning_details": [{"type": "text", "text": "..."}],
+        }
+        return _FakeResponse({"model": "deepseek/deepseek-v4-flash-0731", "choices": [{"message": message}], "usage": {}})
+
+    monkeypatch.setattr("requests.post", fake_post)
+    text, error, usage = _call_openrouter("prompt", config)
+
+    assert error is None
+    assert "0.38" in text
+    assert "response_format" not in captured["json"]
+    assert captured["json"]["reasoning"] == {"enabled": True, "exclude": False, "effort": "max"}
+    assert captured["json"]["max_tokens"] == 8000
+    assert usage["reasoning_trace"] == "Base rate ~50%, adjusted down for lack of polling in this race."
+    assert usage["reasoning_details"] == [{"type": "text", "text": "..."}]
+
+
+def test_reasoning_disabled_still_forces_response_format_and_has_no_trace(monkeypatch):
+    settings = _openrouter_settings()
+    config = openrouter_provider_config(settings)  # default: reasoning disabled
+
+    captured = {}
+
+    def fake_post(url, headers=None, json=None, timeout=None):
+        captured["json"] = json
+        body = {"fair_value": 0.5, "confidence": 0.5, "should_abstain": False, "rationale_short": "r"}
+        return _FakeResponse({"choices": [{"message": {"content": json_lib.dumps(body)}}], "usage": {}})
+
+    monkeypatch.setattr("requests.post", fake_post)
+    _, error, usage = _call_openrouter("prompt", config)
+
+    assert error is None
+    assert captured["json"]["response_format"] == {"type": "json_object"}
+    assert "reasoning" not in captured["json"] or captured["json"]["reasoning"] == {"enabled": False}
+    assert usage["reasoning_trace"] is None
 
 
 # --- Missing API key ---------------------------------------------------------------------------

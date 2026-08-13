@@ -82,8 +82,19 @@ def default_provider_config(settings: Any) -> ProviderConfig:
     )
 
 
-def openrouter_provider_config(settings: Any) -> ProviderConfig:
-    """Pinned OpenRouter/DeepSeek provider config. Never an alias, never auto-routed."""
+def openrouter_provider_config(
+    settings: Any,
+    *,
+    reasoning: dict[str, Any] | None = None,
+    max_output_tokens: int | None = None,
+) -> ProviderConfig:
+    """Pinned OpenRouter/DeepSeek provider config. Never an alias, never auto-routed.
+
+    Defaults to reasoning disabled (the first-integration-test configuration, matching Qwen Arm A
+    as closely as this model allows). Pass ``reasoning``/``max_output_tokens`` explicitly to build
+    a different, still-fully-recorded configuration for a separate diagnostic (e.g. an explicit
+    thinking-mode reasoning audit) -- never an undocumented default.
+    """
     return ProviderConfig(
         provider="openrouter",
         base_url=settings.openrouter_base_url,
@@ -91,8 +102,8 @@ def openrouter_provider_config(settings: Any) -> ProviderConfig:
         api_key=settings.openrouter_api_key,
         timeout=settings.openrouter_timeout_seconds,
         extra_headers={"HTTP-Referer": OPENROUTER_REFERER, "X-OpenRouter-Title": OPENROUTER_APP_TITLE},
-        reasoning={"enabled": False},
-        max_output_tokens=settings.openrouter_max_output_tokens,
+        reasoning=reasoning if reasoning is not None else {"enabled": False},
+        max_output_tokens=max_output_tokens if max_output_tokens is not None else settings.openrouter_max_output_tokens,
     )
 
 # Any key below appearing anywhere in the evidence packet indicates a blindness leak.
@@ -369,6 +380,8 @@ def _call_openrouter(prompt: str, config: ProviderConfig) -> tuple[str, str | No
     if not config.api_key:
         return "", "MissingAPIKey: openrouter_api_key is not configured; no request was sent", None
 
+    reasoning_enabled = bool(config.reasoning and config.reasoning.get("enabled"))
+
     url = config.base_url.rstrip("/") + "/chat/completions"
     headers = {"Content-Type": "application/json", **config.extra_headers}
     headers["Authorization"] = f"Bearer {config.api_key}"
@@ -379,8 +392,15 @@ def _call_openrouter(prompt: str, config: ProviderConfig) -> tuple[str, str | No
             {"role": "user", "content": prompt},
         ],
         "temperature": config.temperature,
-        "response_format": {"type": "json_object"},
     }
+    # Mirrors the empirically-verified Ollama/Qwen interaction (format=json + think=true together
+    # suppress thinking output on that build): defensively skip forcing response_format when
+    # reasoning is requested, rather than risk the same silent suppression on this provider/model,
+    # which has not been separately verified. JSON is still requested explicitly via
+    # SYSTEM_INSTRUCTIONS/the prompt's own schema block, and extracted the same tolerant way
+    # _extract_json_object already handles <think>-tag responses.
+    if not reasoning_enabled:
+        body["response_format"] = {"type": "json_object"}
     if config.reasoning is not None:
         body["reasoning"] = config.reasoning
     if config.max_output_tokens is not None:
@@ -402,7 +422,8 @@ def _call_openrouter(prompt: str, config: ProviderConfig) -> tuple[str, str | No
 
     try:
         payload = response.json()
-        text = str(payload["choices"][0]["message"]["content"])
+        message = payload["choices"][0]["message"]
+        text = str(message["content"])
     except (ValueError, KeyError, IndexError, TypeError) as exc:
         return "", f"MalformedResponse: {type(exc).__name__}: {exc}", None
 
@@ -414,6 +435,11 @@ def _call_openrouter(prompt: str, config: ProviderConfig) -> tuple[str, str | No
         "completion_tokens": usage.get("completion_tokens"),
         "total_tokens": usage.get("total_tokens"),
         "reasoning": config.reasoning,
+        # Populated only when reasoning was requested and the provider returned a trace --
+        # OpenRouter's documented shape: message.reasoning (plaintext) and/or
+        # message.reasoning_details (structured blocks). Never fabricated when absent.
+        "reasoning_trace": message.get("reasoning"),
+        "reasoning_details": message.get("reasoning_details"),
     }
     return text, None, usage_info
 

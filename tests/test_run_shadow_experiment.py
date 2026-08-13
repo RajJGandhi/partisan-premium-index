@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import json
 
+import pytest
+
 from app.config import Settings
 from app.ppi.blind_forecast import FORBIDDEN_PACKET_KEYS
 from scripts.run_shadow_experiment import (
@@ -306,6 +308,83 @@ def test_arm_f_failed_request_records_failed_status_no_qwen_fallback(monkeypatch
     assert result.status == "FAILED"
     assert result.fair_value is None
     assert ollama_called["n"] == 0
+
+
+def test_arm_g_requests_max_reasoning_effort_and_captures_trace(monkeypatch):
+    configs = _arm_configs()
+    assert "G" in ARMS
+    config = configs["G"]
+    assert config.provider == "openrouter"
+    assert config.openrouter_reasoning == {"enabled": True, "exclude": False, "effort": "max"}
+    assert config.openrouter_max_output_tokens == 8000
+
+    settings = Settings(openrouter_api_key="sk-test")
+    monkeypatch.setattr("scripts.run_shadow_experiment.get_settings", lambda: settings)
+
+    captured = {}
+
+    def fake_post(url, headers=None, json=None, timeout=None):
+        captured["json"] = json
+        body = {"fair_value": 0.2, "confidence": 0.5, "should_abstain": False, "rationale_short": "r"}
+        content = __import__("json").dumps(body)
+        message = {
+            "role": "assistant",
+            "content": content,
+            "reasoning": "Starting from a 50% base rate, incumbent-party headwinds push this down...",
+            "reasoning_details": [{"type": "text", "text": "step 1..."}],
+        }
+        return _FakeResponse(
+            {
+                "model": "deepseek/deepseek-v4-flash-0731",
+                "choices": [{"message": message}],
+                "usage": {"prompt_tokens": 900, "completion_tokens": 1500, "total_tokens": 2400},
+            }
+        )
+
+    monkeypatch.setattr("requests.post", fake_post)
+
+    row = _frozen_row()
+    packet = reconstruct_frozen_packet(row)
+    result = generate_one(packet, row["market_id"], row["market_slug"], 1, config, base_url="unused", model="unused", timeout=30)
+
+    # Reasoning enabled -> response_format must NOT be forced (mirrors the Ollama format=json +
+    # think=true suppression finding; defends against the same risk on this provider).
+    assert "response_format" not in captured["json"]
+    assert captured["json"]["reasoning"] == {"enabled": True, "exclude": False, "effort": "max"}
+    assert captured["json"]["max_tokens"] == 8000
+
+    assert result.status == "OK"
+    assert result.fair_value == 0.2
+    assert result.reasoning_effort == "max"
+    assert "incumbent-party headwinds" in result.reasoning_trace
+    assert result.reasoning_details == [{"type": "text", "text": "step 1..."}]
+    assert result.market_question == "Will it happen?"
+    assert result.evidence_packet == packet
+    # cost = 900 * 0.08/1e6 + 1500 * 0.18/1e6
+    assert result.estimated_cost_usd == pytest.approx(900 * 0.08e-6 + 1500 * 0.18e-6)
+
+
+def test_arm_f_reasoning_disabled_still_forces_response_format(monkeypatch):
+    """Regression guard: Arm F's (reasoning-disabled) request shape must be unaffected by adding
+    Arm G's reasoning-enabled response_format defense."""
+    settings = Settings(openrouter_api_key="sk-test")
+    monkeypatch.setattr("scripts.run_shadow_experiment.get_settings", lambda: settings)
+
+    captured = {}
+
+    def fake_post(url, headers=None, json=None, timeout=None):
+        captured["json"] = json
+        body = {"fair_value": 0.5, "confidence": 0.5, "should_abstain": False, "rationale_short": "r"}
+        return _FakeResponse({"choices": [{"message": {"content": __import__("json").dumps(body)}}], "usage": {}})
+
+    monkeypatch.setattr("requests.post", fake_post)
+
+    row = _frozen_row()
+    packet = reconstruct_frozen_packet(row)
+    generate_one(packet, row["market_id"], row["market_slug"], 1, _arm_configs()["F"], base_url="u", model="u", timeout=30)
+
+    assert captured["json"]["response_format"] == {"type": "json_object"}
+    assert captured["json"]["reasoning"] == {"enabled": False}
 
 
 def test_run_experiment_writes_incrementally_and_never_touches_a_database(tmp_path, monkeypatch):

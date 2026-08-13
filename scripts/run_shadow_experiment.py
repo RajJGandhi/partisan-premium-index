@@ -42,7 +42,13 @@ from app.ppi.blind_forecast import (
     openrouter_provider_config,
 )
 
-ARMS = ("A", "B", "C", "D", "E", "F")
+ARMS = ("A", "B", "C", "D", "E", "F", "G")
+
+# OpenRouter's listed per-token pricing for the pinned model, checked live via GET /api/v1/models
+# (not guessed) -- see docs/research/OPENROUTER_INTEGRATION.md. Diagnostic-only cost estimation;
+# never fed back into any forecast.
+OPENROUTER_PRICE_PROMPT_PER_TOKEN = 0.08 / 1_000_000
+OPENROUTER_PRICE_COMPLETION_PER_TOKEN = 0.18 / 1_000_000
 
 
 class DecomposedProbabilityEstimate(BaseModel):
@@ -149,6 +155,10 @@ class ArmConfig:
     options: dict[str, Any]
     schema: type[BaseModel]
     provider: str = "ollama"  # "ollama" (default, unchanged) or "openrouter"
+    # openrouter arms only -- explicit, never an undocumented default. None means "use
+    # openrouter_provider_config's own default" (reasoning disabled).
+    openrouter_reasoning: dict[str, Any] | None = None
+    openrouter_max_output_tokens: int | None = None
 
 
 def _arm_configs() -> dict[str, ArmConfig]:
@@ -237,6 +247,27 @@ def _arm_configs() -> dict[str, ArmConfig]:
             schema=BlindFairValueEstimate,
             provider="openrouter",
         ),
+        "G": ArmConfig(
+            arm="G",
+            description=(
+                "Diagnostic reasoning audit only -- not a comparison arm for probability-"
+                "resolution statistics (reasoning mode itself is a variable change from Arm F, "
+                "per the 'do not bundle model + reasoning-mode changes' rule). OpenRouter/DeepSeek "
+                "V4 Flash 0731, exact V1 prompt, reasoning EXPLICITLY ENABLED "
+                "(enabled=true, exclude=false, effort='max' -- the strongest effort this pinned "
+                "model supports per GET /api/v1/models' reasoning.supported_efforts, checked live, "
+                "not guessed). Captures the full reasoning trace for qualitative audit. "
+                "max_output_tokens raised to accommodate a full trace plus the final JSON answer."
+            ),
+            prompt_builder=build_prompt,
+            format_json=True,  # unused for this arm's dispatch path; kept for dataclass consistency
+            think=None,
+            options={},
+            schema=BlindFairValueEstimate,
+            provider="openrouter",
+            openrouter_reasoning={"enabled": True, "exclude": False, "effort": "max"},
+            openrouter_max_output_tokens=8000,
+        ),
     }
 
 
@@ -294,6 +325,13 @@ class GenerationResult:
     think: bool | None = None
     generated_at: str = ""
     usage: dict[str, Any] | None = None  # OpenRouter arms only: token counts, served model, etc.
+    # Preserved separately (not just embedded in prompt_used) for the reasoning-audit arms:
+    market_question: str | None = None
+    evidence_packet: dict[str, Any] | None = None
+    reasoning_effort: str | None = None
+    reasoning_trace: str | None = None
+    reasoning_details: list[Any] | None = None
+    estimated_cost_usd: float | None = None
 
 
 def generate_one(
@@ -407,7 +445,11 @@ def _generate_one_openrouter(
     """Reuses app.ppi.blind_forecast._call_openrouter directly -- the exact same OpenRouter wire
     call production forecast generation uses -- rather than reimplementing it here. Never falls
     back to Ollama/Qwen on failure; a failed DeepSeek call is always recorded as FAILED."""
-    provider_config = openrouter_provider_config(get_settings())
+    provider_config = openrouter_provider_config(
+        get_settings(),
+        reasoning=config.openrouter_reasoning,
+        max_output_tokens=config.openrouter_max_output_tokens,
+    )
     raw_response = ""
     call_error: str | None = None
     usage_info: dict[str, Any] | None = None
@@ -433,38 +475,14 @@ def _generate_one_openrouter(
             last_error = f"ValidationError: {exc}"
 
     generated_at = datetime.now(timezone.utc).isoformat()
-    if parsed is None:
-        return GenerationResult(
-            arm=config.arm,
-            market_id=market_id,
-            market_slug=market_slug,
-            repetition=repetition,
-            attempts=attempts,
-            status="FAILED",
-            fair_value=None,
-            confidence=None,
-            raw_response=raw_response,
-            error_message=last_error,
-            prompt_used=prompt,
-            request_options={"temperature": provider_config.temperature, "reasoning": provider_config.reasoning},
-            format_json=False,
-            think=None,
-            generated_at=generated_at,
-            usage=usage_info,
-        )
-
-    parsed_dict = parsed.model_dump()
-    should_abstain = bool(parsed_dict.get("should_abstain")) if isinstance(parsed, BlindFairValueEstimate) else False
-    return GenerationResult(
+    reasoning_effort = (provider_config.reasoning or {}).get("effort") if provider_config.reasoning else None
+    estimated_cost = _estimate_openrouter_cost(usage_info)
+    common_kwargs = dict(
         arm=config.arm,
         market_id=market_id,
         market_slug=market_slug,
         repetition=repetition,
         attempts=attempts,
-        status="ABSTAINED" if should_abstain else "OK",
-        fair_value=parsed_dict.get("fair_value"),
-        confidence=parsed_dict.get("confidence"),
-        parsed_fields=parsed_dict,
         raw_response=raw_response,
         prompt_used=prompt,
         request_options={"temperature": provider_config.temperature, "reasoning": provider_config.reasoning},
@@ -472,6 +490,45 @@ def _generate_one_openrouter(
         think=None,
         generated_at=generated_at,
         usage=usage_info,
+        market_question=packet.get("question"),
+        evidence_packet=packet,
+        reasoning_effort=reasoning_effort,
+        reasoning_trace=(usage_info or {}).get("reasoning_trace"),
+        reasoning_details=(usage_info or {}).get("reasoning_details"),
+        estimated_cost_usd=estimated_cost,
+    )
+
+    if parsed is None:
+        return GenerationResult(
+            status="FAILED",
+            fair_value=None,
+            confidence=None,
+            error_message=last_error,
+            **common_kwargs,
+        )
+
+    parsed_dict = parsed.model_dump()
+    should_abstain = bool(parsed_dict.get("should_abstain")) if isinstance(parsed, BlindFairValueEstimate) else False
+    return GenerationResult(
+        status="ABSTAINED" if should_abstain else "OK",
+        fair_value=parsed_dict.get("fair_value"),
+        confidence=parsed_dict.get("confidence"),
+        parsed_fields=parsed_dict,
+        **common_kwargs,
+    )
+
+
+def _estimate_openrouter_cost(usage_info: dict[str, Any] | None) -> float | None:
+    """Diagnostic-only cost estimate from OpenRouter's listed per-token pricing. Never influences
+    any forecast; purely descriptive reporting."""
+    if not usage_info:
+        return None
+    prompt_tokens = usage_info.get("prompt_tokens")
+    completion_tokens = usage_info.get("completion_tokens")
+    if prompt_tokens is None or completion_tokens is None:
+        return None
+    return (
+        prompt_tokens * OPENROUTER_PRICE_PROMPT_PER_TOKEN + completion_tokens * OPENROUTER_PRICE_COMPLETION_PER_TOKEN
     )
 
 
