@@ -316,7 +316,8 @@ def test_arm_g_requests_max_reasoning_effort_and_captures_trace(monkeypatch):
     config = configs["G"]
     assert config.provider == "openrouter"
     assert config.openrouter_reasoning == {"enabled": True, "exclude": False, "effort": "max"}
-    assert config.openrouter_max_output_tokens == 8000
+    assert config.openrouter_max_output_tokens == 20000
+    assert config.openrouter_timeout == 600
 
     settings = Settings(openrouter_api_key="sk-test")
     monkeypatch.setattr("scripts.run_shadow_experiment.get_settings", lambda: settings)
@@ -351,7 +352,7 @@ def test_arm_g_requests_max_reasoning_effort_and_captures_trace(monkeypatch):
     # think=true suppression finding; defends against the same risk on this provider).
     assert "response_format" not in captured["json"]
     assert captured["json"]["reasoning"] == {"enabled": True, "exclude": False, "effort": "max"}
-    assert captured["json"]["max_tokens"] == 8000
+    assert captured["json"]["max_tokens"] == 20000
 
     assert result.status == "OK"
     assert result.fair_value == 0.2

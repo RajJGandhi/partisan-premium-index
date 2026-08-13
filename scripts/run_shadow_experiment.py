@@ -159,6 +159,7 @@ class ArmConfig:
     # openrouter_provider_config's own default" (reasoning disabled).
     openrouter_reasoning: dict[str, Any] | None = None
     openrouter_max_output_tokens: int | None = None
+    openrouter_timeout: int | None = None
 
 
 def _arm_configs() -> dict[str, ArmConfig]:
@@ -257,7 +258,10 @@ def _arm_configs() -> dict[str, ArmConfig]:
                 "(enabled=true, exclude=false, effort='max' -- the strongest effort this pinned "
                 "model supports per GET /api/v1/models' reasoning.supported_efforts, checked live, "
                 "not guessed). Captures the full reasoning trace for qualitative audit. "
-                "max_output_tokens raised to accommodate a full trace plus the final JSON answer."
+                "max_output_tokens raised well beyond the default to accommodate a full trace plus "
+                "the final JSON answer -- empirically, a single 'max'-effort reasoning trace can "
+                "run 7,000+ tokens on its own, so an 8,000 cap left zero room for the final answer "
+                "and caused FAILED_PARSE on every attempt; 20,000 leaves comfortable headroom."
             ),
             prompt_builder=build_prompt,
             format_json=True,  # unused for this arm's dispatch path; kept for dataclass consistency
@@ -266,7 +270,8 @@ def _arm_configs() -> dict[str, ArmConfig]:
             schema=BlindFairValueEstimate,
             provider="openrouter",
             openrouter_reasoning={"enabled": True, "exclude": False, "effort": "max"},
-            openrouter_max_output_tokens=8000,
+            openrouter_max_output_tokens=20000,
+            openrouter_timeout=600,
         ),
     }
 
@@ -449,6 +454,7 @@ def _generate_one_openrouter(
         get_settings(),
         reasoning=config.openrouter_reasoning,
         max_output_tokens=config.openrouter_max_output_tokens,
+        timeout=config.openrouter_timeout,
     )
     raw_response = ""
     call_error: str | None = None

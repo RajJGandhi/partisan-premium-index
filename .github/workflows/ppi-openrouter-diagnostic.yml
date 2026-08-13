@@ -41,7 +41,7 @@ jobs:
   diagnostic:
     name: Run noncanonical OpenRouter/DeepSeek diagnostic (never touches the database)
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 120
 
     env:
       OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}

@@ -87,20 +87,23 @@ def openrouter_provider_config(
     *,
     reasoning: dict[str, Any] | None = None,
     max_output_tokens: int | None = None,
+    timeout: int | None = None,
 ) -> ProviderConfig:
     """Pinned OpenRouter/DeepSeek provider config. Never an alias, never auto-routed.
 
     Defaults to reasoning disabled (the first-integration-test configuration, matching Qwen Arm A
-    as closely as this model allows). Pass ``reasoning``/``max_output_tokens`` explicitly to build
-    a different, still-fully-recorded configuration for a separate diagnostic (e.g. an explicit
-    thinking-mode reasoning audit) -- never an undocumented default.
+    as closely as this model allows). Pass ``reasoning``/``max_output_tokens``/``timeout``
+    explicitly to build a different, still-fully-recorded configuration for a separate diagnostic
+    (e.g. an explicit thinking-mode reasoning audit, which needs a much longer HTTP timeout than
+    the default -- a "max"-effort trace can run tens of thousands of tokens) -- never an
+    undocumented default.
     """
     return ProviderConfig(
         provider="openrouter",
         base_url=settings.openrouter_base_url,
         model=settings.openrouter_model,
         api_key=settings.openrouter_api_key,
-        timeout=settings.openrouter_timeout_seconds,
+        timeout=timeout if timeout is not None else settings.openrouter_timeout_seconds,
         extra_headers={"HTTP-Referer": OPENROUTER_REFERER, "X-OpenRouter-Title": OPENROUTER_APP_TITLE},
         reasoning=reasoning if reasoning is not None else {"enabled": False},
         max_output_tokens=max_output_tokens if max_output_tokens is not None else settings.openrouter_max_output_tokens,
