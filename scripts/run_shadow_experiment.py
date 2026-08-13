@@ -28,18 +28,21 @@ from typing import Any, Callable
 import requests
 from pydantic import BaseModel, Field, ValidationError
 
+from app.config import get_settings
 from app.ppi.blind_forecast import (
     GENERATION_NUM_CTX,
     GENERATION_TEMPERATURE,
     MAX_RETRIES,
     SYSTEM_INSTRUCTIONS,
     BlindFairValueEstimate,
+    _call_openrouter,
     _extract_json_object,
     assert_blind_packet,
     build_prompt,
+    openrouter_provider_config,
 )
 
-ARMS = ("A", "B", "C", "D", "E")
+ARMS = ("A", "B", "C", "D", "E", "F")
 
 
 class DecomposedProbabilityEstimate(BaseModel):
@@ -145,6 +148,7 @@ class ArmConfig:
     think: bool | None  # None = omit the field entirely (matches production's Arm A exactly)
     options: dict[str, Any]
     schema: type[BaseModel]
+    provider: str = "ollama"  # "ollama" (default, unchanged) or "openrouter"
 
 
 def _arm_configs() -> dict[str, ArmConfig]:
@@ -217,6 +221,22 @@ def _arm_configs() -> dict[str, ArmConfig]:
             options={"temperature": 0.6, "top_p": 0.95, "top_k": 20, "min_p": 0, "num_ctx": 8192},
             schema=DecomposedProbabilityEstimate,
         ),
+        "F": ArmConfig(
+            arm="F",
+            description=(
+                "OpenRouter/DeepSeek V4 Flash 0731 (pinned, no alias/auto-route), exact V1 prompt "
+                "(fair_value_v0.1, same as Arm A), reasoning explicitly disabled, temperature=0.15 "
+                "-- matches Qwen Arm A's settings as closely as this model allows, so the model "
+                "identity is the only deliberately-varied comparison, not reasoning mode or "
+                "temperature (see docs/research/OPENROUTER_INTEGRATION.md for the full rationale)."
+            ),
+            prompt_builder=build_prompt,
+            format_json=True,  # unused for this arm's dispatch path; kept for dataclass consistency
+            think=None,
+            options={},  # unused; real settings come from openrouter_provider_config()
+            schema=BlindFairValueEstimate,
+            provider="openrouter",
+        ),
     }
 
 
@@ -273,6 +293,7 @@ class GenerationResult:
     format_json: bool = True
     think: bool | None = None
     generated_at: str = ""
+    usage: dict[str, Any] | None = None  # OpenRouter arms only: token counts, served model, etc.
 
 
 def generate_one(
@@ -288,6 +309,10 @@ def generate_one(
 ) -> GenerationResult:
     assert_blind_packet(packet)  # same defense-in-depth check production uses before every call
     prompt = config.prompt_builder(packet)
+
+    if config.provider == "openrouter":
+        return _generate_one_openrouter(packet, prompt, market_id, market_slug, repetition, config)
+
     # Every arm keeps the same system-level forecaster framing (calibrated/disciplined/base-rate
     # guidance) for a controlled comparison -- only the arm-specific variable (sampling settings,
     # think flag, or prompt decomposition) differs from Arm A. Arm B's format=json is off, so
@@ -371,6 +396,85 @@ def generate_one(
     )
 
 
+def _generate_one_openrouter(
+    packet: dict[str, Any],
+    prompt: str,
+    market_id: int,
+    market_slug: str | None,
+    repetition: int,
+    config: ArmConfig,
+) -> GenerationResult:
+    """Reuses app.ppi.blind_forecast._call_openrouter directly -- the exact same OpenRouter wire
+    call production forecast generation uses -- rather than reimplementing it here. Never falls
+    back to Ollama/Qwen on failure; a failed DeepSeek call is always recorded as FAILED."""
+    provider_config = openrouter_provider_config(get_settings())
+    raw_response = ""
+    call_error: str | None = None
+    usage_info: dict[str, Any] | None = None
+    parsed: BaseModel | None = None
+    last_error: str | None = None
+    attempts = 0
+
+    for attempt in range(1, MAX_RETRIES + 2):
+        attempts = attempt
+        raw_response, call_error, usage_info = _call_openrouter(prompt, provider_config)
+        if call_error:
+            last_error = call_error
+            continue
+        obj = _extract_json_object(raw_response)
+        if obj is None:
+            last_error = "FAILED_PARSE: no JSON object found in model output"
+            continue
+        try:
+            parsed = config.schema.model_validate(obj)
+            last_error = None
+            break
+        except ValidationError as exc:
+            last_error = f"ValidationError: {exc}"
+
+    generated_at = datetime.now(timezone.utc).isoformat()
+    if parsed is None:
+        return GenerationResult(
+            arm=config.arm,
+            market_id=market_id,
+            market_slug=market_slug,
+            repetition=repetition,
+            attempts=attempts,
+            status="FAILED",
+            fair_value=None,
+            confidence=None,
+            raw_response=raw_response,
+            error_message=last_error,
+            prompt_used=prompt,
+            request_options={"temperature": provider_config.temperature, "reasoning": provider_config.reasoning},
+            format_json=False,
+            think=None,
+            generated_at=generated_at,
+            usage=usage_info,
+        )
+
+    parsed_dict = parsed.model_dump()
+    should_abstain = bool(parsed_dict.get("should_abstain")) if isinstance(parsed, BlindFairValueEstimate) else False
+    return GenerationResult(
+        arm=config.arm,
+        market_id=market_id,
+        market_slug=market_slug,
+        repetition=repetition,
+        attempts=attempts,
+        status="ABSTAINED" if should_abstain else "OK",
+        fair_value=parsed_dict.get("fair_value"),
+        confidence=parsed_dict.get("confidence"),
+        parsed_fields=parsed_dict,
+        raw_response=raw_response,
+        prompt_used=prompt,
+        request_options={"temperature": provider_config.temperature, "reasoning": provider_config.reasoning},
+        format_json=False,
+        think=None,
+        generated_at=generated_at,
+        usage=usage_info,
+    )
+
+
 def run_experiment(
     frozen_inputs: list[dict[str, Any]],
     *,
@@ -420,7 +524,7 @@ def run_experiment(
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Run the noncanonical 4-arm shadow experiment (never writes to the DB)")
+    parser = argparse.ArgumentParser(description="Run the noncanonical shadow experiment (never writes to the DB)")
     parser.add_argument("--frozen-inputs", type=Path, required=True, help="audit_llm_forecast_run.py JSON report")
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--arms", type=str, default=",".join(ARMS))

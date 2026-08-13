@@ -19,6 +19,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.db.models import JobRun, LLMForecast
+from app.ppi.blind_forecast import PRIMARY_SERIES_PROVIDERS
 
 CANONICAL_TRIGGER_TYPES = ("primary", "backup")
 
@@ -40,7 +41,17 @@ def compute_run_classification(session: Session, job: JobRun, run_key: str) -> s
         return "failed"
     if job.pipeline_mode != "strict_llm_only":
         return "noncanonical_mixed"
-    forecasts = list(session.scalars(select(LLMForecast).where(LLMForecast.run_key == run_key)))
+    # Scoped to the primary series' provider(s) only -- a separately-labelled comparison series
+    # (e.g. openrouter) sharing this run_key must never be able to flip the primary series' own
+    # canonical classification for reasons unrelated to the primary series itself.
+    forecasts = list(
+        session.scalars(
+            select(LLMForecast).where(
+                LLMForecast.run_key == run_key,
+                LLMForecast.model_provider.in_(PRIMARY_SERIES_PROVIDERS),
+            )
+        )
+    )
     if any(f.evidence_all_live_classified is False for f in forecasts):
         return "contaminated"
     if job.trigger_type not in CANONICAL_TRIGGER_TYPES:

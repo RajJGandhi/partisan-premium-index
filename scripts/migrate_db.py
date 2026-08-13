@@ -78,10 +78,67 @@ ADDITIVE_COLUMNS = {
 }
 
 
+def _widen_llm_forecast_uniqueness(conn, inspector) -> None:
+    """Widen llm_forecasts' uniqueness from (market_id, run_slot) to
+    (market_id, run_slot, model_provider), so a second model series (e.g. openrouter) can never
+    silently overwrite or be skipped in favor of the primary (ollama) series' row for the same
+    market/slot. Nontrivial, dialect-specific, and only touches an existing 2-column constraint if
+    one is actually still present -- idempotent, safe to run on every migrate() call.
+
+    Back up the database before running this against production; see CLAUDE.md's migration rules.
+    """
+    if "llm_forecasts" not in inspector.get_table_names():
+        return  # fresh install: create_all() above already created the 3-column constraint
+
+    if conn.dialect.name == "postgresql":
+        # ALTER TABLE ... DROP CONSTRAINT/DROP INDEX ... IF EXISTS are natively idempotent.
+        conn.execute(text("ALTER TABLE llm_forecasts DROP CONSTRAINT IF EXISTS uq_llm_forecast_market_run_slot"))
+        conn.execute(text("DROP INDEX IF EXISTS uq_llm_forecast_market_run_slot_idx"))
+        conn.execute(
+            text(
+                "CREATE UNIQUE INDEX IF NOT EXISTS uq_llm_forecast_market_run_slot_provider_idx "
+                "ON llm_forecasts(market_id, run_slot, model_provider)"
+            )
+        )
+        return
+
+    # SQLite cannot ALTER TABLE DROP a named UNIQUE constraint at all -- only a full table rebuild
+    # removes one baked into the original CREATE TABLE. Detect whether the *old* 2-column-only
+    # unique constraint is still present before doing this (idempotent: a DB already migrated, or
+    # a fresh install, has no such 2-column-only unique index and this is a no-op).
+    old_shape_present = any(
+        set(idx["column_names"]) == {"market_id", "run_slot"} and idx.get("unique")
+        for idx in inspector.get_indexes("llm_forecasts")
+    ) or any(
+        set(uc["column_names"]) == {"market_id", "run_slot"} for uc in inspector.get_unique_constraints("llm_forecasts")
+    )
+    if not old_shape_present:
+        return
+
+    existing_columns = [c["name"] for c in inspector.get_columns("llm_forecasts")]
+    column_list = ", ".join(existing_columns)
+    conn.execute(text("ALTER TABLE llm_forecasts RENAME TO llm_forecasts_pre_provider_migration"))
+    Base.metadata.tables["llm_forecasts"].create(bind=conn)
+    conn.execute(
+        text(
+            f"INSERT INTO llm_forecasts ({column_list}) "
+            f"SELECT {column_list} FROM llm_forecasts_pre_provider_migration"
+        )
+    )
+    conn.execute(text("DROP TABLE llm_forecasts_pre_provider_migration"))
+    print("Rebuilt llm_forecasts (SQLite) with the widened (market_id, run_slot, model_provider) uniqueness.")
+
+
 def migrate() -> None:
     Base.metadata.create_all(bind=engine)
     inspector = inspect(engine)
     with engine.begin() as conn:
+        # Additive columns run *before* the uniqueness-widening rebuild below: SQLite's rebuild
+        # copies every existing column via a raw INSERT SELECT (bypassing the ORM's Python-side
+        # column defaults), so any NOT NULL column the new schema expects must already physically
+        # exist -- with real, DDL-backfilled values -- on the old table first. ADD COLUMN ...
+        # DEFAULT ... does backfill existing rows in both SQLite and Postgres; a Python-side
+        # ``default=`` on the model does not apply to a raw INSERT at all.
         for table, columns in ADDITIVE_COLUMNS.items():
             if table not in inspector.get_table_names():
                 continue
@@ -94,13 +151,21 @@ def migrate() -> None:
                         effective_ddl = effective_ddl.replace("BOOLEAN DEFAULT 0", "BOOLEAN DEFAULT FALSE")
                     conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {name} {effective_ddl}"))
                     print(f"Added {table}.{name}")
+
+        # Re-inspect via the same transactional connection (not a fresh engine-level connection,
+        # which could see stale pre-transaction state) now that the ADD COLUMNs above have landed.
+        inspector = inspect(conn)
+        _widen_llm_forecast_uniqueness(conn, inspector)
+
         # Add indexes/uniqueness safely. NULL snapshot dates remain valid for legacy intraday rows.
         index_statements = [
             "CREATE INDEX IF NOT EXISTS ix_markets_enabled_active ON markets(enabled, active, closed)",
             "CREATE INDEX IF NOT EXISTS ix_market_snapshots_market_date ON market_snapshots(market_id, snapshot_date)",
             "CREATE UNIQUE INDEX IF NOT EXISTS uq_markets_tracking_id_idx ON markets(tracking_id)",
             "CREATE UNIQUE INDEX IF NOT EXISTS uq_market_daily_snapshot_idx ON market_snapshots(market_id, snapshot_date, snapshot_kind)",
-            "CREATE UNIQUE INDEX IF NOT EXISTS uq_llm_forecast_market_run_slot_idx ON llm_forecasts(market_id, run_slot)",
+            # NOT the old 2-column uq_llm_forecast_market_run_slot_idx -- superseded by
+            # _widen_llm_forecast_uniqueness() above, which creates/maintains the 3-column
+            # (market_id, run_slot, model_provider) index for both dialects.
             "CREATE INDEX IF NOT EXISTS ix_llm_forecasts_market_generated_idx ON llm_forecasts(market_id, generated_at)",
             "CREATE INDEX IF NOT EXISTS ix_llm_forecasts_reviewed_status_idx ON llm_forecasts(reviewed_status)",
             "CREATE UNIQUE INDEX IF NOT EXISTS uq_blind_index_run_key_idx ON blind_index_runs(run_key)",
