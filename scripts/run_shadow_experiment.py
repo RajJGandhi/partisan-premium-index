@@ -39,7 +39,7 @@ from app.ppi.blind_forecast import (
     build_prompt,
 )
 
-ARMS = ("A", "B", "C", "D")
+ARMS = ("A", "B", "C", "D", "E")
 
 
 class DecomposedProbabilityEstimate(BaseModel):
@@ -198,6 +198,23 @@ def _arm_configs() -> dict[str, ArmConfig]:
             format_json=True,
             think=None,
             options={"temperature": GENERATION_TEMPERATURE, "num_ctx": GENERATION_NUM_CTX},
+            schema=DecomposedProbabilityEstimate,
+        ),
+        "E": ArmConfig(
+            arm="E",
+            description=(
+                "Diagnostic only: V2 decomposition prompt/schema (same as Arm D) combined with "
+                "Arm B's Qwen3 official thinking-mode sampling (temperature=0.6, top_p=0.95, "
+                "top_k=20, min_p=0). Isolates whether quantization is prompt-induced (compare vs. "
+                "Arm D, same settings, different prompt) or temperature/decoding-induced (compare "
+                "vs. Arm D, same prompt, different settings). format=json is deliberately NOT set, "
+                "matching Arm B's empirically-verified reasoning (format=json + think=true "
+                "together suppress thinking on this Ollama build)."
+            ),
+            prompt_builder=build_decomposed_prompt,
+            format_json=False,
+            think=True,
+            options={"temperature": 0.6, "top_p": 0.95, "top_k": 20, "min_p": 0, "num_ctx": 8192},
             schema=DecomposedProbabilityEstimate,
         ),
     }
