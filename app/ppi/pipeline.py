@@ -28,10 +28,13 @@ from app.ppi.blind_forecast import (
     AUTOMATED_PROVIDERS,
     compute_and_persist_blind_index,
     generate_blind_forecast,
+    is_matched_pair,
     join_forecast_with_price,
+    openrouter_provider_config,
 )
 from app.ppi.digest import write_daily_digest
 from app.ppi.evidence import adapter_for, insert_and_classify_candidate
+from app.ppi.experiment_metadata import record_first_eligible_observation
 from app.ppi.lock import PipelineLockedError, pipeline_lock
 from app.ppi.methodology import DEFAULT_WEIGHTS, compute_weighted_fair_value, partisan_premium
 from app.ppi.polymarket import TrackedPolymarketClient, price_policy, save_raw_response, update_market_from_gamma
@@ -398,6 +401,7 @@ def _run_daily_pipeline_locked(
             )
         )
         job.markets_attempted = len(markets)
+        matched_pair_observed = False
         try:
             for market in markets:
                 market_errors: list[str] = []
@@ -479,13 +483,13 @@ def _run_daily_pipeline_locked(
 
                 # Primary blind-LLM (Qwen) forecast series. Generated after the human-approved
                 # weighted snapshot above, but the two never share inputs: the blind forecast
-                # never sees `book`/`snap` price data, and the price join below only runs after
-                # the forecast has already been persisted. A SAVEPOINT isolates an unexpected
-                # failure here so it cannot abort the rest of the run for other markets.
+                # never sees `book`/`snap` price data. A SAVEPOINT isolates an unexpected failure
+                # here so it cannot abort the rest of the run for other markets.
                 job.llm_forecasts_attempted += 1
+                qwen_forecast = None
                 try:
                     with session.begin_nested():
-                        forecast = generate_blind_forecast(
+                        qwen_forecast = generate_blind_forecast(
                             session,
                             market,
                             job=job,
@@ -494,12 +498,11 @@ def _run_daily_pipeline_locked(
                             day=day,
                             strict=strict_llm_only,
                         )
-                        join_forecast_with_price(session, forecast, snap)
-                    if forecast.status == "OK":
+                    if qwen_forecast.status == "OK":
                         job.llm_forecasts_succeeded += 1
-                    elif forecast.status == "ABSTAINED":
+                    elif qwen_forecast.status == "ABSTAINED":
                         job.llm_forecasts_abstained += 1
-                    elif forecast.status == "SKIPPED_PROVIDER":
+                    elif qwen_forecast.status == "SKIPPED_PROVIDER":
                         job.llm_forecasts_skipped += 1
                     else:
                         job.llm_forecasts_failed += 1
@@ -509,8 +512,74 @@ def _run_daily_pipeline_locked(
                     job.error_count += 1
                     print(f"[ppi] blind forecast failed for market_id={market.id}: {_safe_error(exc)}")
 
+                # Experimental strong-model comparison arm (DeepSeek V4 Flash 0731, OpenRouter),
+                # preregistered in docs/research/PPI_DEEPSEEK_VS_QWEN_PREREGISTRATION.md. Called
+                # from the exact same evidence: no evidence-discovery step runs between this call
+                # and the Qwen call above, so build_blind_evidence_packet (invoked fresh inside
+                # generate_blind_forecast) reads byte-identical EvidenceItem rows both times,
+                # which is exactly why both rows' prompt_hash values are directly comparable
+                # below. This never blocks, gates, or falls back to/from the canonical Qwen call
+                # -- an experimental-arm failure here affects only this row. Not counted in
+                # job.llm_forecasts_* (those remain exclusively about the primary series' health,
+                # consistent with app.ppi.run_health/app.ppi.run_classification's own scoping);
+                # DeepSeek's outcomes are queryable directly from its own LLMForecast rows.
+                deepseek_forecast = None
+                try:
+                    with session.begin_nested():
+                        deepseek_forecast = generate_blind_forecast(
+                            session,
+                            market,
+                            job=job,
+                            run_key=run_key,
+                            trigger_type=trigger_type,
+                            day=day,
+                            strict=strict_llm_only,
+                            provider_config=openrouter_provider_config(get_settings()),
+                        )
+                except Exception as exc:
+                    print(f"[ppi] deepseek experimental forecast failed for market_id={market.id}: {_safe_error(exc)}")
+
+                if qwen_forecast is not None and deepseek_forecast is not None:
+                    if is_matched_pair(qwen_forecast, deepseek_forecast):
+                        matched_pair_observed = True
+                    elif qwen_forecast.status == "OK" and deepseek_forecast.status == "OK":
+                        # Should be structurally impossible given the sequencing guarantee above
+                        # -- both calls read the same EvidenceItem rows with nothing in between
+                        # that could insert new evidence. Treated as a hard integrity signal for
+                        # this pair specifically, not a run-wide failure: both rows are still
+                        # persisted exactly as generated, just not usable as a matched
+                        # observation.
+                        print(
+                            f"[ppi] WARNING evidence-hash mismatch for market_id={market.id}: "
+                            f"qwen prompt_hash={qwen_forecast.prompt_hash!r} "
+                            f"deepseek prompt_hash={deepseek_forecast.prompt_hash!r}"
+                        )
+
+                # Price/benchmark joining happens only after BOTH forecast attempts have
+                # terminated (preregistration Section 6, step 7) -- never before either model has
+                # committed its own forecast row, and never in a way either model could see.
+                if qwen_forecast is not None:
+                    try:
+                        with session.begin_nested():
+                            join_forecast_with_price(session, qwen_forecast, snap)
+                    except Exception as exc:
+                        print(f"[ppi] price join failed (qwen) for market_id={market.id}: {_safe_error(exc)}")
+                if deepseek_forecast is not None:
+                    try:
+                        with session.begin_nested():
+                            join_forecast_with_price(session, deepseek_forecast, snap)
+                    except Exception as exc:
+                        print(f"[ppi] price join failed (deepseek) for market_id={market.id}: {_safe_error(exc)}")
+
                 session.flush()
                 session.commit()
+
+            if matched_pair_observed:
+                try:
+                    record_first_eligible_observation(session, job_run_id=job.id, observed_at=utcnow())
+                    session.commit()
+                except Exception as exc:
+                    print(f"[ppi] failed to record first-eligible-observation marker: {_safe_error(exc)}")
 
             _update_daily_index(session, day)
             compute_and_persist_blind_index(session, job, run_key)

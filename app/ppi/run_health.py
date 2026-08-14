@@ -21,6 +21,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.db.models import BlindIndexRun, JobRun, LLMForecast
+from app.ppi.blind_forecast import PRIMARY_SERIES_PROVIDERS
 
 
 @dataclass(frozen=True)
@@ -80,9 +81,11 @@ def compute_run_health(session: Session, job_run_id: int) -> RunHealth:
     if job is None:
         raise ValueError(f"No JobRun with id={job_run_id}")
 
+    # Scoped to the primary series only -- an experimental comparison series (e.g. openrouter)
+    # sharing this job_run_id must never be mixed into the canonical series' own health counts.
     status_rows = session.execute(
         select(LLMForecast.status, func.count())
-        .where(LLMForecast.job_run_id == job_run_id)
+        .where(LLMForecast.job_run_id == job_run_id, LLMForecast.model_provider.in_(PRIMARY_SERIES_PROVIDERS))
         .group_by(LLMForecast.status)
     ).all()
     status_counts: dict[str, int] = {status: count for status, count in status_rows}
@@ -98,7 +101,11 @@ def compute_run_health(session: Session, job_run_id: int) -> RunHealth:
         session.scalar(
             select(func.count())
             .select_from(LLMForecast)
-            .where(LLMForecast.job_run_id == job_run_id, LLMForecast.raw_ppi.is_not(None))
+            .where(
+                LLMForecast.job_run_id == job_run_id,
+                LLMForecast.raw_ppi.is_not(None),
+                LLMForecast.model_provider.in_(PRIMARY_SERIES_PROVIDERS),
+            )
         )
         or 0
     )

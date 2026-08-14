@@ -25,6 +25,7 @@ from app.db.models import (
     Prediction,
     SourceRun,
 )
+from app.ppi.blind_forecast import PRIMARY_SERIES_PROVIDERS
 from app.ppi.evidence import EvidenceCandidate, insert_and_classify_candidate
 from app.ppi.llm_forecast_review import set_llm_forecast_review_status
 from app.ppi.llm_forecast_view import (
@@ -481,7 +482,16 @@ with get_session() as session:
 
         all_markets = list(session.scalars(select(Market).order_by(Market.question)))
         markets_by_id = {m.id: m for m in all_markets}
-        all_forecasts = list(session.scalars(select(LLMForecast).order_by(desc(LLMForecast.generated_at))))
+        # This page is specifically "Primary blind-LLM (Qwen) forecast history" (see header above)
+        # -- scoped to the primary series so an experimental comparison series' rows never mix
+        # into this freshness/staleness view.
+        all_forecasts = list(
+            session.scalars(
+                select(LLMForecast)
+                .where(LLMForecast.model_provider.in_(PRIMARY_SERIES_PROVIDERS))
+                .order_by(desc(LLMForecast.generated_at))
+            )
+        )
 
         enabled_markets = [m for m in all_markets if m.enabled]
         latest_by_market = latest_forecast_by_market(all_forecasts)

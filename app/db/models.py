@@ -652,3 +652,26 @@ class RawAPIResponse(Base):
     response_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     status_code: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     error_message: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
+
+class ExperimentMetadata(Base):
+    """Append-only marker recording the first eligible observation of a preregistered experiment.
+
+    Exactly one row per ``experiment_key``, written once, on the first canonical JobRun that
+    produces at least one valid matched pair (see ``app.ppi.blind_forecast.is_matched_pair``) for
+    that experiment. Never updated after that first row exists -- see
+    ``docs/research/PPI_DEEPSEEK_VS_QWEN_PREREGISTRATION.md`` Section 1 ("Experiment start rule").
+    """
+
+    __tablename__ = "experiment_metadata"
+    __table_args__ = (UniqueConstraint("experiment_key", name="uq_experiment_metadata_key"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    experiment_key: Mapped[str] = mapped_column(String(100), index=True)
+    preregistration_commit_sha: Mapped[str] = mapped_column(String(40))
+    implementation_commit_sha: Mapped[Optional[str]] = mapped_column(String(40), nullable=True)
+    first_job_run_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("job_runs.id", ondelete="SET NULL"), nullable=True
+    )
+    first_observed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    recorded_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)

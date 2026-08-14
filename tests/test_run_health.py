@@ -104,6 +104,40 @@ def test_forecast_status_buckets_ok_abstained_and_error(tmp_path):
         assert health.ppi_rows_persisted == 2
 
 
+def test_experimental_series_forecasts_are_excluded_from_health_counts(tmp_path):
+    """Regression test: these queries used to have no model_provider filter, so an experimental
+    comparison series (e.g. DeepSeek/openrouter) sharing a job_run_id would silently inflate
+    "Forecasts OK"/"PPI rows persisted" beyond what the primary Qwen series actually produced."""
+    Session = _session_factory(tmp_path)
+    with Session.begin() as session:
+        job = _job()
+        session.add(job)
+        session.flush()
+        m1, m2 = (_market(session, f"T-{i}") for i in range(1, 3))
+        session.add(_forecast(job, m1, status="OK", raw_ppi=0.05))
+        session.add(
+            LLMForecast(
+                market_id=m2.id,
+                job_run_id=job.id,
+                run_key=job.run_key,
+                run_slot=f"2026-08-11:experimental-{m2.id}",
+                trigger_type=job.trigger_type,
+                model_provider="openrouter",
+                model_name="deepseek/deepseek-v4-flash-0731",
+                prompt_version="fair_value_v0.1",
+                status="OK",
+                raw_ppi=-0.10,
+            )
+        )
+        session.flush()
+        job_id = job.id
+
+    with Session() as session:
+        health = compute_run_health(session, job_id)
+        assert health.forecasts_ok == 1  # only the Qwen row, not the DeepSeek row too
+        assert health.ppi_rows_persisted == 1
+
+
 def test_evidence_counts_and_fallback_count_come_from_jobrun_columns(tmp_path):
     Session = _session_factory(tmp_path)
     with Session.begin() as session:
