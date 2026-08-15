@@ -67,6 +67,11 @@ jobs:
       LLM_PROVIDER: ollama
       LLM_MODEL: qwen3:8b
       GDELT_ENABLED: "false"
+      # Experimental strong-model comparison series (DeepSeek V4 Flash 0731 via OpenRouter), per
+      # docs/research/PPI_DEEPSEEK_VS_QWEN_PREREGISTRATION.md. Never printed/logged; if unset or
+      # empty, generate_blind_forecast's OpenRouter path fails that arm explicitly
+      # (MissingAPIKey) without affecting the primary Qwen series or the rest of this job at all.
+      OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
 
     steps:
       - name: Check out repository

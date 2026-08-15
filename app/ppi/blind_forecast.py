@@ -571,6 +571,29 @@ def generate_blind_forecast(
     return row
 
 
+def is_matched_pair(a: LLMForecast, b: LLMForecast) -> bool:
+    """True only if two forecast rows form a valid matched observation per
+    docs/research/PPI_DEEPSEEK_VS_QWEN_PREREGISTRATION.md's Section 6 ("evidence matching").
+
+    Same market, same run_slot (observation cycle), same originating JobRun, both reached a
+    live ``OK`` value-bearing status, and -- since every provider shares the exact same
+    ``build_prompt`` code path over the exact same evidence-packet-construction function --
+    identical ``prompt_hash`` values, which is only possible if the underlying evidence packets
+    were byte-identical. Two rows existing for the same market/slot is not sufficient by itself;
+    the hash equality is the actual evidence-integrity check, not a formality.
+    """
+    return (
+        a.market_id == b.market_id
+        and a.run_slot == b.run_slot
+        and a.job_run_id is not None
+        and a.job_run_id == b.job_run_id
+        and a.status == "OK"
+        and b.status == "OK"
+        and a.prompt_hash is not None
+        and a.prompt_hash == b.prompt_hash
+    )
+
+
 def join_forecast_with_price(session: Session, forecast: LLMForecast, snapshot: MarketSnapshot | None) -> None:
     """Attach the raw PPI comparison after the forecast has already been persisted.
 

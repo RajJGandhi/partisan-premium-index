@@ -24,6 +24,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.db.models import JobRun, LLMForecast
+from app.ppi.blind_forecast import PRIMARY_SERIES_PROVIDERS
 
 # NONE: no canonical forecast has ever been generated for this market.
 # OK: a live probability was produced and is shown.
@@ -124,6 +125,12 @@ def current_public_forecasts(session: Session, market_ids: list[int]) -> dict[in
         .join(JobRun, LLMForecast.job_run_id == JobRun.id)
         .where(
             LLMForecast.market_id.in_(market_ids),
+            # Scoped to the primary (headline) series only. Without this, an experimental
+            # comparison series' row (e.g. openrouter/DeepSeek) sharing a market/cycle could have
+            # a later generated_at than the primary series' own row and would otherwise silently
+            # become "the" public forecast -- exactly what must never happen (see
+            # docs/research/PPI_DEEPSEEK_VS_QWEN_PREREGISTRATION.md Section 17).
+            LLMForecast.model_provider.in_(PRIMARY_SERIES_PROVIDERS),
             JobRun.run_classification == "canonical",
             JobRun.superseded_by_id.is_(None),
         )

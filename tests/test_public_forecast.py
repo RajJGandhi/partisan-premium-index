@@ -284,6 +284,59 @@ def test_latest_of_multiple_canonical_slots_is_used(tmp_path):
         assert result.fair_value == 0.38
 
 
+def test_experimental_series_never_becomes_the_public_headline_forecast(tmp_path):
+    """Regression test for a real leak found while implementing the Qwen-vs-DeepSeek matched
+    series: this query used to have no model_provider filter at all, so a same-cycle experimental
+    forecast generated slightly after the primary one (the normal case once DeepSeek is added --
+    see app.ppi.pipeline's dual-series call order) would win the generated_at DESC ordering and
+    silently become "the" public forecast for that market -- exactly what must never happen."""
+    Session = _session_factory(tmp_path)
+    with Session.begin() as session:
+        job = _job("ppi-daily:2026-08-11:primary")
+        session.add(job)
+        session.flush()
+        market = _market(session)
+        session.add(
+            _forecast(
+                job,
+                market,
+                status="OK",
+                generated_at=datetime(2026, 8, 11, 10, 0, 0, tzinfo=timezone.utc),
+                fair_value=0.40,
+                raw_ppi=0.05,
+                comparison_price_at_join=0.45,
+            )
+        )
+        # Same job, same market, generated strictly later -- the experimental arm always runs
+        # after the primary one in the real pipeline loop.
+        session.add(
+            LLMForecast(
+                market_id=market.id,
+                job_run_id=job.id,
+                run_key=job.run_key,
+                run_slot=f"{job.run_key}:{market.id}",
+                trigger_type=job.trigger_type,
+                generated_at=datetime(2026, 8, 11, 10, 0, 5, tzinfo=timezone.utc),
+                model_provider="openrouter",
+                model_name="deepseek/deepseek-v4-flash-0731",
+                prompt_version="fair_value_v0.1",
+                status="OK",
+                fair_value=0.85,
+                raw_ppi=-0.40,
+                comparison_price_at_join=0.45,
+                confidence=0.8,
+                rationale="DeepSeek's rationale.",
+            )
+        )
+        session.flush()
+        market_id = market.id
+
+    with Session() as session:
+        result = current_public_forecast(session, market_id)
+        assert result.fair_value == 0.40  # Qwen's value, never DeepSeek's 0.85
+        assert result.run_key == "ppi-daily:2026-08-11:primary"
+
+
 def test_bulk_lookup_returns_an_entry_for_every_requested_market_id(tmp_path):
     Session = _session_factory(tmp_path)
     with Session.begin() as session:

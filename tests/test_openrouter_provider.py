@@ -18,6 +18,7 @@ from app.ppi.blind_forecast import (
     PRIMARY_SERIES_PROVIDERS,
     default_provider_config,
     generate_blind_forecast,
+    is_matched_pair,
     openrouter_provider_config,
 )
 from app.ppi.run_classification import compute_run_classification
@@ -496,3 +497,93 @@ def test_openrouter_series_never_flips_primary_series_canonical_classification(t
 
     assert "openrouter" not in PRIMARY_SERIES_PROVIDERS
     assert classification == "canonical"  # unaffected by the DeepSeek row's contamination
+
+
+# --- is_matched_pair: the evidence-hash matched-observation invariant -----------------------------
+
+
+def test_is_matched_pair_true_for_two_ok_forecasts_with_identical_prompt_hash():
+    a = LLMForecast(
+        market_id=1, run_slot="s", job_run_id=7, status="OK", prompt_hash="abc",
+        model_provider="ollama", model_name="qwen3:8b", prompt_version="fair_value_v0.1",
+    )
+    b = LLMForecast(
+        market_id=1, run_slot="s", job_run_id=7, status="OK", prompt_hash="abc",
+        model_provider="openrouter", model_name="deepseek/deepseek-v4-flash-0731", prompt_version="fair_value_v0.1",
+    )
+    assert is_matched_pair(a, b) is True
+
+
+def test_is_matched_pair_false_when_prompt_hashes_differ():
+    """The core evidence-integrity check: two rows for the same market/slot/job are NOT a valid
+    matched pair unless their evidence-derived prompt_hash values are identical."""
+    a = LLMForecast(
+        market_id=1, run_slot="s", job_run_id=7, status="OK", prompt_hash="abc",
+        model_provider="ollama", model_name="qwen3:8b", prompt_version="fair_value_v0.1",
+    )
+    b = LLMForecast(
+        market_id=1, run_slot="s", job_run_id=7, status="OK", prompt_hash="different",
+        model_provider="openrouter", model_name="deepseek/deepseek-v4-flash-0731", prompt_version="fair_value_v0.1",
+    )
+    assert is_matched_pair(a, b) is False
+
+
+def test_is_matched_pair_false_when_either_side_is_not_ok():
+    ok = LLMForecast(
+        market_id=1, run_slot="s", job_run_id=7, status="OK", prompt_hash="abc",
+        model_provider="ollama", model_name="qwen3:8b", prompt_version="fair_value_v0.1",
+    )
+    failed = LLMForecast(
+        market_id=1, run_slot="s", job_run_id=7, status="FAILED", prompt_hash="abc",
+        model_provider="openrouter", model_name="deepseek/deepseek-v4-flash-0731", prompt_version="fair_value_v0.1",
+    )
+    assert is_matched_pair(ok, failed) is False
+    assert is_matched_pair(failed, ok) is False
+
+
+def test_is_matched_pair_false_for_different_market_or_run_slot_or_job_run():
+    base = dict(prompt_hash="abc", status="OK", model_provider="ollama", model_name="qwen3:8b", prompt_version="fair_value_v0.1")
+    a = LLMForecast(market_id=1, run_slot="s", job_run_id=7, **base)
+    different_market = LLMForecast(market_id=2, run_slot="s", job_run_id=7, **base)
+    different_slot = LLMForecast(market_id=1, run_slot="other", job_run_id=7, **base)
+    different_job = LLMForecast(market_id=1, run_slot="s", job_run_id=8, **base)
+    assert is_matched_pair(a, different_market) is False
+    assert is_matched_pair(a, different_slot) is False
+    assert is_matched_pair(a, different_job) is False
+
+
+def test_real_dual_generation_produces_a_matched_pair_with_equal_prompt_hash(tmp_path, monkeypatch):
+    """End-to-end: generating Qwen then DeepSeek from the exact same, already-persisted evidence
+    (no evidence-discovery step in between) must yield two rows whose prompt_hash values are
+    identical, and is_matched_pair must recognize them as matched."""
+    Session = _session_factory(tmp_path)
+    settings = _openrouter_settings(llm_provider="ollama", llm_base_url="http://fake-ollama:11434", llm_model="qwen3:8b")
+    monkeypatch.setattr("app.ppi.blind_forecast.get_settings", lambda: settings)
+
+    def fake_post(url, headers=None, json=None, timeout=None):
+        if "chat/completions" in url:
+            return _FakeResponse(_deepseek_body(fair_value=0.61))
+        body = {"fair_value": 0.5, "confidence": 0.5, "should_abstain": False, "rationale_short": "r"}
+        return _FakeResponse({"response": json_lib.dumps(body)})
+
+    monkeypatch.setattr("requests.post", fake_post)
+
+    with Session.begin() as session:
+        market = _make_market(session)
+        job = JobRun(run_key="r", job_name="daily_pipeline", trigger_type="primary", status="OK")
+        session.add(job)
+        session.flush()
+
+        qwen_forecast = generate_blind_forecast(
+            session, market, job=job, run_key="r", trigger_type="primary", day=date(2026, 8, 14),
+            now=datetime(2026, 8, 14, 13, 0, tzinfo=timezone.utc), provider_config=default_provider_config(settings),
+        )
+        deepseek_forecast = generate_blind_forecast(
+            session, market, job=job, run_key="r", trigger_type="primary", day=date(2026, 8, 14),
+            now=datetime(2026, 8, 14, 13, 0, tzinfo=timezone.utc), provider_config=openrouter_provider_config(settings),
+        )
+
+    assert qwen_forecast.status == "OK"
+    assert deepseek_forecast.status == "OK"
+    assert qwen_forecast.prompt_hash == deepseek_forecast.prompt_hash
+    assert is_matched_pair(qwen_forecast, deepseek_forecast) is True
