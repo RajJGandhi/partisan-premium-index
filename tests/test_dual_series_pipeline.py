@@ -1,7 +1,8 @@
-"""End-to-end tests of the dual-series (Qwen + DeepSeek) forecast generation wired into
-app.ppi.pipeline._run_daily_pipeline_locked -- proving the actual production code path, not just
-the underlying generate_blind_forecast/is_matched_pair building blocks (covered separately in
-tests/test_openrouter_provider.py).
+"""End-to-end tests of the dual-series (DeepSeek primary + Qwen comparison, since the
+2026-08-26 cutover -- see docs/research/DEEPSEEK_PRIMARY_CUTOVER_DEVIATION_20260826.md) forecast
+generation wired into app.ppi.pipeline._run_daily_pipeline_locked -- proving the actual
+production code path, not just the underlying generate_blind_forecast/is_matched_pair building
+blocks (covered separately in tests/test_openrouter_provider.py).
 """
 
 from __future__ import annotations
@@ -127,9 +128,9 @@ def _setup(monkeypatch, tmp_path, *, openrouter_api_key="sk-test", deepseek_stat
     Session = _session_factory(engine)
 
     settings = Settings(
-        llm_provider="ollama",
-        llm_base_url="http://fake-ollama:11434",
-        llm_model="qwen3:8b",
+        llm_provider="openrouter",  # primary series since the 2026-08-26 cutover
+        ollama_base_url="http://fake-ollama:11434",
+        ollama_model="qwen3:8b",
         openrouter_api_key=openrouter_api_key,
         openrouter_base_url="https://openrouter.ai/api/v1",
         openrouter_model="deepseek/deepseek-v4-flash-0731",
@@ -192,9 +193,12 @@ def test_one_evidence_collection_produces_two_isolated_forecast_rows(tmp_path, m
         assert by_provider["openrouter"].raw_ppi == pytest.approx(0.45 - 0.6)
 
 
-def test_deepseek_failure_never_erases_or_blocks_qwens_row(tmp_path, monkeypatch):
-    """Missing OPENROUTER_API_KEY -> DeepSeek fails explicitly (MissingAPIKey), zero network
-    calls for that arm -- Qwen's own row must be entirely unaffected: still OK, still joined."""
+def test_missing_openrouter_key_fails_primary_series_without_touching_qwen_comparison_row(tmp_path, monkeypatch):
+    """Missing OPENROUTER_API_KEY -> the primary DeepSeek series fails explicitly
+    (MissingAPIKey), zero network calls for that arm -- the Qwen comparison row must be entirely
+    unaffected: still OK, still joined. (Pre-2026-08-26 this scenario tested the reverse
+    direction, since DeepSeek was the comparison arm; the isolation guarantee itself -- one arm's
+    failure never touches the other's row -- is unchanged by the cutover.)"""
     pipeline_module, Session = _setup(monkeypatch, tmp_path, openrouter_api_key="")
     with Session.begin() as session:
         _make_market(session)
@@ -202,7 +206,9 @@ def test_deepseek_failure_never_erases_or_blocks_qwens_row(tmp_path, monkeypatch
     result = pipeline_module.run_daily_pipeline(
         "primary", run_date=date(2026, 8, 14), strict_llm_only=True, lock_path=tmp_path / "p.lock"
     )
-    assert result["status"] == "OK"
+    # PARTIAL, not OK: DeepSeek is the primary series post-cutover, so its failure now correctly
+    # increments job.error_count (it would not have, pre-cutover, as the comparison arm).
+    assert result["status"] == "PARTIAL"
 
     with Session() as session:
         rows = list(session.scalars(select(LLMForecast)))
@@ -225,12 +231,14 @@ def test_deepseek_malformed_response_records_failure_never_a_salvaged_value(tmp_
     result = pipeline_module.run_daily_pipeline(
         "primary", run_date=date(2026, 8, 14), strict_llm_only=True, lock_path=tmp_path / "p.lock"
     )
-    assert result["status"] == "OK"
+    # PARTIAL, not OK: DeepSeek is the primary series post-cutover, so its HTTP 500 now correctly
+    # increments job.error_count (it would not have, pre-cutover, as the comparison arm).
+    assert result["status"] == "PARTIAL"
 
     with Session() as session:
         rows = list(session.scalars(select(LLMForecast)))
         by_provider = {r.model_provider: r for r in rows}
-        assert by_provider["ollama"].status == "OK"  # Qwen unaffected by DeepSeek's HTTP 500
+        assert by_provider["ollama"].status == "OK"  # Qwen comparison row unaffected by the primary series' HTTP 500
         assert by_provider["openrouter"].status == "FAILED"
         assert by_provider["openrouter"].fair_value is None
 

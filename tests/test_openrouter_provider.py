@@ -16,6 +16,7 @@ from app.ppi.blind_forecast import (
     OPENROUTER_APP_TITLE,
     OPENROUTER_REFERER,
     PRIMARY_SERIES_PROVIDERS,
+    ProviderConfig,
     default_provider_config,
     generate_blind_forecast,
     is_matched_pair,
@@ -77,7 +78,7 @@ def _deepseek_body(**overrides) -> dict:
 
 def _openrouter_settings(**overrides) -> Settings:
     defaults = dict(
-        llm_provider="ollama",  # primary series config is untouched by any of this
+        llm_provider="ollama",  # most tests here exercise openrouter_provider_config/_call_openrouter directly, independent of llm_provider
         openrouter_api_key="sk-test-key",
         openrouter_base_url="https://openrouter.ai/api/v1",
         openrouter_model="deepseek/deepseek-v4-flash-0731",
@@ -456,11 +457,14 @@ def test_second_provider_never_overwrites_or_skips_first_providers_row(tmp_path,
     assert qwen_forecast.run_slot == deepseek_forecast.run_slot == "2026-08-12:primary"
 
 
-def test_openrouter_series_never_flips_primary_series_canonical_classification(tmp_path, monkeypatch):
-    """A contaminated/failed DeepSeek forecast sharing a run_key must never degrade Qwen's own
-    canonical classification -- compute_run_classification is scoped to PRIMARY_SERIES_PROVIDERS."""
+def test_qwen_comparison_series_never_flips_primary_series_canonical_classification(tmp_path, monkeypatch):
+    """A contaminated/failed Qwen comparison forecast sharing a run_key must never degrade
+    DeepSeek's own canonical classification -- compute_run_classification is scoped to
+    PRIMARY_SERIES_PROVIDERS. (Pre-2026-08-26 this tested the reverse: a contaminated DeepSeek
+    row never degrading Qwen's classification, back when Qwen was primary -- see
+    docs/research/DEEPSEEK_PRIMARY_CUTOVER_DEVIATION_20260826.md.)"""
     Session = _session_factory(tmp_path)
-    settings = _openrouter_settings(llm_provider="ollama", llm_base_url="http://fake-ollama:11434", llm_model="qwen3:8b")
+    settings = _openrouter_settings(llm_provider="openrouter")
     monkeypatch.setattr("app.ppi.blind_forecast.get_settings", lambda: settings)
 
     def fake_post(url, headers=None, json=None, timeout=None):
@@ -477,26 +481,27 @@ def test_openrouter_series_never_flips_primary_series_canonical_classification(t
         session.flush()
         market = _make_market(session)
 
-        qwen_forecast = generate_blind_forecast(
+        deepseek_forecast = generate_blind_forecast(
             session, market, job=job, run_key="r", trigger_type="primary", day=date(2026, 8, 12),
             now=datetime(2026, 8, 12, 13, 0, tzinfo=timezone.utc), provider_config=default_provider_config(settings),
             strict=True,
         )
-        qwen_forecast.evidence_all_live_classified = True  # simulate a clean strict Qwen forecast
+        deepseek_forecast.evidence_all_live_classified = True  # simulate a clean strict DeepSeek forecast
 
-        deepseek_forecast = generate_blind_forecast(
+        qwen_forecast = generate_blind_forecast(
             session, market, job=job, run_key="r", trigger_type="primary", day=date(2026, 8, 12),
-            now=datetime(2026, 8, 12, 13, 0, tzinfo=timezone.utc), provider_config=openrouter_provider_config(settings),
+            now=datetime(2026, 8, 12, 13, 0, tzinfo=timezone.utc),
+            provider_config=ProviderConfig(provider="ollama", base_url="http://fake-ollama:11434", model="qwen3:8b"),
         )
-        # DeepSeek's evidence_all_live_classified is left False/None here to simulate contamination
-        # that must NOT affect Qwen's own classification.
-        deepseek_forecast.evidence_all_live_classified = False
+        # Qwen's evidence_all_live_classified is left False/None here to simulate contamination
+        # that must NOT affect DeepSeek's own classification.
+        qwen_forecast.evidence_all_live_classified = False
         session.flush()
 
         classification = compute_run_classification(session, job, "r")
 
-    assert "openrouter" not in PRIMARY_SERIES_PROVIDERS
-    assert classification == "canonical"  # unaffected by the DeepSeek row's contamination
+    assert "ollama" not in PRIMARY_SERIES_PROVIDERS
+    assert classification == "canonical"  # unaffected by the Qwen comparison row's contamination
 
 
 # --- is_matched_pair: the evidence-hash matched-observation invariant -----------------------------

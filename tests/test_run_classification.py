@@ -60,8 +60,8 @@ def test_strict_run_with_contaminated_evidence_is_contaminated_even_if_adhoc(tmp
                 run_slot="2026-08-06:adhoc-000000",
                 run_key=job.run_key,
                 trigger_type=job.trigger_type,
-                model_provider="ollama",
-                model_name="qwen3:8b",
+                model_provider="openrouter",  # primary series since the 2026-08-26 cutover
+                model_name="deepseek/deepseek-v4-flash-0731",
                 prompt_version="fair_value_v0.1",
                 status="OK",
                 evidence_all_live_classified=False,
@@ -97,8 +97,8 @@ def test_strict_clean_run_on_the_real_schedule_is_canonical(tmp_path):
                 run_slot="2026-08-06:primary",
                 run_key=job.run_key,
                 trigger_type="primary",
-                model_provider="ollama",
-                model_name="qwen3:8b",
+                model_provider="openrouter",  # primary series since the 2026-08-26 cutover
+                model_name="deepseek/deepseek-v4-flash-0731",
                 prompt_version="fair_value_v0.1",
                 status="OK",
                 evidence_all_live_classified=True,

@@ -54,8 +54,8 @@ def _forecast(
         run_slot=f"{job.run_key}:{market.id}",
         trigger_type=job.trigger_type,
         generated_at=generated_at,
-        model_provider="ollama",
-        model_name="qwen3:8b",
+        model_provider="openrouter",  # primary series since the 2026-08-26 cutover
+        model_name="deepseek/deepseek-v4-flash-0731",
         prompt_version="fair_value_v0.1",
         status=status,
         fair_value=fair_value,
@@ -286,10 +286,12 @@ def test_latest_of_multiple_canonical_slots_is_used(tmp_path):
 
 def test_experimental_series_never_becomes_the_public_headline_forecast(tmp_path):
     """Regression test for a real leak found while implementing the Qwen-vs-DeepSeek matched
-    series: this query used to have no model_provider filter at all, so a same-cycle experimental
-    forecast generated slightly after the primary one (the normal case once DeepSeek is added --
-    see app.ppi.pipeline's dual-series call order) would win the generated_at DESC ordering and
-    silently become "the" public forecast for that market -- exactly what must never happen."""
+    series: this query used to have no model_provider filter at all, so a same-cycle comparison
+    forecast generated slightly after the primary one (the normal case -- see app.ppi.pipeline's
+    dual-series call order) would win the generated_at DESC ordering and silently become "the"
+    public forecast for that market -- exactly what must never happen. Provider roles reflect the
+    2026-08-26 cutover (DeepSeek primary, Qwen comparison); the leak being guarded against is
+    provider-agnostic."""
     Session = _session_factory(tmp_path)
     with Session.begin() as session:
         job = _job("ppi-daily:2026-08-11:primary")
@@ -307,7 +309,7 @@ def test_experimental_series_never_becomes_the_public_headline_forecast(tmp_path
                 comparison_price_at_join=0.45,
             )
         )
-        # Same job, same market, generated strictly later -- the experimental arm always runs
+        # Same job, same market, generated strictly later -- the comparison arm always runs
         # after the primary one in the real pipeline loop.
         session.add(
             LLMForecast(
@@ -317,15 +319,15 @@ def test_experimental_series_never_becomes_the_public_headline_forecast(tmp_path
                 run_slot=f"{job.run_key}:{market.id}",
                 trigger_type=job.trigger_type,
                 generated_at=datetime(2026, 8, 11, 10, 0, 5, tzinfo=timezone.utc),
-                model_provider="openrouter",
-                model_name="deepseek/deepseek-v4-flash-0731",
+                model_provider="ollama",
+                model_name="qwen3:8b",
                 prompt_version="fair_value_v0.1",
                 status="OK",
                 fair_value=0.85,
                 raw_ppi=-0.40,
                 comparison_price_at_join=0.45,
                 confidence=0.8,
-                rationale="DeepSeek's rationale.",
+                rationale="Qwen's rationale.",
             )
         )
         session.flush()
@@ -333,7 +335,7 @@ def test_experimental_series_never_becomes_the_public_headline_forecast(tmp_path
 
     with Session() as session:
         result = current_public_forecast(session, market_id)
-        assert result.fair_value == 0.40  # Qwen's value, never DeepSeek's 0.85
+        assert result.fair_value == 0.40  # DeepSeek's (primary) value, never Qwen's 0.85
         assert result.run_key == "ppi-daily:2026-08-11:primary"
 
 

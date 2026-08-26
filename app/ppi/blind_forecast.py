@@ -39,11 +39,17 @@ GENERATION_NUM_CTX = 4096
 
 AUTOMATED_PROVIDERS = {"ollama", "openai_compatible", "openrouter"}
 
-# The headline/canonical PPI series' provider(s). Any other provider (e.g. openrouter) is a
-# separately-labelled comparison series that must never be pulled into the primary aggregate or
+# The headline/canonical PPI series' provider(s). Any other provider (e.g. ollama, now the
+# secondary comparison series) must never be pulled into the primary aggregate or
 # run-classification logic -- see PRIMARY_SERIES_PROVIDERS' two call sites below and in
 # app.ppi.run_classification.compute_run_classification.
-PRIMARY_SERIES_PROVIDERS = {"ollama"}
+#
+# CUTOVER (2026-08-26): primary series moved from ollama/Qwen3-8B to openrouter/DeepSeek V4 Flash
+# 0731. This is a documented deviation from the project's own preregistered decision process (see
+# docs/research/DEEPSEEK_PRIMARY_CUTOVER_DEVIATION_20260826.md) -- the 60-matched-cycle comparison
+# window in docs/research/PPI_DEEPSEEK_VS_QWEN_PREREGISTRATION.md had zero eligible observations
+# at the time of this change. Directed explicitly by Raj, not decided autonomously.
+PRIMARY_SERIES_PROVIDERS = {"openrouter"}
 
 # Attribution headers OpenRouter uses for its public leaderboards -- not security-sensitive, safe
 # to hardcode (see https://openrouter.ai/docs/quickstart).
@@ -73,11 +79,37 @@ class ProviderConfig:
 
 
 def default_provider_config(settings: Any) -> ProviderConfig:
-    """The exact provider selection generate_blind_forecast has always used, unchanged."""
+    """The provider selection generate_blind_forecast uses for the primary series.
+
+    As of the 2026-08-26 cutover, ``settings.llm_provider`` is expected to be ``"openrouter"``
+    in production, in which case this delegates to ``openrouter_provider_config`` so the primary
+    series shares exactly one source of truth for OpenRouter settings with the (now secondary)
+    comparison arm -- there is no separate llm_base_url/llm_model path for openrouter to drift
+    out of sync with openrouter_base_url/openrouter_model. Any other provider value (e.g. during
+    local development against Ollama) falls back to the pre-cutover generic behavior.
+    """
+    if settings.llm_provider == "openrouter":
+        return openrouter_provider_config(settings)
     return ProviderConfig(
         provider=settings.llm_provider,
         base_url=settings.llm_base_url or settings.ollama_base_url,
         model=settings.llm_model or settings.ollama_model,
+        api_key=settings.llm_api_key,
+        timeout=settings.llm_timeout_seconds,
+    )
+
+
+def qwen_provider_config(settings: Any) -> ProviderConfig:
+    """Pinned Ollama/Qwen provider config -- the secondary comparison series post-cutover.
+
+    Mirrors openrouter_provider_config's role prior to 2026-08-26: never the primary series,
+    never an alias, always explicitly passed to generate_blind_forecast's provider_config
+    argument rather than relying on the (now-openrouter) default.
+    """
+    return ProviderConfig(
+        provider="ollama",
+        base_url=settings.ollama_base_url,
+        model=settings.ollama_model,
         timeout=settings.llm_timeout_seconds,
     )
 
@@ -643,7 +675,10 @@ def compute_and_persist_blind_index(session: Session, job: JobRun, run_key: str)
     row.average_signed_premium = (sum(premiums) / len(premiums)) if premiums else None
     row.median_signed_premium = median(premiums) if premiums else None
     row.average_absolute_premium = (sum(abs(p) for p in premiums) / len(premiums)) if premiums else None
-    row.model_name = settings.llm_model or settings.ollama_model
+    # Reuse default_provider_config's own provider-aware resolution (openrouter_model when
+    # llm_provider="openrouter", llm_model/ollama_model otherwise) so this aggregate can never
+    # drift out of sync with which model actually produced the primary-series forecasts above.
+    row.model_name = default_provider_config(settings).model
     row.prompt_version = PROMPT_VERSION
     session.flush()
     return row
