@@ -47,8 +47,8 @@ def _forecast(job: JobRun, market: Market, *, status: str, raw_ppi: float | None
         run_key=job.run_key,
         run_slot=f"2026-08-11:{status.lower()}-{market.id}",
         trigger_type=job.trigger_type,
-        model_provider="ollama",
-        model_name="qwen3:8b",
+        model_provider="openrouter",  # primary series since the 2026-08-26 cutover
+        model_name="deepseek/deepseek-v4-flash-0731",
         prompt_version="fair_value_v0.1",
         status=status,
         raw_ppi=raw_ppi,
@@ -105,9 +105,10 @@ def test_forecast_status_buckets_ok_abstained_and_error(tmp_path):
 
 
 def test_experimental_series_forecasts_are_excluded_from_health_counts(tmp_path):
-    """Regression test: these queries used to have no model_provider filter, so an experimental
-    comparison series (e.g. DeepSeek/openrouter) sharing a job_run_id would silently inflate
-    "Forecasts OK"/"PPI rows persisted" beyond what the primary Qwen series actually produced."""
+    """Regression test: these queries used to have no model_provider filter, so a comparison
+    series (e.g. Qwen/ollama, the secondary series since the 2026-08-26 cutover) sharing a
+    job_run_id would silently inflate "Forecasts OK"/"PPI rows persisted" beyond what the primary
+    DeepSeek series actually produced."""
     Session = _session_factory(tmp_path)
     with Session.begin() as session:
         job = _job()
@@ -122,8 +123,8 @@ def test_experimental_series_forecasts_are_excluded_from_health_counts(tmp_path)
                 run_key=job.run_key,
                 run_slot=f"2026-08-11:experimental-{m2.id}",
                 trigger_type=job.trigger_type,
-                model_provider="openrouter",
-                model_name="deepseek/deepseek-v4-flash-0731",
+                model_provider="ollama",
+                model_name="qwen3:8b",
                 prompt_version="fair_value_v0.1",
                 status="OK",
                 raw_ppi=-0.10,

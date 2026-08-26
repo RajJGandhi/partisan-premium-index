@@ -220,8 +220,8 @@ def _forecast(market_id: int, run_key: str, raw_ppi: float | None, **kwargs) -> 
         run_key=run_key,
         trigger_type="manual",
         generated_at=datetime(2026, 8, 6, 10, 0, tzinfo=timezone.utc),
-        model_provider="ollama",
-        model_name="qwen3:8b",
+        model_provider="openrouter",  # primary series since the 2026-08-26 cutover
+        model_name="deepseek/deepseek-v4-flash-0731",
         prompt_version="fair_value_v0.1",
         status="OK",
         fair_value=0.5,
@@ -231,7 +231,14 @@ def _forecast(market_id: int, run_key: str, raw_ppi: float | None, **kwargs) -> 
     return LLMForecast(**defaults)
 
 
-def test_compute_and_persist_blind_index_math_and_idempotent_upsert(tmp_path):
+def test_compute_and_persist_blind_index_math_and_idempotent_upsert(tmp_path, monkeypatch):
+    # BlindIndexRun.model_name reflects the primary series' settings-resolved model
+    # (default_provider_config), not the individual forecast rows -- explicit here since this
+    # test's forecast fixtures are openrouter/DeepSeek post-cutover.
+    monkeypatch.setattr(
+        "app.ppi.blind_forecast.get_settings",
+        lambda: Settings(llm_provider="openrouter", openrouter_model="deepseek/deepseek-v4-flash-0731"),
+    )
     Session = _session_factory(tmp_path)
     with Session.begin() as session:
         market_ids = []
@@ -257,7 +264,7 @@ def test_compute_and_persist_blind_index_math_and_idempotent_upsert(tmp_path):
     assert row.average_signed_premium == pytest.approx((0.10 - 0.20 + 0.30) / 3)
     assert row.median_signed_premium == pytest.approx(0.10)
     assert row.average_absolute_premium == pytest.approx((0.10 + 0.20 + 0.30) / 3)
-    assert row.model_name == "qwen3:8b"
+    assert row.model_name == "deepseek/deepseek-v4-flash-0731"
 
     # Rerun: must upsert the same row, not append a duplicate.
     with Session.begin() as session:

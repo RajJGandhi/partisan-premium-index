@@ -64,14 +64,23 @@ jobs:
     env:
       APP_ENV: production
       DATABASE_URL: ${{ secrets.DATABASE_URL }}
-      LLM_PROVIDER: ollama
-      LLM_MODEL: qwen3:8b
+      # Primary series as of 2026-08-26: DeepSeek V4 Flash 0731 via OpenRouter, not Qwen/Ollama.
+      # See docs/research/DEEPSEEK_PRIMARY_CUTOVER_DEVIATION_20260826.md -- a documented deviation
+      # from this project's own preregistered decision process, directed explicitly by Raj.
+      # LLM_MODEL/LLM_BASE_URL are intentionally unset here: default_provider_config() special-
+      # cases provider="openrouter" to build entirely from OPENROUTER_* settings below instead, so
+      # there is exactly one place the primary model/URL can be configured, not two.
+      LLM_PROVIDER: openrouter
       GDELT_ENABLED: "false"
-      # Experimental strong-model comparison series (DeepSeek V4 Flash 0731 via OpenRouter), per
-      # docs/research/PPI_DEEPSEEK_VS_QWEN_PREREGISTRATION.md. Never printed/logged; if unset or
-      # empty, generate_blind_forecast's OpenRouter path fails that arm explicitly
-      # (MissingAPIKey) without affecting the primary Qwen series or the rest of this job at all.
+      # Required for the primary series above (OpenRouter/DeepSeek). Never printed/logged; if
+      # unset or empty, generate_blind_forecast's OpenRouter path fails the primary series
+      # explicitly (MissingAPIKey) rather than silently falling back to any other provider.
       OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+      # The secondary comparison series (Qwen3-8B via local Ollama on this self-hosted runner,
+      # see qwen_provider_config) needs no env var here -- it reads ollama_base_url/ollama_model's
+      # config defaults (http://localhost:11434, qwen3:8b), unchanged by this cutover. Per
+      # docs/research/PPI_DEEPSEEK_VS_QWEN_PREREGISTRATION.md, a comparison-arm failure never
+      # affects the primary DeepSeek series or the rest of this job.
 
     steps:
       - name: Check out repository

@@ -453,8 +453,8 @@ def test_canonical_ok_forecast_publishes_publicly_without_any_manual_review(tmp_
                 run_slot="2026-08-11:primary",
                 trigger_type="primary",
                 generated_at=now,
-                model_provider="ollama",
-                model_name="qwen3:8b",
+                model_provider="openrouter",  # primary series since the 2026-08-26 cutover
+                model_name="deepseek/deepseek-v4-flash-0731",
                 prompt_version="fair_value_v0.1",
                 status="OK",
                 fair_value=0.40,
@@ -521,8 +521,8 @@ def test_abstained_canonical_forecast_stays_an_abstention_not_a_missing_value(tm
                 run_slot="2026-08-11:primary",
                 trigger_type="primary",
                 generated_at=now,
-                model_provider="ollama",
-                model_name="qwen3:8b",
+                model_provider="openrouter",  # primary series since the 2026-08-26 cutover
+                model_name="deepseek/deepseek-v4-flash-0731",
                 prompt_version="fair_value_v0.1",
                 status="ABSTAINED",
                 fair_value=0.5,
