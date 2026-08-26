@@ -4,7 +4,6 @@ import {
   Bar,
   BarChart,
   CartesianGrid,
-  Legend,
   Line,
   LineChart,
   ReferenceLine,
@@ -17,6 +16,8 @@ import { formatShortDate, labelize } from "../lib/format";
 import type { DailyIndexPoint, FairValueComponent, Snapshot } from "../lib/types";
 import { PremiumTooltip, ProbabilityTooltip } from "./ChartTooltip";
 import { EmptyState } from "./StateViews";
+
+const axisTick = { fill: "var(--text-muted)", fontSize: 11, fontFamily: "var(--font-mono)" };
 
 export function IndexHistoryChart({ history }: { history: DailyIndexPoint[] }) {
   const data = history
@@ -34,25 +35,26 @@ export function IndexHistoryChart({ history }: { history: DailyIndexPoint[] }) {
   return (
     <div className="chart-frame chart-frame--tall" aria-label="Partisan premium index history">
       <ResponsiveContainer width="100%" height="100%">
-        <AreaChart data={data} margin={{ top: 12, right: 8, left: -14, bottom: 0 }}>
+        <AreaChart data={data} margin={{ top: 8, right: 6, left: 0, bottom: 0 }}>
           <defs>
             <linearGradient id="indexFill" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="var(--chart-accent)" stopOpacity={0.28} />
-              <stop offset="100%" stopColor="var(--chart-accent)" stopOpacity={0.01} />
+              <stop offset="0%" stopColor="var(--premium-fill)" stopOpacity={0.22} />
+              <stop offset="100%" stopColor="var(--premium-fill)" stopOpacity={0} />
             </linearGradient>
           </defs>
           <CartesianGrid stroke="var(--chart-grid)" vertical={false} />
-          <XAxis dataKey="date" tick={{ fill: "var(--text-muted)", fontSize: 12 }} axisLine={false} tickLine={false} minTickGap={28} />
+          <XAxis dataKey="date" tick={axisTick} axisLine={false} tickLine={false} minTickGap={30} />
           <YAxis
-            tickFormatter={(value: number) => `${(value * 100).toFixed(0)}`}
-            tick={{ fill: "var(--text-muted)", fontSize: 12 }}
+            tickFormatter={(value: number) => `${(value * 100).toFixed(1)}`}
+            tick={axisTick}
             axisLine={false}
             tickLine={false}
-            width={34}
+            width={42}
+            tickCount={5}
           />
-          <Tooltip content={<PremiumTooltip />} />
+          <Tooltip content={<PremiumTooltip />} cursor={{ stroke: "var(--border-strong)", strokeDasharray: "3 3" }} />
           <ReferenceLine y={0} stroke="var(--border-strong)" />
-          <Area type="monotone" dataKey="premium" name="Average signed premium" stroke="var(--chart-accent)" strokeWidth={2.5} fill="url(#indexFill)" />
+          <Area type="monotone" dataKey="premium" name="Average signed premium" stroke="var(--chart-model)" strokeWidth={2} fill="url(#indexFill)" />
         </AreaChart>
       </ResponsiveContainer>
     </div>
@@ -75,23 +77,26 @@ export function MarketHistoryChart({ history }: { history: Snapshot[] }) {
   return (
     <div className="chart-frame chart-frame--market" aria-label="Market and PPI fair-value history">
       <ResponsiveContainer width="100%" height="100%">
-        <LineChart data={data} margin={{ top: 10, right: 8, left: -14, bottom: 0 }}>
+        <LineChart data={data} margin={{ top: 8, right: 6, left: 0, bottom: 0 }}>
           <CartesianGrid stroke="var(--chart-grid)" vertical={false} />
-          <XAxis dataKey="date" tick={{ fill: "var(--text-muted)", fontSize: 12 }} axisLine={false} tickLine={false} minTickGap={28} />
+          <XAxis dataKey="date" tick={axisTick} axisLine={false} tickLine={false} minTickGap={30} />
           <YAxis
             domain={[0, 1]}
-            tickFormatter={(value: number) => `${Math.round(value * 100)}%`}
-            tick={{ fill: "var(--text-muted)", fontSize: 12 }}
+            tickFormatter={(value: number) => `${Math.round(value * 100)}`}
+            tick={axisTick}
             axisLine={false}
             tickLine={false}
-            width={42}
+            width={34}
           />
-          <Tooltip content={<ProbabilityTooltip />} />
-          <Legend wrapperStyle={{ fontSize: 12, color: "var(--text-muted)" }} />
-          <Line type="monotone" dataKey="market" name="Market probability" stroke="var(--chart-market)" strokeWidth={2.5} dot={false} activeDot={{ r: 4 }} connectNulls />
-          <Line type="monotone" dataKey="ppi" name="PPI fair value" stroke="var(--chart-ppi)" strokeWidth={2.5} dot={false} activeDot={{ r: 4 }} connectNulls />
+          <Tooltip content={<ProbabilityTooltip />} cursor={{ stroke: "var(--border-strong)", strokeDasharray: "3 3" }} />
+          <Line type="monotone" dataKey="market" name="Market probability" stroke="var(--chart-market)" strokeWidth={2} dot={false} activeDot={{ r: 3.5 }} connectNulls />
+          <Line type="monotone" dataKey="ppi" name="Model fair value" stroke="var(--chart-model)" strokeWidth={2} strokeDasharray="0" dot={false} activeDot={{ r: 3.5 }} connectNulls />
         </LineChart>
       </ResponsiveContainer>
+      <div className="chart-legend-inline">
+        <span><i className="divergence-rail__dot divergence-rail__dot--market" aria-hidden="true" />Market</span>
+        <span><i className="divergence-rail__dot divergence-rail__dot--model" aria-hidden="true" />Model fair value</span>
+      </div>
     </div>
   );
 }
@@ -106,18 +111,18 @@ export function ComponentChart({ components }: { components: FairValueComponent[
     }));
 
   if (!data.length) {
-    return <EmptyState title="No published components yet" description="Component values appear after the first human-approved fair-value publication." />;
+    return <EmptyState title="No published components yet" description="Component values appear after the first published fair-value forecast." />;
   }
 
   return (
     <div className="chart-frame chart-frame--components" aria-label="Fair-value component probabilities">
       <ResponsiveContainer width="100%" height="100%">
-        <BarChart data={data} layout="vertical" margin={{ top: 4, right: 24, left: 22, bottom: 0 }}>
+        <BarChart data={data} layout="vertical" margin={{ top: 4, right: 20, left: 18, bottom: 0 }}>
           <CartesianGrid stroke="var(--chart-grid)" horizontal={false} />
-          <XAxis type="number" domain={[0, 1]} tickFormatter={(value: number) => `${Math.round(value * 100)}%`} tick={{ fill: "var(--text-muted)", fontSize: 12 }} axisLine={false} tickLine={false} />
-          <YAxis type="category" dataKey="component" width={88} tick={{ fill: "var(--text-muted)", fontSize: 12 }} axisLine={false} tickLine={false} />
-          <Tooltip content={<ProbabilityTooltip />} />
-          <Bar dataKey="probability" name="Component value" fill="var(--chart-ppi)" radius={[0, 7, 7, 0]} barSize={18} />
+          <XAxis type="number" domain={[0, 1]} tickFormatter={(value: number) => `${Math.round(value * 100)}`} tick={axisTick} axisLine={false} tickLine={false} />
+          <YAxis type="category" dataKey="component" width={84} tick={{ fill: "var(--text-muted)", fontSize: 11, fontFamily: "var(--font-ui)" }} axisLine={false} tickLine={false} />
+          <Tooltip content={<ProbabilityTooltip />} cursor={{ fill: "var(--surface-sunken)" }} />
+          <Bar dataKey="probability" name="Component value" fill="var(--chart-model)" radius={[1, 1, 1, 1]} barSize={14} />
         </BarChart>
       </ResponsiveContainer>
     </div>
