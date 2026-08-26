@@ -1,4 +1,4 @@
-import { BarChart3, BookOpenText, Menu, Moon, Orbit, Sun, X } from "lucide-react";
+import { Menu, Moon, Sun, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Link, NavLink, Outlet, useLocation } from "react-router-dom";
 
@@ -14,7 +14,7 @@ export function AppShell() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [dark, setDark] = useState(() => {
     const stored = localStorage.getItem("ppi-theme");
-    return stored ? stored === "dark" : window.matchMedia("(prefers-color-scheme: dark)").matches;
+    return stored ? stored === "dark" : true;
   });
 
   useEffect(() => {
@@ -33,10 +33,10 @@ export function AppShell() {
       <header className="site-header">
         <div className="shell-width site-header__inner">
           <Link className="brand" to="/" aria-label="Partisan Premium Index home">
-            <span className="brand__mark"><Orbit size={21} aria-hidden="true" /></span>
+            <span className="brand__mark" aria-hidden="true">P</span>
             <span>
               <strong>Partisan Premium Index</strong>
-              <small>Independent political fair values</small>
+              <small>Market vs. model, twice daily</small>
             </span>
           </Link>
 
@@ -48,10 +48,10 @@ export function AppShell() {
 
           <div className="site-header__actions">
             <button className="icon-button" type="button" onClick={() => setDark((value) => !value)} aria-label={`Switch to ${dark ? "light" : "dark"} theme`}>
-              {dark ? <Sun size={18} /> : <Moon size={18} />}
+              {dark ? <Sun size={16} /> : <Moon size={16} />}
             </button>
             <button className="icon-button mobile-menu-button" type="button" onClick={() => setMenuOpen((value) => !value)} aria-label="Toggle navigation" aria-expanded={menuOpen}>
-              {menuOpen ? <X size={20} /> : <Menu size={20} />}
+              {menuOpen ? <X size={18} /> : <Menu size={18} />}
             </button>
           </div>
         </div>
@@ -65,17 +65,17 @@ export function AppShell() {
         <div className="shell-width site-footer__grid">
           <div>
             <div className="brand brand--footer">
-              <span className="brand__mark"><Orbit size={20} aria-hidden="true" /></span>
+              <span className="brand__mark" aria-hidden="true">P</span>
               <strong>Partisan Premium Index</strong>
             </div>
             <p>A transparent public record of political prediction-market prices, independent fair values, and revisions.</p>
           </div>
           <div>
-            <strong><BarChart3 size={16} /> Research standard</strong>
-            <p>Published history is preserved. Fair values require human approval. The public site contains no database credentials or admin interface.</p>
+            <strong>Research standard</strong>
+            <p>Every canonical forecast publishes automatically, with no human approval gate -- a reviewer may only flag a genuine data-integrity concern. Published history is never edited in place. The public site contains no database credentials or admin interface.</p>
           </div>
           <div>
-            <strong><BookOpenText size={16} /> Important</strong>
+            <strong>Important</strong>
             <p>Independent research only. Not investment advice, a trading signal, or a claim of political neutrality by market participants.</p>
           </div>
         </div>

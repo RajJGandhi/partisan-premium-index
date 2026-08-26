@@ -15,8 +15,8 @@ import {
 import { Link, useParams } from "react-router-dom";
 import { ComponentChart, MarketHistoryChart } from "../components/Charts";
 import { DataStamp } from "../components/DataStamp";
+import { DivergenceRail } from "../components/DivergenceRail";
 import { MetricCard } from "../components/MetricCard";
-import { PremiumBadge } from "../components/PremiumBadge";
 import { ErrorState, LoadingState, EmptyState } from "../components/StateViews";
 import { StatusPill } from "../components/StatusPill";
 import { usePublicData } from "../hooks/usePublicData";
@@ -42,7 +42,7 @@ export function MarketDetailPage() {
 
   return (
     <div className="shell-width page-space">
-      <Link className="back-link" to="/markets"><ArrowLeft size={16} /> Back to markets</Link>
+      <Link className="back-link" to="/markets"><ArrowLeft size={15} /> Back to markets</Link>
 
       <section className="market-hero">
         <div className="market-hero__copy">
@@ -54,26 +54,25 @@ export function MarketDetailPage() {
           <h1>{market.question ?? "Untitled market"}</h1>
           <p>{market.description ?? "PPI tracks the market price, independently constructed fair value, and the resulting partisan premium through time."}</p>
           <div className="market-hero__actions">
-            {market.market_url ? <a className="button button--secondary" href={market.market_url} target="_blank" rel="noreferrer">Open market <ExternalLink size={16} /></a> : null}
+            {market.market_url ? <a className="button button--secondary" href={market.market_url} target="_blank" rel="noreferrer">Open market <ExternalLink size={15} /></a> : null}
             <DataStamp generatedAt={data.generated_at} />
           </div>
         </div>
         <div className="market-hero__premium">
-          <span>Current partisan premium</span>
-          <strong>{formatPremium(market.partisan_premium)}</strong>
-          <PremiumBadge value={market.partisan_premium} size="large" />
-          <p>Market probability minus the latest canonical blind-Qwen PPI fair value, published automatically.</p>
+          <span>Market vs. model</span>
+          <DivergenceRail market={market.market_probability} model={market.ppi_fair_value} premium={market.partisan_premium} size="large" showScale />
+          <p>Market probability compared against the latest canonical model fair value, published automatically.</p>
         </div>
       </section>
 
       {market.forecast_status !== "OK" ? (
         <div className="notice notice--warning">
-          <CalendarClock size={19} aria-hidden="true" />
+          <CalendarClock size={18} aria-hidden="true" />
           <div>
             {market.forecast_status === "ABSTAINED" ? (
               <>
                 <strong>The model abstained on this market</strong>
-                <span>Qwen was asked and declined to give a confident probability -- no value is invented or shown.</span>
+                <span>The model was asked and declined to give a confident probability -- no value is invented or shown.</span>
               </>
             ) : market.forecast_status === "FLAGGED" ? (
               <>
@@ -88,7 +87,7 @@ export function MarketDetailPage() {
             ) : (
               <>
                 <strong>Independent fair value not yet available</strong>
-                <span>The market is being observed, but no canonical blind-Qwen forecast has been generated yet. Price and evidence history continue to accumulate.</span>
+                <span>The market is being observed, but no canonical model forecast has been generated yet. Price and evidence history continue to accumulate.</span>
               </>
             )}
           </div>
@@ -97,8 +96,8 @@ export function MarketDetailPage() {
 
       <section className="metrics-grid metrics-grid--four page-section--compact">
         <MetricCard label="Market probability" value={formatProbability(market.market_probability)} detail={`${formatProbability(market.best_bid)} bid · ${formatProbability(market.best_ask)} ask`} icon={Landmark} />
-        <MetricCard label="PPI fair value" value={formatProbability(market.ppi_fair_value)} detail={`${market.revision_count} published revision${market.revision_count === 1 ? "" : "s"}`} icon={Scale} tone="accent" />
-        <MetricCard label="Partisan premium" value={formatPremium(market.partisan_premium)} detail="Market minus PPI" icon={Gauge} tone={market.partisan_premium != null && market.partisan_premium > 0 ? "positive" : market.partisan_premium != null && market.partisan_premium < 0 ? "negative" : "default"} />
+        <MetricCard label="Model fair value" value={formatProbability(market.ppi_fair_value)} detail={`${market.revision_count} published revision${market.revision_count === 1 ? "" : "s"}`} icon={Scale} tone="accent" />
+        <MetricCard label="Partisan premium" value={formatPremium(market.partisan_premium)} detail="Market minus model" icon={Gauge} tone={market.partisan_premium != null && market.partisan_premium !== 0 ? "positive" : "default"} />
         <MetricCard label="Market depth" value={formatCompactNumber(market.liquidity)} detail={`${formatProbability(spread)} quoted spread`} icon={Layers3} />
       </section>
 
@@ -107,8 +106,8 @@ export function MarketDetailPage() {
           <div className="panel__header">
             <div>
               <div className="eyebrow">Probability history</div>
-              <h2>Market price versus PPI fair value</h2>
-              <p>Published observations only. Missing PPI values are not imputed.</p>
+              <h2>Market price versus model fair value</h2>
+              <p>Published observations only. Missing values are not imputed.</p>
             </div>
           </div>
           <MarketHistoryChart history={data.history} />
@@ -117,14 +116,14 @@ export function MarketDetailPage() {
         <article className="panel thesis-panel">
           <div className="panel__header">
             <div>
-              <div className="eyebrow">Current thesis</div>
+              <div className="eyebrow eyebrow--premium">Current thesis</div>
               <h2>Why PPI differs</h2>
             </div>
           </div>
-          {market.current_thesis ? <p className="thesis-copy">{market.current_thesis}</p> : <EmptyState title="No public thesis yet" description="A public thesis appears with the first approved fair-value revision." />}
+          {market.current_thesis ? <p className="thesis-copy">{market.current_thesis}</p> : <EmptyState title="No public thesis yet" description="A public thesis appears with the first published fair-value revision." />}
           <div className="thesis-panel__meta">
-            <span><FileCheck2 size={15} /> {market.public_evidence_count} accepted evidence items</span>
-            <span><CalendarClock size={15} /> Published {formatDateTime(market.last_fair_value_publication_at)}</span>
+            <span><FileCheck2 size={14} /> {market.public_evidence_count} accepted evidence items</span>
+            <span><CalendarClock size={14} /> Published {formatDateTime(market.last_fair_value_publication_at)}</span>
           </div>
         </article>
       </section>
@@ -147,9 +146,9 @@ export function MarketDetailPage() {
                     <strong>{labelize(component.type)}</strong>
                     <span>{component.source_label ?? "Public component input"}</span>
                   </div>
-                  <div><span>Weight</span><strong>{formatProbability(component.weight, 0)}</strong></div>
-                  <div><span>Value</span><strong>{formatProbability(component.probability)}</strong></div>
-                  {component.source_url ? <a href={component.source_url} target="_blank" rel="noreferrer" aria-label={`Open ${component.type} source`}><ExternalLink size={16} /></a> : <span />}
+                  <div><span>Weight</span><strong className="num">{formatProbability(component.weight, 0)}</strong></div>
+                  <div><span>Value</span><strong className="num">{formatProbability(component.probability)}</strong></div>
+                  {component.source_url ? <a href={component.source_url} target="_blank" rel="noreferrer" aria-label={`Open ${component.type} source`}><ExternalLink size={15} /></a> : <span />}
                 </div>
               ))}
             </div>
@@ -200,7 +199,7 @@ export function MarketDetailPage() {
                     {item.direction ? <span>Direction: {labelize(item.direction)}</span> : null}
                     {item.relevance_score != null ? <span>Relevance {formatProbability(item.relevance_score, 0)}</span> : null}
                   </div>
-                  <ExternalLink size={15} className="evidence-item__icon" />
+                  <ExternalLink size={14} className="evidence-item__icon" />
                 </a>
               ))}
             </div>
@@ -225,14 +224,14 @@ export function MarketDetailPage() {
                     <span>{formatShortDate(revision.published_at)}</span>
                   </div>
                   <div className="timeline__change">
-                    {formatProbability(revision.previous_fair_value)} <ArrowRight size={14} /> <strong>{formatProbability(revision.fair_value)}</strong>
+                    <span className="num">{formatProbability(revision.previous_fair_value)}</span> <ArrowRight size={13} /> <strong className="num">{formatProbability(revision.fair_value)}</strong>
                     {revision.is_correction ? <span className="mini-label">Correction</span> : null}
                   </div>
                   {revision.thesis ? <p>{revision.thesis}</p> : null}
                 </div>
               ))}
             </div>
-          ) : <EmptyState title="No revisions published" description="The first approved fair value will begin the permanent revision record." />}
+          ) : <EmptyState title="No revisions published" description="The first published fair value will begin the permanent revision record." />}
         </article>
       </section>
 
@@ -242,16 +241,16 @@ export function MarketDetailPage() {
             <div><div className="eyebrow">Resolution framework</div><h2>What exactly resolves this market</h2></div>
           </div>
           <div className="prose-block">
-            <h3><ScrollText size={17} /> Rules</h3>
+            <h3><ScrollText size={16} /> Rules</h3>
             <p>{market.rules ?? "The official market rules and qualifying resolution source govern the outcome."}</p>
-            <h3><BookOpenText size={17} /> Resolution source</h3>
+            <h3><BookOpenText size={16} /> Resolution source</h3>
             <p>{market.resolution_source ?? "Official election results and the market's published resolution criteria."}</p>
             {data.resolution ? (
               <div className="resolution-box">
                 <StatusPill status="RESOLVED" />
                 <strong>{data.resolution.label ?? formatProbability(data.resolution.outcome)}</strong>
                 <span>{formatDateTime(data.resolution.resolved_at)}</span>
-                {data.resolution.source_url ? <a href={data.resolution.source_url} target="_blank" rel="noreferrer">Resolution source <ExternalLink size={14} /></a> : null}
+                {data.resolution.source_url ? <a href={data.resolution.source_url} target="_blank" rel="noreferrer">Resolution source <ExternalLink size={13} /></a> : null}
               </div>
             ) : null}
           </div>
@@ -265,9 +264,9 @@ export function MarketDetailPage() {
             <div className="source-list">
               {data.sources.map((source, index) => (
                 <div className="source-list__item" key={`${source.name}-${index}`}>
-                  <span className="source-list__icon"><Link2 size={16} /></span>
+                  <span className="source-list__icon"><Link2 size={15} /></span>
                   <div><strong>{source.name ?? labelize(source.type)}</strong><span>{labelize(source.type)}</span></div>
-                  {source.url ? <a href={source.url} target="_blank" rel="noreferrer"><ExternalLink size={16} /></a> : null}
+                  {source.url ? <a href={source.url} target="_blank" rel="noreferrer"><ExternalLink size={15} /></a> : null}
                 </div>
               ))}
             </div>
