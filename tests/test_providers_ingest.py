@@ -86,6 +86,30 @@ def test_ingest_idempotent_same_db(quant_db):
         assert s.query(DataProviderRun).count() > 0
 
 
+def test_generic_ballot_writer_tolerates_duplicate_rows_in_one_batch(quant_db):
+    """A live feed (VoteHub) can repeat a release within one response; two rows that hash
+    identically must not blow up the flush with a UNIQUE violation."""
+    from datetime import date
+
+    from app.db.models_quant import NationalEnvironmentObservation
+    from app.providers.ingest import _write_generic_ballot
+    from app.providers.national_environment import NormalizedGenericBallotPoll
+
+    def _poll():
+        return NormalizedGenericBallotPoll(
+            pollster="YouGov", end_date=date(2026, 2, 23), start_date=date(2026, 2, 20),
+            sample_size=1402, population="RV", pollster_grade=None, sponsor=None,
+            dem_pct=45.0, rep_pct=41.0, source_url="https://example.com/x",
+            provider="votehub_generic_ballot", provider_poll_id="1",
+        )
+
+    with quant_db() as s, s.no_autoflush:  # app's SessionLocal is autoflush=False
+        n = _write_generic_ballot(s, [_poll(), _poll(), _poll()])  # identical -> one row
+        s.commit()
+        assert n == 1
+        assert s.query(NationalEnvironmentObservation).count() == 1
+
+
 def test_build_quant_input_from_db_matches_engine(quant_db):
     Session = quant_db
     as_of = datetime(2026, 8, 27, 13, tzinfo=timezone.utc)

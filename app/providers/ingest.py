@@ -132,7 +132,12 @@ def _as_date(v: Any) -> Optional[date]:
 
 def _write_history(session: Session, rows: list[HistoricalResultRow]) -> int:
     n = 0
+    seen: set[tuple[str, int, str]] = set()
     for r in rows:
+        key = (r.jurisdiction, r.year, r.office)
+        if key in seen:
+            continue
+        seen.add(key)
         existing = session.execute(
             select(HistoricalElectionResult).where(
                 HistoricalElectionResult.jurisdiction == r.jurisdiction,
@@ -158,8 +163,12 @@ def _write_history(session: Session, rows: list[HistoricalResultRow]) -> int:
 
 def _write_generic_ballot(session: Session, polls) -> int:
     n = 0
+    seen: set[str] = set()  # live feeds (VoteHub) can repeat a release within one response
     for p in polls:
         ch = generic_ballot_content_hash(p)
+        if ch in seen:
+            continue
+        seen.add(ch)
         exists = session.execute(
             select(NationalEnvironmentObservation.id).where(
                 NationalEnvironmentObservation.content_hash == ch
@@ -242,7 +251,12 @@ def _write_candidates(session: Session, records: list[CandidateRecord]) -> int:
 
 def _write_polls(session: Session, rows) -> int:
     n = 0
+    seen: set[tuple[str, str]] = set()
     for r in rows:
+        key = (r.race_id, r.content_hash)
+        if key in seen:
+            continue
+        seen.add(key)
         exists = session.execute(
             select(PollObservation.id).where(
                 PollObservation.race_id == r.race_id,
