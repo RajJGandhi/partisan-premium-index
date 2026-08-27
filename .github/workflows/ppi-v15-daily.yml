@@ -64,16 +64,39 @@ jobs:
           fi
       - uses: actions/checkout@v4
         if: steps.gate.outputs.enabled == 'true'
-      - uses: actions/setup-python@v5
+      - name: Resolve pinned self-hosted Python (uv-managed, no sudo)
         if: steps.gate.outputs.enabled == 'true'
-        with:
-          python-version-file: ".python-version"
+        shell: bash
+        run: |
+          set -euo pipefail
+          # actions/setup-python's macOS build must `sudo installer -pkg ...` to register a new
+          # Python in the hostedtoolcache -- that fails non-interactively on a self-hosted runner
+          # (no TTY). uv manages a pinned, relocatable, user-space Python that needs no sudo.
+          # Same mechanism as ppi-daily.yml; see docs/SELF_HOSTED_RUNNER.md.
+          UV_BIN="$HOME/.local/bin/uv"
+          if [ ! -x "$UV_BIN" ]; then
+            echo "::error::uv is not installed at $UV_BIN. Run ops/self-hosted-runner/install.sh once on this Mac."
+            exit 1
+          fi
+          REQUIRED_VERSION="$(cat .python-version)"
+          "$UV_BIN" python install "$REQUIRED_VERSION"
+          PYTHON_BIN="$("$UV_BIN" python find "$REQUIRED_VERSION" --no-project)"
+          ACTUAL_VERSION="$("$PYTHON_BIN" -c 'import platform; print(platform.python_version())')"
+          if [ "$ACTUAL_VERSION" != "$REQUIRED_VERSION" ]; then
+            echo "::error::Resolved interpreter is $ACTUAL_VERSION, expected exactly $REQUIRED_VERSION."
+            exit 1
+          fi
+          echo "Pinned interpreter: $PYTHON_BIN (Python $ACTUAL_VERSION)"
+          dirname "$PYTHON_BIN" >> "$GITHUB_PATH"
       - name: Install
         if: steps.gate.outputs.enabled == 'true'
         run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
-          if [ -n "${OPENAI_API_KEY}${ANTHROPIC_API_KEY}" ]; then pip install -r requirements-blind.txt; fi
+          # uv-managed Python is PEP 668 "externally managed"; --break-system-packages is pip's
+          # documented mechanism for that and is safe here -- this interpreter exists only for
+          # this workflow. Same as ppi-daily.yml.
+          python -m pip install --upgrade pip --break-system-packages
+          pip install -r requirements.txt --break-system-packages
+          if [ -n "${OPENAI_API_KEY}${ANTHROPIC_API_KEY}" ]; then pip install -r requirements-blind.txt --break-system-packages; fi
       - name: Migrate
         if: steps.gate.outputs.enabled == 'true'
         run: PYTHONPATH=. python scripts/migrate_db.py
