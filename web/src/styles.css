@@ -153,6 +153,15 @@ body {
   color: var(--text);
 }
 
+/* Base UI portals (Select/Tooltip popups) mount as later siblings of #root
+   under body, not inside it -- isolating #root's own stacking context here
+   means nothing inside the app can accidentally end up layered above a
+   portaled popup, without having to hand-tune z-index against the app's
+   internal content. */
+#root {
+  isolation: isolate;
+}
+
 button,
 input,
 select {
@@ -2634,6 +2643,201 @@ select:focus {
     flex-direction: column;
     gap: 10px;
   }
+}
+
+/* ---------------------------------------------------------------------
+   Base UI primitives, skinned as PPI research-tool controls. Base UI
+   supplies interaction behavior only (keyboard nav, focus management,
+   ARIA, positioning) -- every visual value below is the same design system
+   used everywhere else in the app; nothing here should read as a distinct
+   "component library" layer.
+   --------------------------------------------------------------------- */
+
+.ppi-select {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.ppi-select__label {
+  color: var(--text-muted);
+  font-family: var(--font-ui);
+  font-size: 0.64rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.ppi-select__trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 36px;
+  padding: 0 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  background: var(--surface-solid);
+  font-family: var(--font-ui);
+  font-size: 0.82rem;
+  cursor: pointer;
+  transition: 120ms ease;
+}
+
+.ppi-select__trigger:hover {
+  border-color: var(--border-strong);
+}
+
+.ppi-select__trigger[data-popup-open] {
+  border-color: var(--premium);
+}
+
+.ppi-select__trigger:focus-visible {
+  outline: 2px solid var(--premium);
+  outline-offset: 1px;
+}
+
+.ppi-select__icon {
+  display: flex;
+  color: var(--text-muted);
+  transition: transform 120ms ease;
+}
+
+.ppi-select__trigger[data-popup-open] .ppi-select__icon {
+  transform: rotate(180deg);
+  color: var(--premium);
+}
+
+.ppi-select__positioner {
+  z-index: 200;
+  outline: none;
+}
+
+.ppi-select__popup {
+  min-width: var(--anchor-width);
+  max-height: 320px;
+  overflow-y: auto;
+  padding: 4px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--ink-raised);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+  font-family: var(--font-ui);
+  font-size: 0.82rem;
+}
+
+:root[data-theme="light"] .ppi-select__popup,
+:root:not([data-theme="dark"]) .ppi-select__popup {
+  box-shadow: 0 8px 24px rgba(20, 19, 13, 0.12);
+}
+
+.ppi-select__item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 2px;
+  color: var(--text-soft);
+  cursor: pointer;
+  scroll-margin: 4px;
+}
+
+.ppi-select__item[data-highlighted] {
+  color: var(--text);
+  background: var(--surface-sunken);
+}
+
+.ppi-select__item[data-selected] {
+  color: var(--text);
+  font-weight: 650;
+}
+
+.ppi-select__indicator {
+  display: flex;
+  color: var(--premium);
+}
+
+/* ---- Tooltip ----------------------------------------------------------- */
+
+.ppi-tooltip-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border-bottom: 1px dotted var(--text-faint);
+  cursor: help;
+}
+
+.ppi-tooltip {
+  z-index: 300;
+  max-width: 240px;
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  color: #f2f0e8;
+  background: #17171a;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.28);
+  font-family: var(--font-ui);
+  font-size: 0.75rem;
+  line-height: 1.5;
+}
+
+/* ---- Tabs ---------------------------------------------------------------
+   "MARKETS  HISTORY  EVIDENCE" -- small caps labels, one shared hairline
+   rule under the whole list, a 2px amber indicator sliding beneath the
+   active label via Base UI's own --active-tab-left/--active-tab-width. */
+
+.ppi-tabs__list {
+  position: relative;
+  display: flex;
+  gap: 22px;
+  border-bottom: 1px solid var(--border);
+}
+
+.ppi-tabs__tab {
+  padding: 0 0 12px;
+  border: 0;
+  background: none;
+  color: var(--text-muted);
+  font-family: var(--font-ui);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: color 120ms ease;
+}
+
+.ppi-tabs__tab:hover {
+  color: var(--text-soft);
+}
+
+.ppi-tabs__tab[data-selected] {
+  color: var(--text);
+}
+
+.ppi-tabs__tab:focus-visible {
+  outline: 2px solid var(--premium);
+  outline-offset: 2px;
+}
+
+.ppi-tabs__indicator {
+  position: absolute;
+  bottom: -1px;
+  left: 0;
+  height: 2px;
+  background: var(--premium);
+  transform: translateX(var(--active-tab-left));
+  width: var(--active-tab-width);
+  transition: transform 180ms ease, width 180ms ease;
+}
+
+.ppi-tabs__panel {
+  margin-top: 22px;
+}
+
+.ppi-tabs__panel:focus-visible {
+  outline: none;
 }
 
 @media (prefers-reduced-motion: reduce) {

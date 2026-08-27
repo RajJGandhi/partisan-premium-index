@@ -3,10 +3,31 @@ import { useMemo, useState } from "react";
 import { DataStamp } from "../components/DataStamp";
 import { MarketCard } from "../components/MarketCard";
 import { PageHeader } from "../components/PageHeader";
+import { Select } from "../components/Select";
 import { ErrorState, LoadingState, EmptyState } from "../components/StateViews";
 import { usePublicData } from "../hooks/usePublicData";
 import { publicData } from "../lib/data";
 import type { MarketSummary } from "../lib/types";
+
+const sortOptions = [
+  { value: "absolute-premium", label: "Largest disagreement" },
+  { value: "premium-high", label: "Premium high to low" },
+  { value: "market-high", label: "Market probability" },
+  { value: "liquidity", label: "Liquidity" },
+  { value: "alphabetical", label: "Alphabetical" },
+];
+
+const freshnessOptions = [
+  { value: "all", label: "All data" },
+  { value: "fresh", label: "Fresh only" },
+  { value: "stale", label: "Stale only" },
+];
+
+const publicationOptions = [
+  { value: "all", label: "All markets" },
+  { value: "published", label: "Published" },
+  { value: "awaiting", label: "Awaiting publication" },
+];
 
 const sorters: Record<string, (a: MarketSummary, b: MarketSummary) => number> = {
   "absolute-premium": (a, b) => Math.abs(b.partisan_premium ?? -1) - Math.abs(a.partisan_premium ?? -1),
@@ -27,6 +48,8 @@ export function MarketsPage() {
 
   const regions = useMemo(() => [...new Set((data?.markets ?? []).map((market) => market.region).filter(Boolean) as string[])].sort(), [data]);
   const categories = useMemo(() => [...new Set((data?.markets ?? []).map((market) => market.category).filter(Boolean) as string[])].sort(), [data]);
+  const regionOptions = useMemo(() => [{ value: "all", label: "All regions" }, ...regions.map((item) => ({ value: item, label: item }))], [regions]);
+  const categoryOptions = useMemo(() => [{ value: "all", label: "All categories" }, ...categories.map((item) => ({ value: item, label: item }))], [categories]);
 
   const filtered = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
@@ -67,11 +90,11 @@ export function MarketsPage() {
           {query ? <button type="button" onClick={() => setQuery("")} aria-label="Clear search"><X size={16} /></button> : null}
         </label>
         <div className="filter-grid">
-          <label><span>Region</span><select value={region} onChange={(event) => setRegion(event.target.value)}><option value="all">All regions</option>{regions.map((item) => <option key={item}>{item}</option>)}</select></label>
-          <label><span>Category</span><select value={category} onChange={(event) => setCategory(event.target.value)}><option value="all">All categories</option>{categories.map((item) => <option key={item}>{item}</option>)}</select></label>
-          <label><span>Freshness</span><select value={freshness} onChange={(event) => setFreshness(event.target.value)}><option value="all">All data</option><option value="fresh">Fresh only</option><option value="stale">Stale only</option></select></label>
-          <label><span>Fair value</span><select value={publication} onChange={(event) => setPublication(event.target.value)}><option value="all">All markets</option><option value="published">Published</option><option value="awaiting">Awaiting publication</option></select></label>
-          <label><span>Sort</span><select value={sort} onChange={(event) => setSort(event.target.value)}><option value="absolute-premium">Largest disagreement</option><option value="premium-high">Premium high to low</option><option value="market-high">Market probability</option><option value="liquidity">Liquidity</option><option value="alphabetical">Alphabetical</option></select></label>
+          <Select label="Region" value={region} onValueChange={setRegion} options={regionOptions} />
+          <Select label="Category" value={category} onValueChange={setCategory} options={categoryOptions} />
+          <Select label="Freshness" value={freshness} onValueChange={setFreshness} options={freshnessOptions} />
+          <Select label="Fair value" value={publication} onValueChange={setPublication} options={publicationOptions} />
+          <Select label="Sort" value={sort} onValueChange={setSort} options={sortOptions} />
         </div>
       </section>
 
