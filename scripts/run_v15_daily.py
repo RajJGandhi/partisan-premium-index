@@ -18,33 +18,46 @@ from pathlib import Path
 from app.db.database import get_session
 from app.pipeline_v15.orchestrator import default_run_key, run_v15_pipeline
 
-DEFAULT_RACES = Path("data/seed/quant_example_races.json")
+REAL_RACES = Path("data/seed/races_2026.json")
+EXAMPLE_RACES = Path("data/seed/quant_example_races.json")
+
+
+def _default_races() -> Path:
+    """Prefer the real 2026 race set; fall back to the synthetic example set."""
+    return REAL_RACES if REAL_RACES.exists() else EXAMPLE_RACES
 
 
 def _race_configs(path: Path) -> tuple[list[dict], int]:
     doc = json.loads(path.read_text())
-    cycle = 2026
+    cycle = int(doc.get("cycle", 2026))
     configs = []
     for r in doc.get("races", []):
         cycle = int(r.get("cycle", cycle))
         configs.append({
             "race_id": r["race_id"], "state": r["state"], "office": r["office"], "cycle": int(r["cycle"]),
-            "election_date": r.get("election_date"), "dem_candidate": r.get("dem_candidate"),
-            "rep_candidate": r.get("rep_candidate"), "incumbent_party": r.get("incumbent_party"),
-            "source": "seed:quant_example_races",
+            "election_date": r.get("election_date") or doc.get("election_date"),
+            "dem_candidate": r.get("dem_candidate"), "rep_candidate": r.get("rep_candidate"),
+            "incumbent_party": r.get("incumbent_party"),
+            "source": f"seed:{path.stem}",
         })
     return configs, cycle
 
 
 def main() -> None:
-    ap = argparse.ArgumentParser(description="Run the PPI v1.5 twice-daily pipeline.")
-    ap.add_argument("--races", type=Path, default=DEFAULT_RACES)
+    ap = argparse.ArgumentParser(
+        description="Run the PPI v1.5 twice-daily pipeline. Default: Quant series only, no LLM cost "
+        "(add --blind for the GPT/Claude benchmarks + a real ensemble)."
+    )
+    ap.add_argument("--races", type=Path, default=None,
+                    help="race-set JSON (default: data/seed/races_2026.json, else the example set)")
     ap.add_argument("--run-key", default=None)
     ap.add_argument("--offline", action="store_true", help="use seed-file provider chains (no network/keys)")
-    ap.add_argument("--blind", action="store_true", help="run live GPT/Claude blind benchmarks")
+    ap.add_argument("--blind", action="store_true", help="also run live GPT/Claude blind benchmarks + real ensemble")
     ap.add_argument("--blind-stub", action="store_true", help="run the deterministic blind stub (STUB rows)")
-    ap.add_argument("--discover", action="store_true", help="run stage 1 Polymarket market discovery (needs network)")
+    ap.add_argument("--discover", action="store_true",
+                    help="run stage 1 Polymarket market discovery (auto-binds supported races; needs network)")
     args = ap.parse_args()
+    args.races = args.races or _default_races()
 
     configs, cycle = _race_configs(args.races)
     blind_mode = "stub" if args.blind_stub else ("live" if args.blind else None)

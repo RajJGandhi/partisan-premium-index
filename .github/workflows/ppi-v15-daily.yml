@@ -77,10 +77,14 @@ jobs:
         run: |
           SLOT="${{ github.event.inputs.slot || 'primary' }}"
           RUN_KEY="ppi-v15:$(date -u +%F):${SLOT}"
+          # Default: Quant series only (no LLM cost). --blind adds GPT/Claude + a real ensemble,
+          # and is only used when the workflow input asks for it AND at least one key is present.
           BLIND_FLAG=""
           if [ "${{ github.event.inputs.blind }}" = "true" ] && [ -n "${OPENAI_API_KEY}${ANTHROPIC_API_KEY}" ]; then
             BLIND_FLAG="--blind"
           fi
+          # --discover auto-binds every supported statewide-race Polymarket contract; the seeded
+          # data/seed/races_2026.json is the fallback set if discovery finds nothing / errors.
           PYTHONPATH=. python scripts/run_v15_daily.py --run-key "$RUN_KEY" --discover $BLIND_FLAG
       - name: Export the v1.5 public bundle
         if: steps.gate.outputs.enabled == 'true'
