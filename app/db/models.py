@@ -482,6 +482,14 @@ class LLMForecast(Base):
     reviewed_by: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
     reviewed_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
     review_notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    # PPI Quant v1.5 labelling: the pre-rewrite blind-LLM series is retained unchanged and stamped
+    # as the legacy series so it can never be confused with the new deterministic Quant series or
+    # the new independent GPT/Claude blind-benchmark series. See docs/research/PPI_QUANT_V1.md.
+    # ``forecast_role``: legacy_blind_llm | gpt_blind_benchmark | claude_blind_benchmark
+    methodology_version: Mapped[str] = mapped_column(
+        String(40), default="ppi-v0-legacy-blind-llm", index=True
+    )
+    forecast_role: Mapped[str] = mapped_column(String(30), default="legacy_blind_llm", index=True)
 
 
 class BlindIndexRun(Base):
@@ -676,3 +684,9 @@ class ExperimentMetadata(Base):
     )
     first_observed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     recorded_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
+# PPI Quant v1.5 tables (deterministic forecast + ensemble + provider/provenance). Imported here so
+# a single ``from app.db import models`` registers them on ``Base.metadata`` for create_all/migrate.
+# Additive only -- see app/db/models_quant.py and docs/research/PPI_QUANT_V1.md.
+from app.db import models_quant  # noqa: E402,F401

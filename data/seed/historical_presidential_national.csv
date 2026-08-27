@@ -1,0 +1,14 @@
+# National presidential result -- Democratic-minus-Republican popular-vote margin, percentage points.
+# Used as the NationalPresidentialMargin_y term when computing state lean (spec section 9):
+#   StateLean_y = StatePresidentialMargin_y - NationalPresidentialMargin_y
+#
+# BOOTSTRAP REFERENCE ONLY. These three well-established national margins let the state-lean
+# calculation run before the ElectionHistoryProvider (Decision Labs / configured provider) is
+# wired. The provider is expected to REPLACE this file's values (and add the full 50-state +DC
+# series) with sourced, retrieval-stamped rows in the historical_election_results table. Verify
+# against an official source (e.g. the Federal Election Commission official vote totals) before
+# treating any forecast as authoritative.
+jurisdiction,year,office,dem_margin_pct,source_note
+US,2016,president,2.1,"Clinton 48.2% - Trump 46.1%, approx D+2.1 (FEC official popular vote)"
+US,2020,president,4.5,"Biden 51.3% - Trump 46.8%, approx D+4.5 (FEC official popular vote)"
+US,2024,president,-1.5,"Trump 49.8% - Harris 48.3%, approx R+1.5 (FEC official popular vote)"

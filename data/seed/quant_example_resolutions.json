@@ -1,0 +1,8 @@
+{
+  "_disclaimer": "ILLUSTRATIVE SYNTHETIC OUTCOMES for the synthetic races in quant_example_races.json (states XX/YY/ZZ are placeholders, not real). Used only to exercise the scoring + backtest pipeline offline. dem_won is 1 if the Democratic candidate won, else 0; final_margin_dem is the (illustrative) final Dem-minus-Rep margin in points.",
+  "resolutions": [
+    {"race_id": "xx-sen-2026", "dem_won": 1, "final_margin_dem": 4.8, "source_url": "illustrative", "notes": "synthetic outcome"},
+    {"race_id": "yy-gov-2026", "dem_won": 0, "final_margin_dem": -7.1, "source_url": "illustrative", "notes": "synthetic outcome"},
+    {"race_id": "zz-sen-2026", "dem_won": 1, "final_margin_dem": 0.9, "source_url": "illustrative", "notes": "synthetic outcome (narrow)"}
+  ]
+}

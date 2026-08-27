@@ -163,6 +163,30 @@ export function MethodologyPage() {
           <p><strong>Small samples.</strong> Early wins or losses should not be treated as strong evidence until many markets resolve.</p>
         </div>
       </section>
+
+      <section className="page-section">
+        <article className="panel">
+          <div className="panel__header"><div>
+            <div className="eyebrow">PPI v1.5 — quantitative rewrite (shadow)</div>
+            <h2>From "what probability feels right?" to a margin distribution</h2>
+            <p>A second forecasting system runs alongside the headline. It replaces the LLM-decides-the-probability design with an explicit, deterministic election model. It is shown on the <a href="/v15">PPI v1.5</a> page and is not yet the public headline.</p>
+          </div></div>
+          <ol className="v15-method-list">
+            <li><strong>PPI does not know the true probability.</strong> It states an estimate implied by explicit assumptions.</li>
+            <li><strong>Quant estimates an expected election margin</strong> in vote-margin space, from polls and fundamentals — never in probability space until the last step.</li>
+            <li><strong>Polls and fundamentals are combined.</strong> A weighted polling average (recency, sample, population, pollster grade, sponsor, anti-flooding) is blended with a fundamentals margin (state partisan lean + national environment + incumbency); polling earns more weight with more independent, newer polls and less time to the election.</li>
+            <li><strong>Forecast uncertainty converts the margin to a probability</strong> as <code>Φ(μ / σ)</code>, where σ combines time-to-election, sparse-polling, office and candidate-status components. A poll lead is never read as certainty.</li>
+            <li><strong>Market information is excluded from the forecast.</strong> The quantitative function has no market-price argument; the market–model spread is computed only after the forecast is stored.</li>
+            <li><strong>GPT and Claude are independent blind robustness checks.</strong> Each forecasts from the same timestamp-locked, market-free evidence — no market price, no Quant value, no sight of the other model.</li>
+            <li><strong>Ensemble weights are predeclared:</strong> 0.60·Quant + 0.20·GPT + 0.20·Claude. If a component is missing the ensemble is reported unavailable, never silently reweighted.</li>
+            <li><strong>History is immutable.</strong> Every forecast is append-only with its methodology version, config hash, input hash and evidence hash. Corrections add a new revision.</li>
+            <li><strong>Missing data can cause abstention.</strong> Thin, ambiguous or contradictory inputs yield an explicit abstain rather than invented precision.</li>
+            <li><strong>The market–model spread does not prove partisanship.</strong> It is an observation. HIGH robustness (models agree, diverge from the market together) is the only case treated as a candidate anomaly.</li>
+            <li><strong>Parameters are versioned and provisional.</strong> The v1.0 constants (21-day poll half-life, incumbency bonuses, uncertainty schedule, pollster-grade weights) are transparent starting points, not backtested optima.</li>
+            <li><strong>Every model is judged by resolved outcomes.</strong> When a race resolves, Market, Quant, GPT, Claude and the Ensemble are each scored with a Brier score at standard horizons, using the observation nearest each horizon without lookahead.</li>
+          </ol>
+        </article>
+      </section>
     </div>
   );
 }

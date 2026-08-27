@@ -76,6 +76,47 @@ class Settings(BaseSettings):
     cook_email: str = ""
     cook_password: str = ""
 
+    # --- PPI Quant v1.5 -------------------------------------------------------------------------
+    # The deterministic quantitative election-forecasting engine (app/quant). Shadow mode writes
+    # quant_forecasts / ensemble_forecasts rows *without* touching the headline llm_forecasts
+    # series, the market snapshots, or the public export -- see scripts/run_quant_shadow.py.
+    quant_shadow_enabled: bool = False
+    quant_methodology_version: str = "ppi-quant-v1.0"
+    ensemble_methodology_version: str = "ppi-ensemble-v1.5"
+    # Which series is the public HEADLINE fair value. Stays "legacy_blind_llm" until the v1.5
+    # pipeline passes the validation checklist in docs/research/PPI_CUTOVER.md; the flip is then a
+    # one-line config change (spec sections 25, 50 Phase E). Values: legacy_blind_llm | quant | ensemble.
+    ppi_headline_series: str = "legacy_blind_llm"
+    v15_pipeline_enabled: bool = False  # gate the twice-daily v1.5 orchestrator
+    # Independent blind-benchmark forecasters -- GPT (spec section 23) + Claude (spec section 24).
+    # Separate series, never mixed into the Quant probability. Server-side only; never exposed to
+    # the browser. Missing key / SDK -> explicit SKIPPED_PROVIDER row, never a fabricated value.
+    openai_api_key: str = ""
+    anthropic_api_key: str = ""
+    openai_blind_model: str = "gpt-5"  # set to your available frontier OpenAI model
+    anthropic_blind_model: str = "claude-opus-5"
+    blind_methodology_version: str = "ppi-blind-v1"
+    blind_prompt_version: str = "blind_benchmark_v1"
+    blind_max_retries: int = 2
+    blind_max_web_searches: int = 3
+    blind_request_timeout_seconds: int = 120
+
+    # --- Provider / data-acquisition layer (app/providers) -----------------------------------
+    provider_timeout_seconds: int = 20
+    provider_max_retries: int = 3
+    provider_retry_backoff_seconds: float = 1.0
+    provider_cache_ttl_minutes: int = 360
+    race_match_min_confidence: float = 0.75
+    market_classify_min_confidence: float = 0.80
+    # Decision Desk HQ -- the spec's "Decision Labs". Polling API base is public (no key needed as
+    # of writing); the results/history API base may require a key.
+    decisiondesk_polling_base_url: str = "https://polling.decisiondeskhq.com"
+    decisiondesk_results_base_url: str = ""
+    decisiondesk_api_key: str = ""
+    votehub_api_base_url: str = "https://votehub.com/polls/api"
+    pollingsource_api_base_url: str = ""
+    pollingsource_api_key: str = ""
+
     scan_interval_minutes: int = 60
     alert_cooldown_hours: int = 6
     min_ppi_alert_score: int = 65

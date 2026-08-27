@@ -164,6 +164,152 @@ Required production entities:
 
 Legacy Reality Spread entities remain available for backward compatibility.
 
+## PPI Quant v1.0 (shadow mode — `app/quant/`)
+
+A deterministic quantitative election-forecasting engine that replaces the *shape* of the
+forecast — `structured political data → quant model → margin distribution → Φ(μ/σ) → fair value` —
+without (yet) replacing the headline series. Full methodology: `docs/research/PPI_QUANT_V1.md`.
+
+- **Pure calculation modules**: `polling.py` (weighted margin, `n_eff`), `state_lean.py`,
+  `national_environment.py`, `fundamentals.py` (Senate/Governor), `blend.py` (α, expected margin
+  μ), `uncertainty.py` (σ_time/polling/office/status, RSS-combined), `probability.py`
+  (`Φ` via `math.erf`), `data_quality.py` (STRONG/NORMAL/THIN/DEGRADED). Orchestrated by
+  `engine.py::run_quant_forecast`, which **takes no market-price argument** — enforced by
+  `tests/test_quant_market_independence.py` (signature check + static AST import check).
+- **Config**: `config.py::MethodologyConfig` — one frozen, hashable object holding every constant;
+  `version = "ppi-quant-v1.0"`, `config_hash()` persisted on every forecast. All v1.0 values are
+  provisional (`PROVISIONAL_PARAMETERS`).
+- **Adapters** (`adapters.py`): `statewide_race` SUPPORTED; `senate_control` EXPERIMENTAL (Monte
+  Carlo, `senate_control.py`, ≥50k sims, deterministic per seed); `house_control` UNAVAILABLE (no
+  fabricated number); everything else ABSTAIN.
+- **Ensemble** (`ensemble.py`): `0.60·Quant + 0.20·GPT + 0.20·Claude`, predeclared, never re-fit;
+  a missing component ⇒ `available = False`, no silent reweighting. Robustness HIGH/MEDIUM/LOW.
+- **Evidence bundle** (`evidence_bundle.py`): immutable, timestamp-locked, market-free snapshot +
+  content hash, stored per forecast.
+- **New tables** (`app/db/models_quant.py`, additive): `races`, `race_candidates`,
+  `poll_observations`, `national_environment_observations`, `historical_election_results`,
+  `candidate_status_snapshots`, `data_provider_runs`, `quant_evidence_bundles`, `quant_forecasts`,
+  `ensemble_forecasts`, `forecast_market_comparisons`, `forecast_resolutions`, `forecast_scores`,
+  `methodology_versions`, `provider_health`. `llm_forecasts` gains `methodology_version`
+  (default `ppi-v0-legacy-blind-llm`) + `forecast_role` (default `legacy_blind_llm`).
+- **Append-only** (`app/quant/append_only.py`): `quant_forecasts` / `ensemble_forecasts` are
+  append-only per `(race_id, run_key, methodology_version, revision)`; re-runs no-op, corrections
+  add a linked new revision, `flag_integrity` never edits a number, `methodology_versions` is
+  write-once.
+- **Shadow runner** (`scripts/run_quant_shadow.py`, `make quant-shadow`): runs the engine against
+  `data/seed/quant_example_races.json` and writes only the Quant tables — never `llm_forecasts`,
+  `market_snapshots`, `daily_index`, `blind_index_runs`, or the public export.
+- **`market_model_spread = MarketProbability − PPIFairValue`** is computed only in
+  `forecast_market_comparisons`, after the forecast is persisted; it is an observation, not proof
+  of partisan bias.
+
+## PPI v1.5 pipeline + frontend (`app/pipeline_v15/`, `web/src/pages/PPIv15Page.tsx`)
+
+The 10-stage twice-daily orchestrator (spec §41) + the public `/v15` surface. Shadow-only; the
+headline series is unchanged. Full detail: `docs/research/PPI_V15_PIPELINE.md`,
+`docs/research/PPI_CUTOVER.md`.
+
+- **`orchestrator.py::run_v15_pipeline`** — discover → market snapshot → political data → validate
+  → quant → evidence bundle → blind → ensemble → comparison → publish. One `JobRun`
+  (`job_name="ppi-v15-daily"`); each race's stages 5-9 run in a SAVEPOINT so one failure doesn't
+  roll back the rest; `as_of` is derived from the run_key so the whole pipeline is idempotent per
+  slot.
+- **`market_discovery.py`** — Polymarket Gamma discovery + `classify_market`; `SUPPORTED_STATEWIDE_RACE`
+  above the confidence threshold → upsert `markets` + `races` + `market_yes_party`; the rest →
+  append-only `market_classifications` QUARANTINED (never a fabricated forecast).
+- **`comparison.py`** (stage 9) — reads the latest `MarketSnapshot`, orients via `market_yes_party`,
+  writes `forecast_market_comparisons` with `market_model_spread = market − fair_value` per series
+  and the ensemble robustness band. Runs strictly after the forecasts are persisted.
+- **`persist.py`** — the shared `persist_quant_forecast` / evidence-bundle helper (also used by
+  `run_quant_shadow.py`).
+- **`cutover.py`** — `headline_series()` reads `PPI_HEADLINE_SERIES` (default `legacy_blind_llm`);
+  `headline_forecast()` + `cutover_readiness()`. The flip is a one-line config change gated on the
+  `PPI_CUTOVER.md` checklist; nothing here is automatic.
+- **New table**: `market_classifications`. CLI `scripts/run_v15_daily.py`; workflow
+  `.github/workflows/ppi-v15-daily.yml` (gated on `PPI_V15_ENABLED=true`); export
+  `scripts/export_v15_bundle.py` → `web/public/data/v15/`.
+- **Frontend**: `/v15` (spread-sorted races table, robustness badges) + `/v15/race/:id` (full
+  breakdown — quant math, per-poll weights, blind rationales, σ components, Brier scores), a
+  System-Status v1.5 section, and the 12-point methodology rewrite. v1.5 data is load-optional.
+
+## Scoring / calibration / backtesting (`app/eval/`)
+
+Resolved-outcome evaluation (spec sections 34-36, 47, 49). Full detail:
+`docs/research/PPI_SCORING_BACKTEST_V1.md`.
+
+- **`metrics.py`** — pure `brier` / `log_loss` (clamped) / `party_direction_error` /
+  `calibration_bins` / `aggregate` (N + `low_confidence` always reported). `STANDARD_HORIZONS =
+  (90, 60, 30, 14, 7, 1)`.
+- **`series.py`** — `collect_series` reduces each series to a time-ordered `Observation` list, all
+  oriented to `P(race.contract_yes_party wins)`; `market` / `legacy_llm` need `race.market_yes_party`
+  and are dropped when it is unknown.
+- **`scorer.py`** — `score_resolved_race` uses the **latest observation at or before**
+  `election_date − h days` for each horizon (no lookahead) and upserts `forecast_scores`
+  (idempotent — scores are a pure function of immutable forecasts + resolution).
+- **`calibration.py`** — `build_calibration_report` groups by `series/horizon_days/office/state/
+  methodology_version`; `comparisons` gives paired-by-(race,horizon) Brier deltas
+  (`ensemble_vs_quant`, `quant_vs_market`, …) + `partisan_asymmetry`.
+- **`leadlag.py`** — cross-correlation of two series' daily first-differences → `A_leads` /
+  `B_leads` / `synchronous` / `insufficient_data`.
+- **`backtest.py`** — `run_backtest(cycle, …)` behind a `PointInTimeGuard` that drops (or, in
+  `--strict`, raises `PointInTimeError` on) any datum dated after the horizon cutoff, excludes
+  cycle-C's own presidential result, and never feeds the resolution into the input. CLI
+  `scripts/ppi_backtest.py --cycle 2026`.
+- **Additive**: `races.contract_yes_party` (default `DEM`), `races.market_yes_party` (nullable).
+  `make score` / `make backtest` / `make eval-test`.
+
+## Blind benchmarks + v1.5 ensemble (`app/blind/`)
+
+Independent GPT + Claude forecasts + the ensemble (spec sections 20-27). Full detail:
+`docs/research/PPI_BLIND_BENCHMARKS_V1.md`.
+
+- After the Quant forecast + its market-free `EvidenceBundle`, `run_blind_forecasts` sends the
+  bundle (only) to `OpenAIBlindProvider` and `AnthropicBlindProvider` (`claude-opus-5` + adaptive
+  thinking). **No market-price / Quant-probability / other-model parameter** — asserted by
+  `tests/test_blind_market_independence.py`. One append-only `blind_benchmark_forecasts` row per
+  provider; missing key/SDK → `SKIPPED_PROVIDER` (probability NULL, never fabricated).
+- **Cost control**: a slot with an `OK` row at the same evidence hash + model + prompt version is
+  reused (no re-call); a change appends a new revision.
+- `compute_and_persist_ensemble` blends Quant + GPT + Claude with predeclared `0.60/0.20/0.20`
+  (`app/quant/ensemble.py`). Any missing/abstained/failed component → `ensemble_forecasts.available
+  = False`, present components never reweighted. Robustness band computed here (needs a market
+  probability), strictly after persistence.
+- `web_evidence.py` — bounded contamination-filtered web search (injected `search_fn`) → CLEAN
+  items into `EvidenceBundle.current_news`; BLOCKED/QUARANTINED stored in `race_news_items` but
+  excluded. Not an input to the deterministic Quant math (spec §20).
+- **New tables**: `blind_benchmark_forecasts`, `race_news_items`. The legacy `llm_forecasts`
+  series is untouched. `make quant-shadow-blind` / `--blind-stub`; live calls need
+  `requirements-blind.txt` + `OPENAI_API_KEY` / `ANTHROPIC_API_KEY`.
+
+## Provider / data-acquisition layer (`app/providers/`)
+
+Automated political-data acquisition (spec sections 5-10, 21, 31, 42, 45). Full detail:
+`docs/research/PPI_PROVIDERS_V1.md`.
+
+- **`base.py`** — `BaseProvider.fetch` template method: disabled→EMPTY, fresh-cache check,
+  bounded exponential-backoff retry, response validation, **last-known-good→STALE** on total
+  failure (missing is never zero), `provider_health` update. `ProviderChain` runs providers in a
+  fixed order and records one `data_provider_runs` row (`provider_requested` / `provider_used` /
+  `fallback_reason`). `ProviderResult` carries full section-5 provenance + `content_hash`.
+- **Chains** (`ingest.py::ingest_political_data`, scheduler stages 3-4):
+  `election_history` (DDHQ results → seed CSV) → `historical_election_results`;
+  `generic_ballot` (VoteHub → DDHQ → PollingSource → web) → `national_environment_observations`;
+  `poll` (DDHQ ballot_test → PollingSource → web) → `poll_observations`;
+  `candidate` (OpenFEC → seed → web) → `race_candidates` + `candidate_status_snapshots`.
+  All observation writes dedup on a content hash; nothing is written as zero.
+- **`normalize.py` / `race_identity.py`** — population/grade/sponsor normalization, canonical
+  `nc-sen-2026` race ids, and deterministic→fuzzy→LLM-hook→abstain race/candidate matching.
+- **`contamination.py`** — `PredictionMarketContaminationScanner`: BLOCKED (market/betting
+  domain) / QUARANTINED (market-odds language) / CLEAN, for web evidence handed to blind LLMs.
+- **`markets.py`** — Polymarket Gamma discovery + deterministic classification
+  (SUPPORTED_STATEWIDE_RACE / SUPPORTED_SENATE_CONTROL / SUPPORTED_HOUSE_CONTROL / UNSUPPORTED /
+  AMBIGUOUS); AMBIGUOUS is quarantined, never forecast.
+- **`ingest.py::build_quant_input_from_db`** — assembles a market-free `QuantForecastInput` from
+  the ingested tables: the `providers → DB → engine` bridge (`run_quant_shadow.py --from-db`).
+- **New table**: `provider_cache` (append-only response cache + last-known-good). `make ingest`
+  (live, graceful-degrade) / `make ingest-offline` (seed-file chains, no network/keys).
+- No provider reads a prediction-market *price*; `app/quant` remains structurally market-blind.
+
 ## Reliability
 
 - exponential retries on Polymarket, RSS, GDELT and JSON source calls;

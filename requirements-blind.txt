@@ -1,0 +1,9 @@
+# Optional -- only needed to actually run the GPT + Claude blind benchmark forecasts
+# (spec sections 23, 24). The rest of PPI (Quant engine, providers, ensemble math, the full
+# default test suite, `make validate`) does NOT require these: app/blind imports both SDKs
+# lazily and records an explicit SKIPPED_PROVIDER row when a key or SDK is absent.
+#
+#   pip install -r requirements-blind.txt
+#
+openai>=1.40,<3
+anthropic>=0.40,<3
