@@ -108,14 +108,41 @@ class Settings(BaseSettings):
     provider_cache_ttl_minutes: int = 360
     race_match_min_confidence: float = 0.75
     market_classify_min_confidence: float = 0.80
-    # Decision Desk HQ -- the spec's "Decision Labs". Polling API base is public (no key needed as
-    # of writing); the results/history API base may require a key.
+
+    # --- Decision Desk HQ (the spec's "Decision Labs") ----------------------------------------
+    # Polling API: GET /api/v1/polls/generic_ballot and /api/v1/polls/ballot_test. PUBLIC, no
+    # auth (verified against polling-api-docs.decisiondeskhq.com, 2026-08).
     decisiondesk_polling_base_url: str = "https://polling.decisiondeskhq.com"
-    decisiondesk_results_base_url: str = ""
-    decisiondesk_api_key: str = ""
-    votehub_api_base_url: str = "https://votehub.com/polls/api"
+    # Results API v4 (docs.decisiondeskhq.com): historical presidential results -> state partisan
+    # lean, via GET /api/v4/race-calls. OAuth2 client-credentials at POST /api/v4/oauth/token --
+    # set client id + secret below, or paste a pre-issued static bearer into decisiondesk_api_key.
+    # Left disabled (seed CSV fallback) until credentials are provisioned.
+    decisiondesk_results_base_url: str = "https://resultsapi.decisiondeskhq.com"
+    decisiondesk_client_id: str = ""
+    decisiondesk_client_secret: str = ""
+    decisiondesk_api_key: str = ""  # optional: a pre-issued static bearer, used instead of OAuth
+
+    # --- VoteHub polls API (public, CC-BY-4.0; verified 2026): generic ballot + race polls -----
+    # votehub_api_key is defined above with the legacy adapters; no key is required today, and it
+    # is sent as a bearer only if set.
+    votehub_api_base_url: str = "https://api.votehub.com"
+
+    # --- PollingSource: a GENERIC secondary poll API (spec section 6). No canonical vendor --
+    # point this at any service returning individual poll records as JSON; blank => disabled.
     pollingsource_api_base_url: str = ""
     pollingsource_api_key: str = ""
+
+    # --- OpenFEC: federal candidate identity / incumbency (spec section 8) -------------------
+    # Free key at https://api.data.gov/signup/ . Without a key OpenFEC is disabled and candidates
+    # come from market discovery + the web fallback only.
+    openfec_base_url: str = "https://api.open.fec.gov/v1"
+
+    # --- Polymarket (public, no auth) ------------------------------------------------------
+    # polymarket_gamma_base_url / polymarket_clob_base_url are defined above with the legacy config.
+
+    # --- LLM API bases (SDK defaults; override only for a proxy / Azure / gateway) ----------
+    openai_base_url: str = ""     # default: https://api.openai.com/v1
+    anthropic_base_url: str = ""  # default: https://api.anthropic.com
 
     scan_interval_minutes: int = 60
     alert_cooldown_hours: int = 6

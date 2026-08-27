@@ -1,4 +1,4 @@
-.PHONY: setup init seed demo run daily export-public scheduler test lint typecheck build validate web-install web-dev web-data-check web-check web-build quant-test quant-shadow quant-shadow-dry quant-shadow-blind ingest ingest-offline ingest-dry score backtest eval-test v15-daily v15-daily-offline v15-export v15-test
+.PHONY: setup init seed demo run daily export-public scheduler test lint typecheck build validate web-install web-dev web-data-check web-check web-build quant-test quant-shadow quant-shadow-dry quant-shadow-blind ingest ingest-offline ingest-dry check-providers check-providers-probe score backtest eval-test v15-daily v15-daily-offline v15-export v15-test
 
 setup:
 	python -m venv .venv
@@ -29,10 +29,10 @@ test:
 	PYTHONPATH=. pytest -q
 
 lint:
-	ruff check app/ppi app/quant app/providers app/blind app/eval app/pipeline_v15 app/dashboard app/db/models.py app/db/models_quant.py app/db/database.py app/config.py scripts/run_ppi_daily.py scripts/run_scheduler.py scripts/create_admin_user.py scripts/hash_password.py scripts/seed_production_markets.py scripts/backfill_polymarket_prices.py scripts/migrate_db.py scripts/run_shadow_experiment.py scripts/run_quant_shadow.py scripts/run_ingest.py scripts/run_scoring.py scripts/ppi_backtest.py scripts/run_v15_daily.py scripts/export_v15_bundle.py tests/test_ppi_*.py tests/test_evidence_*.py tests/test_snapshot_idempotency.py tests/test_stale_data.py tests/test_polymarket_integration_mock.py tests/test_publication_flow.py tests/test_streamlit_smoke.py tests/test_daily_digest.py tests/test_source_security.py tests/test_seed_data.py tests/test_database_url.py scripts/export_public_bundle.py tests/test_public_export.py tests/test_blind_forecast.py tests/test_llm_forecast_review.py tests/test_llm_forecast_view.py tests/test_strict_llm_pipeline.py tests/test_pipeline_lock.py tests/test_run_classification.py tests/test_scheduling_and_retry.py tests/test_openrouter_provider.py tests/test_migrate_db.py tests/test_run_shadow_experiment.py tests/test_dual_series_pipeline.py tests/test_experiment_metadata.py tests/test_quant_*.py tests/test_providers_*.py tests/test_blind_*.py tests/test_eval_*.py tests/test_v15_*.py tests/conftest.py
+	ruff check app/ppi app/quant app/providers app/blind app/eval app/pipeline_v15 app/dashboard app/db/models.py app/db/models_quant.py app/db/database.py app/config.py scripts/run_ppi_daily.py scripts/run_scheduler.py scripts/create_admin_user.py scripts/hash_password.py scripts/seed_production_markets.py scripts/backfill_polymarket_prices.py scripts/migrate_db.py scripts/run_shadow_experiment.py scripts/run_quant_shadow.py scripts/run_ingest.py scripts/run_scoring.py scripts/ppi_backtest.py scripts/run_v15_daily.py scripts/export_v15_bundle.py scripts/check_providers.py tests/test_ppi_*.py tests/test_evidence_*.py tests/test_snapshot_idempotency.py tests/test_stale_data.py tests/test_polymarket_integration_mock.py tests/test_publication_flow.py tests/test_streamlit_smoke.py tests/test_daily_digest.py tests/test_source_security.py tests/test_seed_data.py tests/test_database_url.py scripts/export_public_bundle.py tests/test_public_export.py tests/test_blind_forecast.py tests/test_llm_forecast_review.py tests/test_llm_forecast_view.py tests/test_strict_llm_pipeline.py tests/test_pipeline_lock.py tests/test_run_classification.py tests/test_scheduling_and_retry.py tests/test_openrouter_provider.py tests/test_migrate_db.py tests/test_run_shadow_experiment.py tests/test_dual_series_pipeline.py tests/test_experiment_metadata.py tests/test_quant_*.py tests/test_providers_*.py tests/test_blind_*.py tests/test_eval_*.py tests/test_v15_*.py tests/conftest.py
 
 typecheck:
-	mypy app/ppi app/quant app/providers app/blind app/eval app/pipeline_v15 app/db/models.py app/db/models_quant.py app/db/database.py app/config.py scripts/run_ppi_daily.py scripts/run_scheduler.py scripts/create_admin_user.py scripts/seed_production_markets.py scripts/migrate_db.py scripts/export_public_bundle.py scripts/run_quant_shadow.py scripts/run_ingest.py scripts/run_scoring.py scripts/ppi_backtest.py scripts/run_v15_daily.py scripts/export_v15_bundle.py
+	mypy app/ppi app/quant app/providers app/blind app/eval app/pipeline_v15 app/db/models.py app/db/models_quant.py app/db/database.py app/config.py scripts/run_ppi_daily.py scripts/run_scheduler.py scripts/create_admin_user.py scripts/seed_production_markets.py scripts/migrate_db.py scripts/export_public_bundle.py scripts/run_quant_shadow.py scripts/run_ingest.py scripts/run_scoring.py scripts/ppi_backtest.py scripts/run_v15_daily.py scripts/export_v15_bundle.py scripts/check_providers.py
 
 build:
 	python -m compileall -q app scripts
@@ -78,6 +78,14 @@ ingest-offline:
 
 ingest-dry:
 	PYTHONPATH=. python scripts/run_ingest.py --offline --dry-run
+
+# Inventory the data-acquisition providers: name, endpoint family, enabled?, gating env var.
+check-providers:
+	PYTHONPATH=. python scripts/check_providers.py
+
+# ... and make one live reachability request per enabled provider (needs network + any keys).
+check-providers-probe:
+	PYTHONPATH=. python scripts/check_providers.py --probe
 
 # Run PPI Quant in shadow mode against the seeded example races (writes quant_forecasts /
 # ensemble_forecasts only; never touches the headline llm_forecasts series or the public export).

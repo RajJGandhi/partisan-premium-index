@@ -47,6 +47,11 @@ jobs:
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
       FEC_API_KEY: ${{ secrets.FEC_API_KEY }}
       VOTEHUB_API_KEY: ${{ secrets.VOTEHUB_API_KEY }}
+      # Optional: unlocks the DDHQ Results API v4 -> state partisan lean (docs/OPERATIONS_V15.md
+      # section 4a). Absent -> the seed-CSV fallback + polling-only degraded mode, which is fine.
+      DECISIONDESK_CLIENT_ID: ${{ secrets.DECISIONDESK_CLIENT_ID }}
+      DECISIONDESK_CLIENT_SECRET: ${{ secrets.DECISIONDESK_CLIENT_SECRET }}
+      DECISIONDESK_API_KEY: ${{ secrets.DECISIONDESK_API_KEY }}
     steps:
       - name: Gate on PPI_V15_ENABLED
         id: gate
@@ -72,6 +77,9 @@ jobs:
       - name: Migrate
         if: steps.gate.outputs.enabled == 'true'
         run: PYTHONPATH=. python scripts/migrate_db.py
+      - name: Provider reachability (diagnostic)
+        if: steps.gate.outputs.enabled == 'true'
+        run: PYTHONPATH=. python scripts/check_providers.py --probe || true
       - name: Run v1.5 pipeline (stages 1-10)
         if: steps.gate.outputs.enabled == 'true'
         run: |

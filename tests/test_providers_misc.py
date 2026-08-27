@@ -14,7 +14,11 @@ from app.providers.markets import (
     UNSUPPORTED,
     classify_market,
 )
-from app.providers.national_environment import DecisionDeskHqGenericBallotProvider
+from app.providers.national_environment import (
+    DecisionDeskHqGenericBallotProvider,
+    VoteHubGenericBallotProvider,
+    _int,
+)
 
 SEED = Path(__file__).resolve().parents[1] / "data" / "seed"
 
@@ -41,6 +45,43 @@ def test_generic_ballot_normalizer_filters_cycle_and_computes_margin(quant_db):
     assert polls[0].dem_pct == 47 and polls[0].rep_pct == 44
     assert polls[0].margin_dem == 3
     assert polls[0].population == "RV"
+
+
+# --- VoteHub generic ballot: live shape is answers=[{choice,pct}] + sponsors[]/internal/partisan
+class _FakeVoteHubGeneric(VoteHubGenericBallotProvider):
+    ROWS = {
+        "polls": [
+            {"id": "gen1", "poll_type": "generic-ballot", "sample_size": 1500, "population": "lv",
+             "pollster": "Cygnal", "start_date": "2026-08-04", "end_date": "2026-08-06",
+             "answers": [{"choice": "Dem", "pct": 46.2}, {"choice": "Rep", "pct": 47.2}],
+             "sponsors": [], "internal": False, "partisan": None, "url": "https://ex.com/1"},
+            {"id": "gen2", "poll_type": "generic-ballot", "sample_size": 1000, "population": "rv",
+             "pollster": "Quantus Insights", "start_date": "2026-08-10", "end_date": "2026-08-12",
+             "answers": [{"choice": "Democrats", "pct": 44.0}, {"choice": "Republicans", "pct": 48.0}],
+             "sponsors": ["TrendingPolitics"], "internal": False, "partisan": "REP"},
+        ]
+    }
+
+    def _do_fetch(self, **kwargs):
+        return self.ROWS["polls"], "https://api.votehub.com/polls", 200
+
+
+def test_votehub_generic_ballot_reads_choice_pct_and_partisan(quant_db):
+    with quant_db() as s:
+        res = _FakeVoteHubGeneric(cycle=2026, backoff_base_seconds=0).fetch(s)
+    polls = sorted(res.normalized_payload, key=lambda p: p.provider_poll_id)
+    assert len(polls) == 2
+    assert polls[0].dem_pct == 46.2 and polls[0].rep_pct == 47.2
+    assert polls[0].sample_size == 1500
+    assert polls[1].dem_pct == 44.0 and polls[1].rep_pct == 48.0
+    assert "Republican-aligned" in (polls[1].sponsor or "")  # partisan:"REP" folded into sponsor
+
+
+def test_int_handles_votehub_string_sample_sizes():
+    assert _int("1,024") == 1024
+    assert _int("1500") == 1500
+    assert _int(1500) == 1500
+    assert _int("") is None and _int(None) is None
 
 
 # --- election history ------------------------------------------------------------------------

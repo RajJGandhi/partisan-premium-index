@@ -52,7 +52,7 @@ class OpenFecCandidateProvider(BaseProvider):
         super().__init__(**kw)
         s = get_settings()
         self.api_key = s.fec_api_key
-        self.base_url = "https://api.open.fec.gov/v1"
+        self.base_url = (s.openfec_base_url or "https://api.open.fec.gov/v1").rstrip("/")
 
     def enabled(self) -> bool:
         return bool(self.api_key)

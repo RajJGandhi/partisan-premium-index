@@ -21,9 +21,10 @@ change, not a redeploy. Nothing here changes the public **headline** series — 
    - `FEC_API_KEY` — recommended; enables OpenFEC candidate/incumbency lookups for Senate races
      (free key from api.data.gov). Without it, candidates come from market discovery + the web
      fallback only.
-   - `VOTEHUB_API_KEY` — optional; VoteHub generic-ballot is tried without a key first.
+   - `VOTEHUB_API_KEY` — optional; VoteHub (the primary poll + generic-ballot source) needs no key.
    - `OPENAI_API_KEY` / `ANTHROPIC_API_KEY` — **leave unset** for the Quant-only run.
-5. **Nothing else.** The Decision Desk HQ polling API (race polls + generic ballot) is public.
+5. **Nothing else.** VoteHub and the Decision Desk HQ polling API are public (no key). Full
+   endpoint list + reachability check: §4, and `python scripts/check_providers.py --probe`.
 
 ## 2. First run (manual)
 
@@ -74,7 +75,7 @@ A healthy first run looks like:
 - `job.status` is `OK` or `PARTIAL` (a `PARTIAL` with a few `ERROR` races is fine — check
   `summary.races[*].error`; usually "no ingested data for race" for a race with no polls yet).
 - Data quality is a **spread** of `NORMAL` / `THIN` / `DEGRADED`, with `STRONG` only where a race
-  has ≥4 recent polls from ≥3 pollsters **and** state-lean data (see §4). Mostly `THIN` this far
+  has ≥4 recent polls from ≥3 pollsters **and** state-lean data (see §4a). Mostly `THIN` this far
   from the election is expected and correct.
 - No mass `ABSTAIN` — an abstain means candidate-mapping confidence < 0.60 or literally no polls
   and no fundamentals for that race.
@@ -82,7 +83,31 @@ A healthy first run looks like:
 Then the twice-daily schedule (09:20 / 21:20 America/Toronto) takes over. Re-running the same slot
 is idempotent (same `run_key` → no duplicate rows).
 
-## 4. State partisan lean — the main quality lever (optional)
+## 4. API endpoints
+
+Every external endpoint the pipeline can call. **No key is needed for a working Quant run** —
+the only entry that unlocks anything is the DDHQ Results API (state lean, §4a). Run
+`PYTHONPATH=. python scripts/check_providers.py --probe` on the runner to see, per provider,
+whether it is enabled and whether its endpoint answers with the current config.
+
+| Provider (chain) | Endpoint | Auth | Env / notes |
+|---|---|---|---|
+| `votehub_race_polls` (poll — **primary**) | `GET https://api.votehub.com/polls?poll_type=us-senator\|governor` | none | `VOTEHUB_API_BASE_URL`; `VOTEHUB_API_KEY` optional |
+| `decisiondesk_ballot_test` (poll — fallback) | `GET https://polling.decisiondeskhq.com/api/v1/polls/ballot_test` | none | public; currently returns `[]` — kept as verification fallback |
+| `pollingsource_polls` (poll — fallback) | `GET {POLLINGSOURCE_API_BASE_URL}/polls` | bearer (opt) | generic adapter, no vendor; blank ⇒ disabled |
+| `votehub_generic_ballot` (generic ballot — **primary**) | `GET https://api.votehub.com/polls?poll_type=generic-ballot` | none | `VOTEHUB_API_BASE_URL` |
+| `decisiondesk_generic_ballot` (generic ballot — fallback) | `GET https://polling.decisiondeskhq.com/api/v1/polls/generic_ballot` | none | public |
+| `decisiondesk_election_history` (state lean) | `GET https://resultsapi.decisiondeskhq.com/api/v4/race-calls` (token: `POST /api/v4/oauth/token`) | OAuth2 client-credentials | `DECISIONDESK_CLIENT_ID` + `DECISIONDESK_CLIENT_SECRET` (or static `DECISIONDESK_API_KEY`) — see §4a |
+| `seed_csv_election_history` (state lean — fallback) | committed CSVs in `data/seed/` | — | national baseline populated; state file is placeholders (§4a) |
+| `openfec_candidates` (Senate candidates) | `GET https://api.open.fec.gov/v1/candidates/search/` | `api_key` query param | `FEC_API_KEY` (free: api.data.gov/signup); `OPENFEC_BASE_URL` overridable |
+| `polymarket_gamma_discovery` (market discovery, `--discover`) | `GET https://gamma-api.polymarket.com/events` | none | `POLYMARKET_GAMMA_BASE_URL` |
+| market snapshot prices (stage 2) | `https://clob.polymarket.com` | none | `POLYMARKET_CLOB_BASE_URL`; observation only, never a Quant input |
+| GPT / Claude blind benchmarks (`--blind`) | OpenAI + Anthropic SDK defaults | `OPENAI_API_KEY` / `ANTHROPIC_API_KEY` | `OPENAI_BASE_URL` / `ANTHROPIC_BASE_URL` only for a proxy/Azure |
+
+Each chain tries its providers in order and falls through on `EMPTY`/`STALE`; a missing source is
+recorded as `STALE`/`EMPTY` with a `data_provider_runs` row, never as a zero.
+
+## 4a. State partisan lean — the main quality lever (optional)
 
 `historical_presidential_state.csv` ships with **no real states** (only XX/YY/ZZ placeholders), so
 `state_lean` is `None` for real races and the forecast is **polling-only** (α = 1.0). That is a
@@ -91,11 +116,13 @@ below `STRONG` and leaves thinly-polled races at `THIN`/`ABSTAIN`.
 
 To enable fundamentals, do **one** of:
 
-- **(a) Wire the Decision Desk HQ results API.** Set `DECISIONDESK_RESULTS_BASE_URL`
-  (+ `DECISIONDESK_API_KEY` if required) and confirm the endpoint/shape in
-  `app/providers/election_history.py::DecisionDeskHqElectionHistoryProvider._do_fetch` against
-  current DDHQ docs (`results-api-docs.decisiondeskhq.com`). The provider then populates
-  `historical_election_results` automatically each run.
+- **(a) Wire the Decision Desk HQ Results API v4.** Request API access via
+  `decisiondeskhq.com/products`, then set `DECISIONDESK_CLIENT_ID` + `DECISIONDESK_CLIENT_SECRET`
+  (or paste a pre-issued bearer into `DECISIONDESK_API_KEY`). `DECISIONDESK_RESULTS_BASE_URL` is
+  already defaulted. `DecisionDeskHqElectionHistoryProvider` then does the OAuth exchange, reads
+  `GET /api/v4/race-calls?office_id=1` for 2016/2020/2024, and populates
+  `historical_election_results` (per-state **and** the summed national margin) automatically each
+  run. Verify with `python scripts/check_providers.py --probe` (expect `decisiondesk_election_history → OK`).
 - **(b) Add sourced rows to the CSV.** One row per state per year (2016 / 2020 / 2024),
   `jurisdiction,year,office,dem_margin_pct,source_note`, `dem_margin_pct = Dem% − Rep%` (D+5 →
   `5`, R+5 → `-5`). Cite an official canvass or an established aggregator. The national baseline

@@ -11,6 +11,7 @@ with the set of known races.
 
 from __future__ import annotations
 
+import re
 from collections import defaultdict
 from dataclasses import dataclass
 from datetime import date
@@ -25,6 +26,7 @@ from app.providers.normalize import (
     detect_partisan_sponsor,
     normalize_population,
     poll_content_hash,
+    state_to_abbr,
 )
 from app.providers.race_identity import KnownRace, match_to_race, resolve_candidate_party
 
@@ -148,6 +150,130 @@ class DecisionDeskHqPollProvider(BaseProvider):
         from datetime import datetime, timezone
 
         return datetime.combine(max(dates), datetime.min.time(), tzinfo=timezone.utc)
+
+
+class VoteHubRacePollProvider(BaseProvider):
+    """VoteHub state Senate + Governor trial-heat polls (``https://api.votehub.com/polls``,
+    public, CC-BY-4.0). One request per ``poll_type`` (``us-senator`` / ``governor``); the
+    state comes from the ``subject`` string ("2026 North Carolina"). Primary polls -- subject
+    ending " Democratic" / " Republican" / " Primary" -- are dropped so only general-election
+    head-to-heads reach :func:`polls_to_observations`."""
+
+    name = "votehub_race_polls"
+    kind = POLL_KIND
+    endpoint_family = "votehub:race_polls"
+
+    _POLL_TYPES = {"us-senator": "senate", "governor": "governor"}
+
+    def __init__(self, cycle: int = 2026, **kw):
+        super().__init__(**kw)
+        self.cycle = cycle
+        s = get_settings()
+        self.base_url = s.votehub_api_base_url.rstrip("/")
+        self.api_key = s.votehub_api_key
+
+    def enabled(self) -> bool:
+        return bool(self.base_url)
+
+    def _cache_params(self, **kwargs) -> dict:
+        return {"cycle": self.cycle}
+
+    def _do_fetch(self, **kwargs) -> tuple[Any, str | None, int | None]:
+        url = f"{self.base_url}/polls"
+        headers = {"Authorization": f"Bearer {self.api_key}"} if self.api_key else None
+        rows: list[dict] = []
+        for poll_type in self._POLL_TYPES:
+            payload, _status = self._http_get_json(
+                url,
+                params={"poll_type": poll_type, "from_date": f"{self.cycle - 1}-01-01"},
+                headers=headers,
+            )
+            got = payload.get("polls", payload) if isinstance(payload, dict) else payload
+            for r in got if isinstance(got, list) else []:
+                if isinstance(r, dict):
+                    r.setdefault("poll_type", poll_type)
+                    rows.append(r)
+        if not rows:
+            raise ProviderError(f"{self.name}: no Senate/Governor polls returned")
+        return rows, url, 200
+
+    @staticmethod
+    def _state_from_subject(subject: str) -> tuple[Optional[str], bool]:
+        """('NC', is_primary) from a VoteHub subject like '2026 North Carolina' /
+        '2026 Texas Democratic'."""
+        text = re.sub(r"^\s*\d{4}\s+", "", str(subject or "")).strip()
+        is_primary = False
+        m = re.search(r"\s+(Democratic|Republican|Primary)\s*$", text, re.IGNORECASE)
+        if m:
+            is_primary = True
+            text = text[: m.start()].strip()
+        return state_to_abbr(text), is_primary
+
+    def _normalize(self, raw: Any, **kwargs) -> list[NormalizedRacePoll]:
+        out: list[NormalizedRacePoll] = []
+        for row in raw if isinstance(raw, list) else []:
+            if not isinstance(row, dict):
+                continue
+            office = self._POLL_TYPES.get(str(row.get("poll_type") or ""))
+            if office is None:
+                continue
+            state, is_primary = self._state_from_subject(row.get("subject", ""))
+            if not state or is_primary:
+                continue
+            answers = [
+                {"name": str(a.get("choice") or a.get("name") or "").strip(), "pct": _num(a.get("pct"))}
+                for a in row.get("answers", []) or []
+                if isinstance(a, dict)
+            ]
+            answers = [a for a in answers if a["name"] and a["pct"] is not None]
+            if len(answers) < 2:
+                continue
+            out.append(
+                NormalizedRacePoll(
+                    pollster=str(row.get("pollster") or "Unknown").strip(),
+                    end_date=_parse_date(row.get("end_date")),
+                    start_date=_parse_date(row.get("start_date")),
+                    sample_size=_int(row.get("sample_size")),
+                    population=normalize_population(row.get("population")),
+                    pollster_grade=bucket_pollster_grade(row.get("pollster_grade") or row.get("grade")),
+                    sponsor=_votehub_sponsor(row),
+                    state=state,
+                    office=office,
+                    cycle=self.cycle,
+                    election_type="General",
+                    answers=answers,
+                    source_url=row.get("url") or row.get("source"),
+                    provider=self.name,
+                    provider_poll_id=str(row.get("id") or "") or None,
+                )
+            )
+        return out
+
+    def _latest_data_timestamp(self, normalized: list[NormalizedRacePoll]):
+        dates = [p.end_date for p in normalized if p.end_date]
+        if not dates:
+            return None
+        from datetime import datetime, timezone
+
+        return datetime.combine(max(dates), datetime.min.time(), tzinfo=timezone.utc)
+
+
+_PARTISAN_WORD = {"REP": "Republican-aligned", "DEM": "Democratic-aligned"}
+
+
+def _votehub_sponsor(row: dict) -> Optional[str]:
+    parts: list[str] = []
+    sponsors = row.get("sponsors")
+    if isinstance(sponsors, list):
+        parts.extend(str(s) for s in sponsors if s)
+    elif isinstance(sponsors, str) and sponsors.strip():
+        parts.append(sponsors.strip())
+    partisan = str(row.get("partisan") or "").strip().upper()
+    if partisan:
+        parts.append(_PARTISAN_WORD.get(partisan, f"{partisan} partisan"))
+    if row.get("internal") is True:
+        parts.append("internal poll")
+    return " / ".join(dict.fromkeys(parts)) or None
 
 
 class PollingSourcePollProvider(BaseProvider):
@@ -402,9 +528,13 @@ def polls_to_observations(
 def default_poll_chain(cycle: int = 2026, *, web_extractor=None):
     from app.providers.base import ProviderChain
 
+    # VoteHub first: it is public and currently the only source returning live Senate/Governor
+    # trial-heat polls. DDHQ's ballot_test endpoint stays as the verification fallback (it 200s
+    # but has been returning an empty array); PollingSource + web are the deeper fallbacks.
     return ProviderChain(
         POLL_KIND,
         [
+            VoteHubRacePollProvider(cycle=cycle),
             DecisionDeskHqPollProvider(cycle=cycle),
             PollingSourcePollProvider(cycle=cycle),
             WebSearchPollProvider(extractor=web_extractor),

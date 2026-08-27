@@ -487,6 +487,10 @@ def _run_daily_pipeline_locked(
                 # the human-approved weighted snapshot above, but the two never share inputs: the
                 # blind forecast never sees `book`/`snap` price data. A SAVEPOINT isolates an
                 # unexpected failure here so it cannot abort the rest of the run for other markets.
+                # One timestamp for both arms of this run so they share a run_slot (the twice-daily
+                # slot is derived from `forecast_now`); without this a wall-clock second boundary
+                # between the two calls could split them into different adhoc slots.
+                forecast_now = utcnow()
                 job.llm_forecasts_attempted += 1
                 deepseek_forecast = None
                 try:
@@ -498,6 +502,7 @@ def _run_daily_pipeline_locked(
                             run_key=run_key,
                             trigger_type=trigger_type,
                             day=day,
+                            now=forecast_now,
                             strict=strict_llm_only,
                         )
                     if deepseek_forecast.status == "OK":
@@ -537,6 +542,7 @@ def _run_daily_pipeline_locked(
                             run_key=run_key,
                             trigger_type=trigger_type,
                             day=day,
+                            now=forecast_now,
                             strict=strict_llm_only,
                             provider_config=qwen_provider_config(get_settings()),
                         )
