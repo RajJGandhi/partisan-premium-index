@@ -227,6 +227,14 @@ jobs:
         run: |
           PYTHONPATH=. python scripts/export_public_bundle.py
 
+      - name: Export the PPI v1.5 shadow bundle (additive; never blocks the deploy)
+        continue-on-error: true
+        run: |
+          # The v1.5 pipeline runs in its own workflow (ppi-v15-daily.yml) and writes the shadow
+          # tables; this re-exports web/public/data/v15/*.json so the load-optional /v15 route
+          # ships with the latest data. Shadow only -- does not touch the legacy public bundle.
+          PYTHONPATH=. python scripts/export_v15_bundle.py --output web/public/data/v15
+
       - name: Install frontend dependencies
         working-directory: web
         run: npm ci
