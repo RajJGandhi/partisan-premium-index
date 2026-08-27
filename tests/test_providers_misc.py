@@ -4,7 +4,14 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from app.providers.candidates import OpenFecCandidateProvider, _party
+from app.providers.candidates import (
+    OpenFecCandidateProvider,
+    WikipediaCandidateProvider,
+    _clean_wikitext_name,
+    _looks_like_person_name,
+    _parse_election_infobox,
+    _party,
+)
 from app.providers.election_history import SeedCsvElectionHistoryProvider
 from app.providers.markets import (
     AMBIGUOUS,
@@ -142,6 +149,84 @@ def test_party_helper():
     assert _party("Democratic") == "DEM"
     assert _party("GOP") == "REP"
     assert _party("Libertarian") == "OTHER"
+
+
+# --- Wikipedia election-infobox candidate provider -------------------------------------------
+def _infobox(*pairs, incumbent=None):
+    lines = ["{{Infobox election"]
+    if incumbent:
+        lines.append(f"| incumbent = [[{incumbent}]]")
+    for i, (nom, party) in enumerate(pairs, 1):
+        lines.append(f"| nominee{i} = {nom}")
+        lines.append(f"| party{i} = {party} Party (United States)")
+    lines.append("}}")
+    return "\n".join(lines)
+
+
+_WIKI_BATCH = {
+    "batchcomplete": True,
+    "query": {
+        "pages": [
+            {"title": "2026 United States Senate election in North Carolina",
+             "revisions": [{"slots": {"main": {"content": _infobox(
+                 ("[[Roy Cooper]]", "Democratic"), ("[[Michael Whatley]]", "Republican"))}}}]},
+            {"title": "2026 Georgia gubernatorial election",
+             "revisions": [{"slots": {"main": {"content": _infobox(
+                 ("[[Keisha Lance Bottoms]]", "Democratic"), ("[[Burt Jones]]", "Republican"),
+                 incumbent="Burt Jones")}}}]},
+            {"title": "2026 Kansas gubernatorial election", "missing": True},
+        ]
+    },
+}
+
+
+class _FakeWiki(WikipediaCandidateProvider):
+    def __init__(self, **kw):
+        super().__init__(race_configs={
+            "nc-sen-2026": {"state": "NC", "cycle": 2026, "office": "senate"},
+            "ga-gov-2026": {"state": "GA", "cycle": 2026, "office": "governor"},
+            "ks-gov-2026": {"state": "KS", "cycle": 2026, "office": "governor"},
+        }, **kw)
+        self.http_calls = 0
+
+    def _http_get_json(self, url, params=None, headers=None):
+        self.http_calls += 1
+        return _WIKI_BATCH, 200
+
+
+def test_wikipedia_candidates_batched_one_call_for_all_races(quant_db):
+    p = _FakeWiki(backoff_base_seconds=0)
+    with quant_db() as s:
+        a = p.fetch(s, race_id="nc-sen-2026", state="NC", cycle=2026, office="senate")
+        s.commit()
+        b = p.fetch(s, race_id="ga-gov-2026", state="GA", cycle=2026, office="governor")
+        c = p.fetch(s, race_id="ks-gov-2026", state="KS", cycle=2026, office="governor")
+    assert p.http_calls == 1  # one batched action=query for the whole run
+    assert {r.party: r.name for r in a.normalized_payload} == {"DEM": "Roy Cooper", "REP": "Michael Whatley"}
+    ga = {r.party: r for r in b.normalized_payload}
+    assert ga["DEM"].name == "Keisha Lance Bottoms" and ga["REP"].name == "Burt Jones"
+    assert ga["REP"].is_incumbent is True and ga["DEM"].is_incumbent is False
+    assert c.normalized_payload == []  # missing article -> no guessed name
+
+
+def test_election_infobox_parser_handles_comments_and_replacement_notes():
+    wt = _infobox(
+        ("[[Susan Collins]]", "Republican"),
+        ("[[Troy Jackson]] <!-- MOS note -->(replacing [[Graham Platner]])<!-- unclosed", "Democratic"),
+    )
+    out = _parse_election_infobox(wt)
+    assert out["REP"]["name"] == "Susan Collins"
+    assert out["DEM"]["name"] == "Troy Jackson"
+
+
+def test_election_infobox_parser_rejects_non_names_and_empty_nominees():
+    # empty nominee value, party present on the next line -> must not leak "party1 = ..."
+    wt = "{{Infobox election\n| nominee1 = \n| party1 = Democratic Party (United States)\n}}"
+    assert _parse_election_infobox(wt) == {}
+    assert _looks_like_person_name("Roy Cooper") is True
+    assert _looks_like_person_name("party1 = Democratic Party") is False
+    assert _looks_like_person_name("TBD") is False
+    assert _clean_wikitext_name("[[Mike Collins (politician)]]") == "Mike Collins"
 
 
 # --- market classification ------------------------------------------------------------------

@@ -18,13 +18,13 @@ change, not a redeploy. Nothing here changes the public **headline** series — 
    Actions → Variables). Without it `ppi-v15-daily.yml` is a no-op.
 4. **GitHub secrets** (Actions):
    - `DATABASE_URL` — required.
-   - `FEC_API_KEY` — recommended; enables OpenFEC candidate/incumbency lookups for Senate races
-     (free key from api.data.gov). Without it, candidates come from market discovery + the web
-     fallback only.
+   - `FEC_API_KEY` — optional; adds official FEC candidate/incumbency data for Senate races on
+     top of the Wikipedia nominee lookup (free key from api.data.gov).
    - `VOTEHUB_API_KEY` — optional; VoteHub (the primary poll + generic-ballot source) needs no key.
    - `OPENAI_API_KEY` / `ANTHROPIC_API_KEY` — **leave unset** for the Quant-only run.
-5. **Nothing else.** VoteHub and the Decision Desk HQ polling API are public (no key). Full
-   endpoint list + reachability check: §4, and `python scripts/check_providers.py --probe`.
+5. **Nothing else.** Every data source for a Quant run is public and keyless: VoteHub (polls +
+   generic ballot), Wikipedia (Senate + Governor nominees), the DDHQ polling API. Full endpoint
+   list + reachability check: §4, and `python scripts/check_providers.py --probe`.
 
 ## 2. First run (manual)
 
@@ -70,25 +70,26 @@ with get_session() as s:
 PY
 ```
 
-A healthy first run looks like:
+A healthy first run looks like (16 marquee races, ~Aug 2026, no keys):
 
-- `job.status` is `OK` or `PARTIAL` (a `PARTIAL` with a few `ERROR` races is fine — check
-  `summary.races[*].error`; usually "no ingested data for race" for a race with no polls yet).
-- Data quality is a **spread** of `NORMAL` / `THIN` / `DEGRADED`, with `STRONG` only where a race
-  has ≥4 recent polls from ≥3 pollsters **and** state-lean data (see §4a). Mostly `THIN` this far
-  from the election is expected and correct.
-- No mass `ABSTAIN` — an abstain means candidate-mapping confidence < 0.60 or literally no polls
-  and no fundamentals for that race.
+- `job.status` is `OK` or `PARTIAL`.
+- ~14/16 races `OK` with a real `p_dem_win`; a couple `ABSTAIN` — an abstain here means Wikipedia
+  has no nominee in the race's infobox yet (e.g. a primary not held) **or** VoteHub has no
+  general-election poll for that race yet. Both are correct abstentions, not failures.
+- Data quality mostly `NORMAL`, some `THIN` (few polls), `STRONG` only where a race has ≥4 recent
+  polls from ≥3 pollsters **and** state-lean data (see §4a — needs the DDHQ Results API).
+- `stage 4` reports a few hundred `poll_ingest_skipped` — VoteHub also carries 2025 races and
+  states outside the tracked set; those are dropped as `unmatched_race`, which is expected.
 
 Then the twice-daily schedule (09:20 / 21:20 America/Toronto) takes over. Re-running the same slot
 is idempotent (same `run_key` → no duplicate rows).
 
 ## 4. API endpoints
 
-Every external endpoint the pipeline can call. **No key is needed for a working Quant run** —
-the only entry that unlocks anything is the DDHQ Results API (state lean, §4a). Run
-`PYTHONPATH=. python scripts/check_providers.py --probe` on the runner to see, per provider,
-whether it is enabled and whether its endpoint answers with the current config.
+Every external endpoint the pipeline can call. **No key is needed for a working Quant run** that
+produces real forecasts; the only entry that unlocks *more* is the DDHQ Results API (state lean,
+§4a). Run `PYTHONPATH=. python scripts/check_providers.py --probe` on the runner to see, per
+provider, whether it is enabled and whether its endpoint answers with the current config.
 
 | Provider (chain) | Endpoint | Auth | Env / notes |
 |---|---|---|---|
@@ -100,6 +101,7 @@ whether it is enabled and whether its endpoint answers with the current config.
 | `decisiondesk_election_history` (state lean) | `GET https://resultsapi.decisiondeskhq.com/api/v4/race-calls` (token: `POST /api/v4/oauth/token`) | OAuth2 client-credentials | `DECISIONDESK_CLIENT_ID` + `DECISIONDESK_CLIENT_SECRET` (or static `DECISIONDESK_API_KEY`) — see §4a |
 | `seed_csv_election_history` (state lean — fallback) | committed CSVs in `data/seed/` | — | national baseline populated; state file is placeholders (§4a) |
 | `openfec_candidates` (Senate candidates) | `GET https://api.open.fec.gov/v1/candidates/search/` | `api_key` query param | `FEC_API_KEY` (free: api.data.gov/signup); `OPENFEC_BASE_URL` overridable |
+| `wikipedia_candidates` (Senate + Gov nominees — **primary**) | `GET https://en.wikipedia.org/w/api.php` (batched `action=query`, one call per run) | none | parses the *Infobox election* D/R nominees; a stub infobox → no record (never a guess) |
 | `polymarket_gamma_discovery` (market discovery, `--discover`) | `GET https://gamma-api.polymarket.com/events` | none | `POLYMARKET_GAMMA_BASE_URL` |
 | market snapshot prices (stage 2) | `https://clob.polymarket.com` | none | `POLYMARKET_CLOB_BASE_URL`; observation only, never a Quant input |
 | GPT / Claude blind benchmarks (`--blind`) | OpenAI + Anthropic SDK defaults | `OPENAI_API_KEY` / `ANTHROPIC_API_KEY` | `OPENAI_BASE_URL` / `ANTHROPIC_BASE_URL` only for a proxy/Azure |

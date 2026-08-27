@@ -159,6 +159,15 @@ def _probe_pollingsource_gb(_family: str) -> ProbeOutcome:
     )
 
 
+def _probe_wikipedia(_family: str) -> ProbeOutcome:
+    return _classify(
+        _get("https://en.wikipedia.org/w/api.php",
+             params={"action": "query", "titles": "2026 United States Senate election in North Carolina",
+                     "prop": "revisions", "rvprop": "content", "rvslots": "main", "rvsection": "0",
+                     "format": "json", "formatversion": "2"})
+    )
+
+
 def _probe_openfec(_family: str) -> ProbeOutcome:
     s = get_settings()
     if not s.fec_api_key:
@@ -184,6 +193,7 @@ PROBES: dict[str, Callable[[str], ProbeOutcome]] = {
     "pollingsource_polls": _probe_pollingsource_polls,
     "pollingsource_generic_ballot": _probe_pollingsource_gb,
     "openfec_candidates": _probe_openfec,
+    "wikipedia_candidates": _probe_wikipedia,
     "polymarket_gamma_discovery": _probe_polymarket_gamma,
 }
 

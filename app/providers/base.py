@@ -301,7 +301,9 @@ class BaseProvider(ABC):
         latency = int((time.monotonic() - started) * 1000)
 
         if allow_last_known_good:
-            lkg = _cache.get_last_known_good(session, self.name, self.endpoint_family)
+            # scope last-known-good to THIS request -- a per-race provider must never serve
+            # another race's stored response when its own live fetch fails
+            lkg = _cache.get_last_known_good(session, self.name, self.endpoint_family, cache_key=cache_key)
             if lkg is not None:
                 raw = _cache.decode_payload(lkg)
                 normalized = self._normalize(raw, **kwargs)

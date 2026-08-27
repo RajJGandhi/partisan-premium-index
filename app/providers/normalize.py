@@ -44,6 +44,8 @@ STATE_ABBR: dict[str, str] = {
     "district of columbia": "DC",
 }
 _ABBR_SET = {v for v in STATE_ABBR.values()}
+STATE_NAME: dict[str, str] = {abbr: name.title() for name, abbr in STATE_ABBR.items()}
+STATE_NAME["DC"] = "District of Columbia"
 
 
 def state_to_abbr(value: Any) -> Optional[str]:
@@ -52,6 +54,11 @@ def state_to_abbr(value: Any) -> Optional[str]:
     if len(s) == 2 and s.upper() in _ABBR_SET:
         return s.upper()
     return STATE_ABBR.get(s.lower())
+
+
+def abbr_to_state(value: Any) -> Optional[str]:
+    """USPS abbreviation (any case) -> full state name (title case), else None."""
+    return STATE_NAME.get(str(value or "").strip().upper())
 
 
 def normalize_population(value: Any) -> Optional[str]:

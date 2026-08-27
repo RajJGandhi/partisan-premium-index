@@ -98,6 +98,21 @@ def test_last_known_good_serves_STALE_after_failure(quant_db):
         assert h.is_stale and h.status == "DEGRADED"
 
 
+def test_last_known_good_is_scoped_to_the_request_not_the_endpoint(quant_db):
+    """A per-race provider whose live fetch fails must NOT be served a *different* race's
+    stored response as last-known-good."""
+    with quant_db() as s:
+        _Canned("cand", [{"who": "race-A"}]).fetch(s, race_id="A")
+        s.commit()
+        for row in s.query(ProviderCache).filter_by(provider_name="cand"):
+            row.fetched_at = datetime.now(timezone.utc) - timedelta(days=30)
+        s.commit()
+        # same provider + endpoint_family, different request -> its own LKG does not exist yet
+        res = _Canned("cand", [{"x": 1}], always_fail=True, max_retries=2).fetch(s, race_id="B")
+        assert res.status == FAILED
+        assert res.normalized_payload is None  # never race-A's data
+
+
 def test_disabled_provider_yields_empty_not_error(quant_db):
     class _Disabled(_Canned):
         def enabled(self):
