@@ -1,0 +1,22 @@
+# State presidential result -- Democratic-minus-Republican margin, percentage points, per year.
+# Used with historical_presidential_national.csv to build state partisan lean (spec section 9):
+#   StateLean_y = StatePresidentialMargin_y - NationalPresidentialMargin_y
+#
+# THIS FILE SHIPS EMPTY OF REAL STATES ON PURPOSE. Populate it one of two ways:
+#   1. run `make ingest` with DECISIONDESK_RESULTS_BASE_URL configured -- the
+#      DecisionDeskHqElectionHistoryProvider writes real, retrieval-stamped rows into the
+#      historical_election_results table; or
+#   2. add sourced rows below (one per state per year), each with a source_note pointing at an
+#      official tally (e.g. the state's Secretary of State canvass or the FEC official results).
+# The XX / YY / ZZ rows are the illustrative placeholders used by tests and the offline shadow
+# smoke run only -- they are not real states.
+jurisdiction,year,office,dem_margin_pct,source_note
+XX,2016,president,1.0,"illustrative placeholder - not a real state"
+XX,2020,president,2.5,"illustrative placeholder - not a real state"
+XX,2024,president,-1.0,"illustrative placeholder - not a real state"
+YY,2016,president,-8.0,"illustrative placeholder - not a real state"
+YY,2020,president,-6.0,"illustrative placeholder - not a real state"
+YY,2024,president,-9.0,"illustrative placeholder - not a real state"
+ZZ,2016,president,0.5,"illustrative placeholder - not a real state"
+ZZ,2020,president,0.3,"illustrative placeholder - not a real state"
+ZZ,2024,president,-2.0,"illustrative placeholder - not a real state"

@@ -74,8 +74,19 @@ ADDITIVE_COLUMNS = {
         "reviewed_at": "DATETIME",
         "review_notes": "TEXT",
         "evidence_all_live_classified": "BOOLEAN",
+        # PPI Quant v1.5: label the retained pre-rewrite blind-LLM series so it stays distinct from
+        # the new deterministic Quant series and the new GPT/Claude blind benchmarks. Existing rows
+        # backfill to the legacy labels via the column DEFAULT.
+        "methodology_version": "VARCHAR(40) DEFAULT 'ppi-v0-legacy-blind-llm' NOT NULL",
+        "forecast_role": "VARCHAR(30) DEFAULT 'legacy_blind_llm' NOT NULL",
     },
 }
+
+# PPI Quant v1.5 introduces entirely new tables (races, poll_observations, quant_forecasts,
+# ensemble_forecasts, quant_evidence_bundles, data_provider_runs, provider_health, ...). These are
+# defined as SQLAlchemy models in app/db/models_quant.py and created by the
+# ``Base.metadata.create_all`` call at the top of migrate(); no hand-written DDL is needed for
+# them here, and they touch nothing in the existing schema.
 
 
 def _widen_llm_forecast_uniqueness(conn, inspector) -> None:

@@ -1,0 +1,67 @@
+{
+  "_disclaimer": "ILLUSTRATIVE SYNTHETIC INPUTS. These are not real races, real candidates, real polls, or real state results. They exist only to exercise the PPI Quant engine end-to-end in shadow mode (scripts/run_quant_shadow.py) and in tests, before the political-data provider layer (Decision Labs / VoteHub / OpenFEC / web fallback) is wired. The engine does NOT ship with real seeded race data; real inputs arrive through the providers. States are placeholders (XX/YY/ZZ). Do not present any forecast built from this file as a real-world prediction.",
+  "methodology_note": "state_history margins are Democratic-minus-Republican percentage points (D+5 -> +5, R+5 -> -5). Polls give dem_pct / rep_pct. as_of is the forecast timestamp; election_date drives the time-to-election term.",
+  "as_of": "2026-08-27T13:00:00Z",
+  "generic_ballot": [
+    {"pollster": "Illustrative Research A", "start_date": "2026-08-17", "end_date": "2026-08-20", "sample_size": 1500, "population": "RV", "pollster_grade": "B+", "dem_pct": 47, "rep_pct": 44},
+    {"pollster": "Illustrative Research G", "start_date": "2026-08-10", "end_date": "2026-08-13", "sample_size": 1200, "population": "RV", "pollster_grade": "B", "dem_pct": 46, "rep_pct": 45}
+  ],
+  "races": [
+    {
+      "race_id": "xx-sen-2026",
+      "state": "XX",
+      "office": "senate",
+      "cycle": 2026,
+      "election_date": "2026-11-03",
+      "dem_candidate": {"name": "Dana Example", "party": "DEM", "is_incumbent": true, "status": "confirmed"},
+      "rep_candidate": {"name": "Robin Placeholder", "party": "REP", "is_incumbent": false, "status": "confirmed"},
+      "candidate_mapping_confidence": 1.0,
+      "state_history": {
+        "state_results": {"2016": 1.0, "2020": 2.5, "2024": -1.0},
+        "national_results": {"2016": 2.1, "2020": 4.5, "2024": -1.5}
+      },
+      "polls": [
+        {"pollster": "Illustrative Research A", "start_date": "2026-08-18", "end_date": "2026-08-21", "sample_size": 900, "population": "LV", "pollster_grade": "A-", "dem_pct": 51, "rep_pct": 44},
+        {"pollster": "Illustrative Research B", "start_date": "2026-08-12", "end_date": "2026-08-15", "sample_size": 1100, "population": "LV", "pollster_grade": "A-", "dem_pct": 50, "rep_pct": 45},
+        {"pollster": "Illustrative Research C", "start_date": "2026-08-05", "end_date": "2026-08-08", "sample_size": 800, "population": "RV", "pollster_grade": "B+", "dem_pct": 49, "rep_pct": 46},
+        {"pollster": "Illustrative Research D", "start_date": "2026-07-28", "end_date": "2026-07-31", "sample_size": 750, "population": "LV", "pollster_grade": "B", "dem_pct": 52, "rep_pct": 44, "partisan_sponsor": "Example Action Fund"}
+      ]
+    },
+    {
+      "race_id": "yy-gov-2026",
+      "state": "YY",
+      "office": "governor",
+      "cycle": 2026,
+      "election_date": "2026-11-03",
+      "dem_candidate": {"name": "Alex Synthetic", "party": "DEM", "is_incumbent": false, "status": "confirmed"},
+      "rep_candidate": {"name": "Sam Hypothetical", "party": "REP", "is_incumbent": true, "status": "confirmed"},
+      "candidate_mapping_confidence": 1.0,
+      "state_history": {
+        "state_results": {"2016": -8.0, "2020": -6.0, "2024": -9.0},
+        "national_results": {"2016": 2.1, "2020": 4.5, "2024": -1.5}
+      },
+      "polls": [
+        {"pollster": "Illustrative Research A", "start_date": "2026-08-10", "end_date": "2026-08-13", "sample_size": 850, "population": "LV", "pollster_grade": "A-", "dem_pct": 45, "rep_pct": 49},
+        {"pollster": "Illustrative Research E", "start_date": "2026-07-20", "end_date": "2026-07-23", "sample_size": 600, "population": "RV", "pollster_grade": "C+", "dem_pct": 46, "rep_pct": 48}
+      ]
+    },
+    {
+      "race_id": "zz-sen-2026",
+      "state": "ZZ",
+      "office": "senate",
+      "cycle": 2026,
+      "election_date": "2026-11-03",
+      "dem_candidate": {"name": "Jordan Notreal", "party": "DEM", "is_incumbent": false, "status": "confirmed"},
+      "rep_candidate": {"name": "Casey Fictitious", "party": "REP", "is_incumbent": false, "status": "unconfirmed"},
+      "candidate_mapping_confidence": 0.72,
+      "national_environment_override": 3.0,
+      "state_history": {
+        "state_results": {"2016": 0.5, "2020": 0.3, "2024": -2.0},
+        "national_results": {"2016": 2.1, "2020": 4.5, "2024": -1.5}
+      },
+      "polls": [
+        {"pollster": "Illustrative Research F", "start_date": "2026-06-01", "end_date": "2026-06-04", "sample_size": 500, "population": "A", "pollster_grade": "C", "dem_pct": 47, "rep_pct": 45}
+      ]
+    }
+  ]
+}

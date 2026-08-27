@@ -5,6 +5,7 @@ import { TooltipProvider } from "./Tooltip";
 
 const navItems = [
   ["Markets", "/markets"],
+  ["PPI v1.5", "/v15"],
   ["Track record", "/track-record"],
   ["Methodology", "/methodology"],
   ["System status", "/system-status"],

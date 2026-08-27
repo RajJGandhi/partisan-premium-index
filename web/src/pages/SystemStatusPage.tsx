@@ -7,9 +7,11 @@ import { StatusPill } from "../components/StatusPill";
 import { usePublicData } from "../hooks/usePublicData";
 import { publicData } from "../lib/data";
 import { formatDateTime, formatDuration } from "../lib/format";
+import { v15Data } from "../lib/v15Data";
 
 export function SystemStatusPage() {
   const { data, loading, error } = usePublicData(publicData.systemStatus, []);
+  const v15 = usePublicData(v15Data.providerStatus, []);
 
   if (loading) return <div className="shell-width page-space"><LoadingState label="Loading system status…" /></div>;
   if (error || !data) return <div className="shell-width page-space"><ErrorState error={error ?? new Error("System status unavailable")} /></div>;
@@ -109,6 +111,54 @@ export function SystemStatusPage() {
           </div>
         ) : <EmptyState title="No source-run details" description="Adapter health appears after a production pipeline run exports public status data." />}
       </section>
+
+      {v15.data ? (
+        <section className="panel page-section">
+          <div className="panel__header"><div>
+            <div className="eyebrow">PPI v1.5 (shadow)</div>
+            <h2>Provider health, adapters & cutover readiness</h2>
+            <p>The v1.5 quantitative pipeline runs alongside the headline series. Data providers, forecasting adapters, and the checklist that gates making Quant/Ensemble the public headline.</p>
+          </div></div>
+
+          <div className="table-scroll">
+            <table className="data-table">
+              <thead><tr><th>Provider</th><th>Kind</th><th>Status</th><th>Last success</th><th>Latency</th><th>Consecutive failures</th></tr></thead>
+              <tbody>
+                {v15.data.providers.length === 0 ? (
+                  <tr><td colSpan={6}>No provider runs recorded yet.</td></tr>
+                ) : v15.data.providers.map((p) => (
+                  <tr key={p.name}>
+                    <td><strong>{p.name}</strong>{p.recent_error ? <span>{p.recent_error}</span> : null}</td>
+                    <td>{p.kind}</td>
+                    <td><StatusPill status={p.status} compact /></td>
+                    <td>{formatDateTime(p.last_success_at)}</td>
+                    <td className="num">{p.last_latency_ms == null ? "—" : `${p.last_latency_ms} ms`}</td>
+                    <td className="num">{p.consecutive_failures}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          <dl className="definition-list definition-list--large" style={{ marginTop: "1rem" }}>
+            {Object.entries(v15.data.adapters).map(([contract, status]) => (
+              <div key={contract}><dt>{contract}</dt><dd><StatusPill status={status} compact /></dd></div>
+            ))}
+          </dl>
+
+          <div className="v15-cutover">
+            <strong>Headline series: {v15.data.cutover.current_headline_series}</strong>
+            <p>{v15.data.cutover.note}</p>
+            <ul>
+              {v15.data.cutover.checklist.map((item, i) => <li key={i}>{item}</li>)}
+            </ul>
+            <p className="v15-footnote">
+              {v15.data.cutover.quant_forecasts} quant forecasts · {v15.data.cutover.available_ensembles} available ensembles ·{" "}
+              {v15.data.cutover.resolved_races} resolved races scored.
+            </p>
+          </div>
+        </section>
+      ) : null}
     </div>
   );
 }
