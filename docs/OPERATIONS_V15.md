@@ -73,11 +73,11 @@ PY
 A healthy first run looks like (16 marquee races, ~Aug 2026, no keys):
 
 - `job.status` is `OK` or `PARTIAL`.
-- ~14/16 races `OK` with a real `p_dem_win`; a couple `ABSTAIN` — an abstain here means Wikipedia
-  has no nominee in the race's infobox yet (e.g. a primary not held) **or** VoteHub has no
-  general-election poll for that race yet. Both are correct abstentions, not failures.
-- Data quality mostly `NORMAL`, some `THIN` (few polls), `STRONG` only where a race has ≥4 recent
-  polls from ≥3 pollsters **and** state-lean data (see §4a — needs the DDHQ Results API).
+- ~15/16 races `OK` with a real `p_dem_win`; a race `ABSTAIN`s only when Wikipedia has no nominee
+  in its infobox yet (e.g. a primary not held) **and/or** VoteHub has no general-election poll for
+  it yet. Correct abstentions, not failures.
+- Data quality mostly `STRONG` / `NORMAL`, with `THIN` where a race has few polls. `STRONG` needs
+  ≥4 recent polls from ≥3 pollsters **and** state lean (now automatic — §4a).
 - `stage 4` reports a few hundred `poll_ingest_skipped` — VoteHub also carries 2025 races and
   states outside the tracked set; those are dropped as `unmatched_race`, which is expected.
 
@@ -98,8 +98,9 @@ provider, whether it is enabled and whether its endpoint answers with the curren
 | `pollingsource_polls` (poll — fallback) | `GET {POLLINGSOURCE_API_BASE_URL}/polls` | bearer (opt) | generic adapter, no vendor; blank ⇒ disabled |
 | `votehub_generic_ballot` (generic ballot — **primary**) | `GET https://api.votehub.com/polls?poll_type=generic-ballot` | none | `VOTEHUB_API_BASE_URL` |
 | `decisiondesk_generic_ballot` (generic ballot — fallback) | `GET https://polling.decisiondeskhq.com/api/v1/polls/generic_ballot` | none | public |
-| `decisiondesk_election_history` (state lean) | `GET https://resultsapi.decisiondeskhq.com/api/v4/race-calls` (token: `POST /api/v4/oauth/token`) | OAuth2 client-credentials | `DECISIONDESK_CLIENT_ID` + `DECISIONDESK_CLIENT_SECRET` (or static `DECISIONDESK_API_KEY`) — see §4a |
-| `seed_csv_election_history` (state lean — fallback) | committed CSVs in `data/seed/` | — | national baseline populated; state file is placeholders (§4a) |
+| `wikipedia_presidential_history` (state lean — **primary**) | `GET https://en.wikipedia.org/w/api.php` (batched, ~4 calls, cached) | none | per-state + national 2016/2020/2024 presidential margins from the *Infobox election* / `{{Election box}}` results |
+| `decisiondesk_election_history` (state lean — used first if configured) | `GET https://resultsapi.decisiondeskhq.com/api/v4/race-calls` (token: `POST /api/v4/oauth/token`) | OAuth2 client-credentials | optional upgrade over Wikipedia; `DECISIONDESK_CLIENT_ID` + `_SECRET` (or static `DECISIONDESK_API_KEY`) — see §4a |
+| `seed_csv_election_history` (state lean — last-resort fallback) | committed CSVs in `data/seed/` | — | national baseline populated; state file is placeholders |
 | `openfec_candidates` (Senate candidates) | `GET https://api.open.fec.gov/v1/candidates/search/` | `api_key` query param | `FEC_API_KEY` (free: api.data.gov/signup); `OPENFEC_BASE_URL` overridable |
 | `wikipedia_candidates` (Senate + Gov nominees — **primary**) | `GET https://en.wikipedia.org/w/api.php` (batched `action=query`, one call per run) | none | parses the *Infobox election* D/R nominees; a stub infobox → no record (never a guess) |
 | `polymarket_gamma_discovery` (market discovery, `--discover`) | `GET https://gamma-api.polymarket.com/events` | none | `POLYMARKET_GAMMA_BASE_URL` |
@@ -109,29 +110,28 @@ provider, whether it is enabled and whether its endpoint answers with the curren
 Each chain tries its providers in order and falls through on `EMPTY`/`STALE`; a missing source is
 recorded as `STALE`/`EMPTY` with a `data_provider_runs` row, never as a zero.
 
-## 4a. State partisan lean — the main quality lever (optional)
+## 4a. State partisan lean — now automatic
 
-`historical_presidential_state.csv` ships with **no real states** (only XX/YY/ZZ placeholders), so
-`state_lean` is `None` for real races and the forecast is **polling-only** (α = 1.0). That is a
-correct degraded mode — well-polled races still get a real forecast — but it caps data quality
-below `STRONG` and leaves thinly-polled races at `THIN`/`ABSTAIN`.
+`state_lean` (each state's 2016/2020/2024 Democratic-minus-Republican presidential margin) feeds
+the Quant fundamentals term: `fundamental_margin = state_lean + national_environment + incumbency`,
+blended with the polling margin as `μ = α·polls + (1−α)·fundamentals`. Without it, `α` is forced
+to `1.0` (polling-only) and `data_quality` can't reach `STRONG`.
 
-To enable fundamentals, do **one** of:
+**`wikipedia_presidential_history` populates it automatically, no key.** It pulls every "{year}
+United States presidential election in {State}" article in a few batched, cached MediaWiki calls
+and reads the per-candidate popular vote from the *Infobox election* (falling back to the
+`{{Election box}}` results table for split-elector years like Maine 2020); the national margin is
+the sum of the state tallies. Verified against the official 2016/2020/2024 national totals.
 
-- **(a) Wire the Decision Desk HQ Results API v4.** Request API access via
-  `decisiondeskhq.com/products`, then set `DECISIONDESK_CLIENT_ID` + `DECISIONDESK_CLIENT_SECRET`
-  (or paste a pre-issued bearer into `DECISIONDESK_API_KEY`). `DECISIONDESK_RESULTS_BASE_URL` is
-  already defaulted. `DecisionDeskHqElectionHistoryProvider` then does the OAuth exchange, reads
-  `GET /api/v4/race-calls?office_id=1` for 2016/2020/2024, and populates
-  `historical_election_results` (per-state **and** the summed national margin) automatically each
-  run. Verify with `python scripts/check_providers.py --probe` (expect `decisiondesk_election_history → OK`).
-- **(b) Add sourced rows to the CSV.** One row per state per year (2016 / 2020 / 2024),
-  `jurisdiction,year,office,dem_margin_pct,source_note`, `dem_margin_pct = Dem% − Rep%` (D+5 →
-  `5`, R+5 → `-5`). Cite an official canvass or an established aggregator. The national baseline
-  (`historical_presidential_national.csv`) is already populated.
+Optional upgrades, in the order the chain tries them:
 
-`data_quality` will move from `THIN`/`NORMAL` toward `STRONG` as coverage improves — visible per
-race on `/v15` and in `forecast_scores` once races resolve.
+- **Decision Desk HQ Results API v4** — set `DECISIONDESK_CLIENT_ID` + `DECISIONDESK_CLIENT_SECRET`
+  (request access at `decisiondeskhq.com/products`; or paste a pre-issued bearer into
+  `DECISIONDESK_API_KEY`). Used ahead of Wikipedia when configured. Verify with
+  `python scripts/check_providers.py --probe`.
+- **Sourced CSV rows** in `data/seed/historical_presidential_state.csv`
+  (`jurisdiction,year,office,dem_margin_pct,source_note`) — the last-resort fallback if both of
+  the above are unavailable.
 
 ## 5. Adding the blind benchmarks later
 

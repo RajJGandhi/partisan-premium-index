@@ -43,7 +43,7 @@ with `provider_requested`, `provider_used`, `fallback_reason`, `used_cache`,
 
 | Kind | Chain (in order) | Writes |
 |---|---|---|
-| `election_history` | `DecisionDeskHqElectionHistoryProvider` → `SeedCsvElectionHistoryProvider` | `historical_election_results` (upsert per jurisdiction/year/office) |
+| `election_history` | `DecisionDeskHqElectionHistoryProvider` → `WikipediaPresidentialHistoryProvider` → `SeedCsvElectionHistoryProvider` | `historical_election_results` (upsert per jurisdiction/year/office) |
 | `generic_ballot` | `VoteHubGenericBallotProvider` → `DecisionDeskHqGenericBallotProvider` → `PollingSourceGenericBallotProvider` → `WebSearchGenericBallotProvider` | `national_environment_observations` (dedup on content hash) |
 | `poll` | `VoteHubRacePollProvider` → `DecisionDeskHqPollProvider` → `PollingSourcePollProvider` → `WebSearchPollProvider` | `poll_observations` (dedup on content hash) |
 | `candidate` | `OpenFecCandidateProvider` → `WikipediaCandidateProvider` → `SeedCandidateProvider` → `WebCandidateProvider` | `race_candidates` + `candidate_status_snapshots` (+ mirrored onto `races.dem/rep_candidate_name`) |
@@ -73,16 +73,25 @@ with `provider_requested`, `provider_used`, `fallback_reason`, `used_cache`,
   ({cand_id: count}), so a state's D-minus-R margin is one join; district rows (ME/NE splits) are
   skipped and the national margin is the sum of the state tallies. Disabled → seed-CSV fallback
   until `DECISIONDESK_CLIENT_ID` + `DECISIONDESK_CLIENT_SECRET` (or static `DECISIONDESK_API_KEY`).
-- **Wikipedia** (`WikipediaCandidateProvider`, no key) — the primary candidate source for both
-  Senate and Governor. All of a run's race articles ("2026 United States Senate election in
-  {State}" / "2026 {State} gubernatorial election") are pulled in ONE batched MediaWiki
-  `action=query&prop=revisions&rvsection=0` request (Wikimedia's recommended pattern; the
-  anonymous API 429s on rapid per-page calls), so every race shares a single cache entry and one
-  HTTP call. The section-0 *Infobox election* is parsed for the `nomineeN` / `partyN` pairs → the
-  D and R nominee. A stub infobox (no nominee yet) yields no record — never a guessed name.
-  Resolved nominees are also mirrored onto `races.dem_candidate_name` / `rep_candidate_name`, and
-  `ingest_political_data` rebuilds its `KnownRace` list from the DB after the candidate step so
-  the poll matcher can orient head-to-heads whose seed config had no candidates.
+- **Wikipedia** (no key) — the primary source for **both** candidates and state lean, via the
+  shared `app/providers/wikipedia.py` helpers (`fetch_wikitext_batch` does one batched
+  `action=query&prop=revisions` request per group of ≤50 titles — Wikimedia's recommended pattern;
+  the anonymous API 429s on rapid per-page calls — with title-normalisation / redirect resolution,
+  gentle inter-chunk pacing, and generous retry/backoff).
+  - `WikipediaCandidateProvider` — all of a run's race articles ("2026 United States Senate
+    election in {State}" / "2026 {State} gubernatorial election") in one call; the section-0
+    *Infobox election* `nomineeN` / `partyN` pairs → the D and R nominee. A stub infobox → no
+    record, never a guessed name. Resolved nominees are mirrored onto
+    `races.dem_candidate_name` / `rep_candidate_name`, and `ingest_political_data` rebuilds its
+    `KnownRace` list from the DB after the candidate step so the poll matcher can orient
+    head-to-heads whose seed config had no candidates.
+  - `WikipediaPresidentialHistoryProvider` — all 51 jurisdictions × 2016/2020/2024
+    ("{year} United States presidential election in {State}"), reading the per-candidate popular
+    vote from the *Infobox election* (`popular_voteN` / `partyN`), falling back to the
+    `{{Election box … |party= |votes= }}` results-table templates for split-elector state-years
+    (Maine 2020). Per-state margins **and** the summed national margin; verified against the
+    official 2016/2020/2024 national totals. Sits between DDHQ and the seed CSV, so it is the
+    de-facto state-lean source whenever DDHQ credentials are absent.
 - **OpenFEC** `https://api.open.fec.gov/v1` (`api_key` query param, `OPENFEC_BASE_URL` overridable)
   and **Polymarket Gamma** `https://gamma-api.polymarket.com` reuse `app/ingest/fec.py` /
   `app/ingest/polymarket_gamma.py`.
@@ -181,9 +190,8 @@ the providers populate — `races`, `race_candidates`, `poll_observations`,
 - **GPT + Claude blind-forecast runners** + the live ensemble (Phases F/G).
 - **Scoring / calibration / backtesting** CLI (Phase I).
 - **Frontend** + **the 10-stage scheduler** wiring these chains on a twice-daily cron (Phase H/E).
-- **Real historical state dataset** — `historical_presidential_state.csv` ships empty of real
-  states; populate via the DDHQ Results API v4 (`decisiondesk_election_history`, needs
-  credentials) or sourced CSV rows. The provider + endpoint are now wired; only the client
-  id/secret are outstanding.
 - **PollingSource** has no canonical vendor — the adapter is generic and untested against a live
   service. VoteHub + DDHQ + web fallback cover the same needs.
+- **DDHQ Results API v4** state lean is wired but needs client credentials; without them
+  `WikipediaPresidentialHistoryProvider` already supplies real 2016/2020/2024 state + national
+  margins with no key.

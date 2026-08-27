@@ -14,6 +14,7 @@ from typing import Any, Optional
 from app.config import get_settings
 from app.providers.base import BaseProvider, ProviderChain, ProviderError
 from app.providers.normalize import abbr_to_state, normalize_name
+from app.providers.wikipedia import WIKI_API, fetch_wikitext_batch, infobox_field, strip_wikitext
 
 CANDIDATE_KIND = "candidate"
 
@@ -114,35 +115,12 @@ class OpenFecCandidateProvider(BaseProvider):
         return list(best.values())
 
 
-_WIKI_API = "https://en.wikipedia.org/w/api.php"
-
-
-_H = r"[^\S\n]*"  # horizontal whitespace only -- must not swallow a newline into the next field
-
-
-def _infobox_field(wikitext: str, field: str) -> Optional[str]:
-    """Raw value of ``| <field> = ...`` on its own line, or None if absent/empty."""
-    m = re.search(rf"(?m)^{_H}\|{_H}{re.escape(field)}{_H}={_H}([^\n]*?){_H}$", wikitext)
-    val = (m.group(1).strip() if m else "")
-    return val or None
-
-
 def _clean_wikitext_name(raw: str) -> str:
     """Turn an infobox ``nominee`` value into a plain candidate name."""
-    s = raw
-    s = re.sub(r"<!--.*?-->", "", s, flags=re.DOTALL)   # HTML comments (may be unclosed on the line)
-    s = re.sub(r"<!--.*$", "", s, flags=re.DOTALL)
-    s = re.sub(r"<ref[^>]*>.*?</ref>", "", s, flags=re.IGNORECASE | re.DOTALL)
-    s = re.sub(r"<ref[^>]*/\s*>", "", s, flags=re.IGNORECASE)
-    s = re.sub(r"<br\s*/?>", " ", s, flags=re.IGNORECASE)
-    # [[Target|Display]] -> Display ; [[Target]] -> Target
-    s = re.sub(r"\[\[(?:[^\]|]*\|)?([^\]|]+)\]\]", r"\1", s)
-    s = re.sub(r"\{\{[^{}]*\}\}", "", s)          # drop templates
-    s = s.replace("'''", "").replace("''", "")
-    s = re.sub(r"<[^>]+>", "", s)
+    s = strip_wikitext(raw)
     s = re.sub(r"\([^)]*\)\s*$", "", s).strip()    # trailing "(politician)", "(replacing X)"
     s = re.sub(r"\([^)]*\)\s*$", "", s).strip()    # ... and a second trailing "(...)" if present
-    return re.sub(r"\s+", " ", s).strip(" -–—|")
+    return s.strip(" -–—|")
 
 
 def _looks_like_person_name(s: str) -> bool:
@@ -157,19 +135,19 @@ def _looks_like_person_name(s: str) -> bool:
 
 def _parse_election_infobox(wikitext: str) -> dict[str, dict]:
     """``{'DEM': {'name': ..., 'is_incumbent': bool}, 'REP': {...}}`` from an Infobox election."""
-    inc_raw = _infobox_field(wikitext, "incumbent")
+    inc_raw = infobox_field(wikitext, "incumbent")
     incumbent = normalize_name(_clean_wikitext_name(inc_raw)) if inc_raw else ""
 
     out: dict[str, dict] = {}
     for i in ("1", "2", "3", "4", "5", "6"):
-        party_raw = _infobox_field(wikitext, f"party{i}")
+        party_raw = infobox_field(wikitext, f"party{i}")
         if not party_raw:
             continue
         low = party_raw.lower()
         party = "DEM" if "democratic" in low else "REP" if "republican" in low else None
         if not party or party in out:
             continue
-        nom_raw = _infobox_field(wikitext, f"nominee{i}") or _infobox_field(wikitext, f"candidate{i}")
+        nom_raw = infobox_field(wikitext, f"nominee{i}") or infobox_field(wikitext, f"candidate{i}")
         if not nom_raw:
             continue
         name = _clean_wikitext_name(nom_raw)
@@ -177,10 +155,6 @@ def _parse_election_infobox(wikitext: str) -> dict[str, dict]:
             continue
         out[party] = {"name": name, "is_incumbent": bool(incumbent) and normalize_name(name) == incumbent}
     return out
-
-
-def _wiki_key(title: str) -> str:
-    return title.strip().replace("_", " ").lower()
 
 
 def _election_article_title(state: str, cycle: int, office: str) -> Optional[str]:
@@ -207,7 +181,6 @@ class WikipediaCandidateProvider(BaseProvider):
     name = "wikipedia_candidates"
     kind = CANDIDATE_KIND
     endpoint_family = "wikipedia:election_infobox"
-    _BATCH = 40
 
     def __init__(self, race_configs: dict | None = None, **kw):
         super().__init__(**kw)
@@ -235,51 +208,14 @@ class WikipediaCandidateProvider(BaseProvider):
         titles_by_race = self._titles_by_race(extra)
         if not titles_by_race:
             raise ProviderError(f"{self.name}: no state/office to build an election-article title")
-        want = sorted(set(titles_by_race.values()))
-
-        pages: dict[str, str] = {}   # _wiki_key(resolved title) -> section-0 wikitext
-        alias: dict[str, str] = {}   # _wiki_key(any requested/normalized title) -> _wiki_key(resolved)
-        for i in range(0, len(want), self._BATCH):
-            chunk = want[i : i + self._BATCH]
-            payload, status = self._http_get_json(
-                _WIKI_API,
-                params={
-                    "action": "query", "prop": "revisions", "rvprop": "content",
-                    "rvslots": "main", "rvsection": "0", "redirects": "1",
-                    "titles": "|".join(chunk), "format": "json", "formatversion": "2",
-                },
-            )
-            if not isinstance(payload, dict) or "query" not in payload:
-                err = (payload or {}).get("error", {}).get("info") if isinstance(payload, dict) else None
-                raise ProviderError(f"{self.name}: MediaWiki query failed" + (f" ({err})" if err else ""))
-            q = payload["query"]
-            for pair in q.get("normalized", []) + q.get("redirects", []):
-                if pair.get("from") and pair.get("to"):
-                    alias[_wiki_key(pair["from"])] = _wiki_key(pair["to"])
-            for page in q.get("pages", []):
-                if page.get("missing") or "revisions" not in page:
-                    continue
-                try:
-                    content = page["revisions"][0]["slots"]["main"]["content"]
-                except (KeyError, IndexError, TypeError):
-                    continue
-                pages[_wiki_key(page.get("title", ""))] = content
-
-        def resolve(key: str) -> str:
-            seen = set()
-            while key in alias and key not in seen:
-                seen.add(key)
-                key = alias[key]
-            return key
-
-        by_race = {
-            rid: pages[resolve(_wiki_key(t))]
-            for rid, t in titles_by_race.items()
-            if resolve(_wiki_key(t)) in pages
-        }
+        try:
+            pages = fetch_wikitext_batch(self._http_get_json, list(titles_by_race.values()))
+        except ValueError as exc:
+            raise ProviderError(f"{self.name}: {exc}") from exc
+        by_race = {rid: pages[t] for rid, t in titles_by_race.items() if t in pages}
         if not by_race:
-            raise ProviderError(f"{self.name}: none of {len(want)} election articles returned content")
-        return {"by_race": by_race, "titles_by_race": titles_by_race}, _WIKI_API, status
+            raise ProviderError(f"{self.name}: no election article returned content")
+        return {"by_race": by_race, "titles_by_race": titles_by_race}, WIKI_API, 200
 
     def _normalize(self, raw: Any, *, race_id: str = "", **kwargs) -> list[CandidateRecord]:
         if not isinstance(raw, dict):
@@ -399,7 +335,9 @@ def default_candidate_chain(*, race_config: dict | None = None, web_extractor=No
         CANDIDATE_KIND,
         [
             OpenFecCandidateProvider(),
-            WikipediaCandidateProvider(race_configs=race_config),
+            # generous retry/backoff: the anonymous MediaWiki API 429s under burst, and the
+            # election-history provider may have just hit it in the same run
+            WikipediaCandidateProvider(race_configs=race_config, max_retries=6, backoff_base_seconds=2.0),
             SeedCandidateProvider(race_config=race_config),
             WebCandidateProvider(extractor=web_extractor),
         ],

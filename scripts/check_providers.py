@@ -194,6 +194,7 @@ PROBES: dict[str, Callable[[str], ProbeOutcome]] = {
     "pollingsource_generic_ballot": _probe_pollingsource_gb,
     "openfec_candidates": _probe_openfec,
     "wikipedia_candidates": _probe_wikipedia,
+    "wikipedia_presidential_history": _probe_wikipedia,
     "polymarket_gamma_discovery": _probe_polymarket_gamma,
 }
 

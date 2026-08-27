@@ -12,6 +12,7 @@ lean as *absent* (never as 0).
 from __future__ import annotations
 
 import csv
+import re
 import time
 from dataclasses import dataclass
 from pathlib import Path
@@ -21,12 +22,15 @@ import requests
 
 from app.config import get_settings
 from app.providers.base import BaseProvider, ProviderChain, ProviderError
+from app.providers.normalize import STATE_ABBR, abbr_to_state
+from app.providers.wikipedia import WIKI_API, fetch_wikitext_batch, infobox_field, strip_wikitext
 
 ELECTION_HISTORY_KIND = "election_history"
 
 SEED_NATIONAL_CSV = Path("data/seed/historical_presidential_national.csv")
 SEED_STATE_CSV = Path("data/seed/historical_presidential_state.csv")
 DEFAULT_YEARS = (2016, 2020, 2024)
+ALL_JURISDICTIONS: tuple[str, ...] = tuple(sorted({*STATE_ABBR.values(), "DC"}))
 
 # Decision Desk HQ party ids (Results API v4). Numbers are stable; the string label varies.
 _DDHQ_DEM_PARTY_IDS = {1, "1"}
@@ -109,6 +113,54 @@ def _num(v: Any) -> Optional[float]:
         return None if v in (None, "") else float(v)
     except (TypeError, ValueError):
         return None
+
+
+def _votes_to_int(raw: str) -> Optional[int]:
+    """`'''2,898,423'''` / `2,898,423` -> 2898423."""
+    s = re.sub(r"[^\d]", "", strip_wikitext(raw))
+    return int(s) if s else None
+
+
+def _party_of(text: str) -> Optional[str]:
+    low = (text or "").lower()
+    return "DEM" if "democratic" in low else "REP" if "republican" in low else None
+
+
+def _parse_presidential_infobox(wikitext: str) -> tuple[float, float]:
+    """`(dem_votes, rep_votes)` for a `{year} presidential election in {state}` article.
+
+    Prefers the *Infobox election* ``popular_voteN`` / ``partyN`` pairs; falls back to the
+    ``{{Election box candidate with party link |party= |votes= }}`` results-table templates
+    (some split-elector state-years -- e.g. Maine 2020 -- carry the statewide vote only there).
+    0.0 where a side is absent."""
+    votes: dict[str, int] = {}
+    for i in ("1", "2", "3", "4", "5", "6"):
+        party_raw = infobox_field(wikitext, f"party{i}")
+        vote_raw = infobox_field(wikitext, f"popular_vote{i}") or infobox_field(wikitext, f"popular vote{i}")
+        if not party_raw or not vote_raw:
+            continue
+        party = _party_of(party_raw)
+        if not party or party in votes:
+            continue
+        n = _votes_to_int(vote_raw)
+        if n is not None:
+            votes[party] = n
+
+    if "DEM" not in votes or "REP" not in votes:
+        for m in re.finditer(r"\{\{Election box (?:winning )?candidate[^}]*\}\}", wikitext, re.IGNORECASE):
+            block = m.group(0)
+            pm = re.search(r"\|\s*party\s*=\s*([^|}]+)", block, re.IGNORECASE)
+            vm = re.search(r"\|\s*votes\s*=\s*([\d,]+)", block, re.IGNORECASE)
+            if not pm or not vm:
+                continue
+            party = _party_of(pm.group(1))
+            if not party or party in votes:
+                continue
+            n = _votes_to_int(vm.group(1))
+            if n is not None:
+                votes[party] = n
+
+    return float(votes.get("DEM", 0)), float(votes.get("REP", 0))
 
 
 class SeedCsvElectionHistoryProvider(BaseProvider):
@@ -338,6 +390,109 @@ class DecisionDeskHqElectionHistoryProvider(BaseProvider):
         return out
 
 
+class WikipediaPresidentialHistoryProvider(BaseProvider):
+    """Per-state + national presidential margins from the English Wikipedia *Infobox election*
+    of each "{year} United States presidential election in {State}" article (no key).
+
+    All 51 jurisdictions x the requested years are pulled in a few batched MediaWiki
+    ``action=query`` requests (Wikimedia's recommended pattern) and cached; the data never
+    changes. Reads ``popular_voteN`` against ``partyN`` for the D and R totals, derives the
+    national popular-vote margin by summing the state tallies. A missing / unparseable infobox
+    contributes nothing -- never a zero, never a guess."""
+
+    name = "wikipedia_presidential_history"
+    kind = ELECTION_HISTORY_KIND
+    endpoint_family = "wikipedia:presidential_history"
+
+    def __init__(self, years: tuple[int, ...] = DEFAULT_YEARS, **kw):
+        super().__init__(**kw)
+        self.years = years
+
+    def _cache_params(self, **kwargs) -> dict:
+        return {"years": ",".join(map(str, self.years))}
+
+    # the few jurisdictions whose plain "... in <name>" title is a disambiguation page
+    _TITLE_STATE = {"DC": "the District of Columbia", "WA": "Washington (state)"}
+
+    @classmethod
+    def _title(cls, year: int, abbr: str) -> str | None:
+        name = cls._TITLE_STATE.get(abbr) or abbr_to_state(abbr)
+        if not name:
+            return None
+        return f"{year} United States presidential election in {name}"
+
+    def _do_fetch(self, **kwargs) -> tuple[Any, str | None, int | None]:
+        title_meta: dict[str, tuple[int, str]] = {}
+        for year in self.years:
+            for abbr in ALL_JURISDICTIONS:
+                t = self._title(year, abbr)
+                if t:
+                    title_meta[t] = (year, abbr)
+        try:
+            pages = fetch_wikitext_batch(self._http_get_json, list(title_meta))
+            # a few state-years (ME 2020, split-elector years) lead with the electoral-vote
+            # infobox and carry the popular vote only in a later section -> refetch those in full
+            stragglers = [
+                t for t in title_meta
+                if t in pages and _parse_presidential_infobox(pages[t]) == (0.0, 0.0)
+            ]
+            if stragglers:
+                pages.update(fetch_wikitext_batch(self._http_get_json, stragglers, section=None))
+        except ValueError as exc:
+            raise ProviderError(f"{self.name}: {exc}") from exc
+        rows = [
+            {"year": y, "state": st, "wikitext": pages[t]}
+            for t, (y, st) in title_meta.items()
+            if t in pages
+        ]
+        if not rows:
+            raise ProviderError(f"{self.name}: no presidential-election articles returned content")
+        return rows, WIKI_API, 200
+
+    def _normalize(self, raw: Any, **kwargs) -> list[HistoricalResultRow]:
+        out: list[HistoricalResultRow] = []
+        national: dict[int, list[float]] = {}
+        for r in raw if isinstance(raw, list) else []:
+            if not isinstance(r, dict):
+                continue
+            dem, rep = _parse_presidential_infobox(str(r.get("wikitext") or ""))
+            if dem <= 0 and rep <= 0:
+                continue
+            year, state = int(r["year"]), str(r["state"]).upper()[:2]
+            acc = national.setdefault(year, [0.0, 0.0])
+            acc[0] += dem
+            acc[1] += rep
+            out.append(
+                HistoricalResultRow(
+                    jurisdiction=state,
+                    year=year,
+                    office="president",
+                    dem_margin_pct=100.0 * (dem - rep) / (dem + rep),
+                    dem_votes=dem,
+                    rep_votes=rep,
+                    provider=self.name,
+                    source_url="https://en.wikipedia.org/wiki/"
+                    + (self._title(year, state) or "").replace(" ", "_"),
+                )
+            )
+        for year, (dem_total, rep_total) in sorted(national.items()):
+            if dem_total + rep_total <= 0:
+                continue
+            out.append(
+                HistoricalResultRow(
+                    jurisdiction="US",
+                    year=year,
+                    office="president",
+                    dem_margin_pct=100.0 * (dem_total - rep_total) / (dem_total + rep_total),
+                    dem_votes=dem_total,
+                    rep_votes=rep_total,
+                    provider=self.name,
+                    source_url=f"https://en.wikipedia.org/wiki/{year}_United_States_presidential_election",
+                )
+            )
+        return out
+
+
 def default_election_history_chain(
     *, years: tuple[int, ...] = DEFAULT_YEARS, national_csv: Path | None = None, state_csv: Path | None = None
 ) -> ProviderChain:
@@ -345,6 +500,9 @@ def default_election_history_chain(
         ELECTION_HISTORY_KIND,
         [
             DecisionDeskHqElectionHistoryProvider(years=years),
+            # generous retry/backoff -- ~150 titles is several batched calls and the anonymous
+            # MediaWiki API 429s under burst
+            WikipediaPresidentialHistoryProvider(years=years, max_retries=6, backoff_base_seconds=2.0),
             SeedCsvElectionHistoryProvider(national_csv=national_csv, state_csv=state_csv),
         ],
     )
