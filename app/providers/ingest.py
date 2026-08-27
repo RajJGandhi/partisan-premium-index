@@ -100,6 +100,27 @@ def _known_races(race_configs: list[dict]) -> list[KnownRace]:
     return out
 
 
+def _known_races_from_db(session: Session, race_configs: list[dict]) -> list[KnownRace]:
+    """Rebuild the KnownRace list after the candidate step, folding in any nominee names the
+    candidate providers just resolved (RaceCandidate rows / Race.*_candidate_name). Without this
+    the poll matcher can't orient a head-to-head whose config had no candidates."""
+    base = {k.race_id: k for k in _known_races(race_configs)}
+    for rid, k in list(base.items()):
+        row = session.execute(select(Race).where(Race.race_id == rid)).scalar_one_or_none()
+        if row is None:
+            continue
+        cands = session.execute(
+            select(RaceCandidate).where(RaceCandidate.race_id == rid)
+        ).scalars().all()
+        dem = next((c.name for c in cands if c.party == "DEM"), None) or row.dem_candidate_name or k.dem_candidate
+        rep = next((c.name for c in cands if c.party == "REP"), None) or row.rep_candidate_name or k.rep_candidate
+        base[rid] = KnownRace(
+            race_id=k.race_id, state=k.state, office=k.office, cycle=k.cycle,
+            dem_candidate=dem, rep_candidate=rep,
+        )
+    return list(base.values())
+
+
 def _upsert_race(session: Session, r: dict) -> None:
     row = session.execute(select(Race).where(Race.race_id == r["race_id"])).scalar_one_or_none()
     if row is None:
@@ -132,7 +153,12 @@ def _as_date(v: Any) -> Optional[date]:
 
 def _write_history(session: Session, rows: list[HistoricalResultRow]) -> int:
     n = 0
+    seen: set[tuple[str, int, str]] = set()
     for r in rows:
+        key = (r.jurisdiction, r.year, r.office)
+        if key in seen:
+            continue
+        seen.add(key)
         existing = session.execute(
             select(HistoricalElectionResult).where(
                 HistoricalElectionResult.jurisdiction == r.jurisdiction,
@@ -158,8 +184,12 @@ def _write_history(session: Session, rows: list[HistoricalResultRow]) -> int:
 
 def _write_generic_ballot(session: Session, polls) -> int:
     n = 0
+    seen: set[str] = set()  # live feeds (VoteHub) can repeat a release within one response
     for p in polls:
         ch = generic_ballot_content_hash(p)
+        if ch in seen:
+            continue
+        seen.add(ch)
         exists = session.execute(
             select(NationalEnvironmentObservation.id).where(
                 NationalEnvironmentObservation.content_hash == ch
@@ -222,6 +252,18 @@ def _write_candidates(session: Session, records: list[CandidateRecord]) -> int:
         dem = next((r for r in recs if r.party == "DEM"), None)
         rep = next((r for r in recs if r.party == "REP"), None)
         inc_party = "DEM" if (dem and dem.is_incumbent) else "REP" if (rep and rep.is_incumbent) else None
+        # mirror the resolved nominees onto the Race row so the poll matcher and the quant
+        # input builder can read them without another candidate lookup
+        race_row = session.execute(
+            select(Race).where(Race.race_id == race_id)
+        ).scalar_one_or_none()
+        if race_row is not None:
+            if dem:
+                race_row.dem_candidate_name = dem.name
+            if rep:
+                race_row.rep_candidate_name = rep.name
+            if inc_party and not race_row.incumbent_party:
+                race_row.incumbent_party = inc_party
         session.add(
             CandidateStatusSnapshot(
                 race_id=race_id,
@@ -242,7 +284,12 @@ def _write_candidates(session: Session, records: list[CandidateRecord]) -> int:
 
 def _write_polls(session: Session, rows) -> int:
     n = 0
+    seen: set[tuple[str, str]] = set()
     for r in rows:
+        key = (r.race_id, r.content_hash)
+        if key in seen:
+            continue
+        seen.add(key)
         exists = session.execute(
             select(PollObservation.id).where(
                 PollObservation.race_id == r.race_id,
@@ -341,6 +388,10 @@ def ingest_political_data(
             cand_records.extend(cr.result.normalized_payload)
     if cand_records:
         summary.candidate_rows = _write_candidates(session, cand_records)
+
+    # candidates just resolved -> refresh the known-race list so the poll matcher can orient
+    # head-to-heads whose seed config carried no nominee names.
+    known = _known_races_from_db(session, race_configs)
 
     # 4. race polls
     p_chain = poll_chain or default_poll_chain(cycle=cycle)

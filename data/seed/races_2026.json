@@ -1,0 +1,23 @@
+{
+  "_disclaimer": "Starter set of 2026 U.S. statewide general elections for the PPI v1.5 Quant pipeline. These are REAL races (unlike quant_example_races.json). Fields are limited to the calendar facts (state, office, cycle, election date 2026-11-03); candidates/incumbency come from OpenFEC + the candidate provider + market discovery, not from this file. Extend or replace this list by running scripts/run_v15_daily.py --discover, which auto-binds every supported statewide-race Polymarket contract. Verify the list against Ballotpedia / an official state source before relying on any forecast.",
+  "cycle": 2026,
+  "election_date": "2026-11-03",
+  "races": [
+    {"race_id": "ga-sen-2026", "state": "GA", "office": "senate", "cycle": 2026, "election_date": "2026-11-03"},
+    {"race_id": "mi-sen-2026", "state": "MI", "office": "senate", "cycle": 2026, "election_date": "2026-11-03"},
+    {"race_id": "nc-sen-2026", "state": "NC", "office": "senate", "cycle": 2026, "election_date": "2026-11-03"},
+    {"race_id": "tx-sen-2026", "state": "TX", "office": "senate", "cycle": 2026, "election_date": "2026-11-03"},
+    {"race_id": "me-sen-2026", "state": "ME", "office": "senate", "cycle": 2026, "election_date": "2026-11-03"},
+    {"race_id": "mn-sen-2026", "state": "MN", "office": "senate", "cycle": 2026, "election_date": "2026-11-03"},
+    {"race_id": "nh-sen-2026", "state": "NH", "office": "senate", "cycle": 2026, "election_date": "2026-11-03"},
+    {"race_id": "oh-sen-2026", "state": "OH", "office": "senate", "cycle": 2026, "election_date": "2026-11-03", "notes": "special election for the seat vacated by JD Vance"},
+    {"race_id": "ga-gov-2026", "state": "GA", "office": "governor", "cycle": 2026, "election_date": "2026-11-03"},
+    {"race_id": "mi-gov-2026", "state": "MI", "office": "governor", "cycle": 2026, "election_date": "2026-11-03"},
+    {"race_id": "pa-gov-2026", "state": "PA", "office": "governor", "cycle": 2026, "election_date": "2026-11-03"},
+    {"race_id": "az-gov-2026", "state": "AZ", "office": "governor", "cycle": 2026, "election_date": "2026-11-03"},
+    {"race_id": "nv-gov-2026", "state": "NV", "office": "governor", "cycle": 2026, "election_date": "2026-11-03"},
+    {"race_id": "oh-gov-2026", "state": "OH", "office": "governor", "cycle": 2026, "election_date": "2026-11-03"},
+    {"race_id": "wi-gov-2026", "state": "WI", "office": "governor", "cycle": 2026, "election_date": "2026-11-03"},
+    {"race_id": "ks-gov-2026", "state": "KS", "office": "governor", "cycle": 2026, "election_date": "2026-11-03"}
+  ]
+}

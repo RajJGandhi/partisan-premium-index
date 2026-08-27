@@ -1,18 +1,20 @@
 """Candidate identity / incumbency providers (spec section 8).
 
-Federal (Senate) races: OpenFEC. Governor races or missing metadata: a seed provider now, an
-automated web-search provider later (spec sections 8, 45). Output feeds ``race_candidates`` and
-point-in-time ``candidate_status_snapshots``.
+Fallback order: OpenFEC (federal / Senate, needs a key) -> Wikipedia election infobox (Senate +
+Governor, no key) -> race-config seed -> injected web-search extractor. Output feeds
+``race_candidates`` and point-in-time ``candidate_status_snapshots``.
 """
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field
 from typing import Any, Optional
 
 from app.config import get_settings
 from app.providers.base import BaseProvider, ProviderChain, ProviderError
-from app.providers.normalize import normalize_name
+from app.providers.normalize import abbr_to_state, normalize_name
+from app.providers.wikipedia import WIKI_API, fetch_wikitext_batch, infobox_field, strip_wikitext
 
 CANDIDATE_KIND = "candidate"
 
@@ -52,7 +54,7 @@ class OpenFecCandidateProvider(BaseProvider):
         super().__init__(**kw)
         s = get_settings()
         self.api_key = s.fec_api_key
-        self.base_url = "https://api.open.fec.gov/v1"
+        self.base_url = (s.openfec_base_url or "https://api.open.fec.gov/v1").rstrip("/")
 
     def enabled(self) -> bool:
         return bool(self.api_key)
@@ -111,6 +113,133 @@ class OpenFecCandidateProvider(BaseProvider):
         for rec in out:
             best.setdefault(rec.party, rec)
         return list(best.values())
+
+
+def _clean_wikitext_name(raw: str) -> str:
+    """Turn an infobox ``nominee`` value into a plain candidate name."""
+    s = strip_wikitext(raw)
+    s = re.sub(r"\([^)]*\)\s*$", "", s).strip()    # trailing "(politician)", "(replacing X)"
+    s = re.sub(r"\([^)]*\)\s*$", "", s).strip()    # ... and a second trailing "(...)" if present
+    return s.strip(" -–—|")
+
+
+def _looks_like_person_name(s: str) -> bool:
+    return (
+        bool(s)
+        and "=" not in s
+        and 3 <= len(s) <= 60
+        and " " in s.strip()
+        and bool(re.fullmatch(r"[A-Za-z.'\- À-ɏ]+", s))
+    )
+
+
+def _parse_election_infobox(wikitext: str) -> dict[str, dict]:
+    """``{'DEM': {'name': ..., 'is_incumbent': bool}, 'REP': {...}}`` from an Infobox election."""
+    inc_raw = infobox_field(wikitext, "incumbent")
+    incumbent = normalize_name(_clean_wikitext_name(inc_raw)) if inc_raw else ""
+
+    out: dict[str, dict] = {}
+    for i in ("1", "2", "3", "4", "5", "6"):
+        party_raw = infobox_field(wikitext, f"party{i}")
+        if not party_raw:
+            continue
+        low = party_raw.lower()
+        party = "DEM" if "democratic" in low else "REP" if "republican" in low else None
+        if not party or party in out:
+            continue
+        nom_raw = infobox_field(wikitext, f"nominee{i}") or infobox_field(wikitext, f"candidate{i}")
+        if not nom_raw:
+            continue
+        name = _clean_wikitext_name(nom_raw)
+        if not _looks_like_person_name(name):
+            continue
+        out[party] = {"name": name, "is_incumbent": bool(incumbent) and normalize_name(name) == incumbent}
+    return out
+
+
+def _election_article_title(state: str, cycle: int, office: str) -> Optional[str]:
+    state_name = abbr_to_state(state)
+    if not state_name:
+        return None
+    if office == "senate":
+        return f"{cycle} United States Senate election in {state_name}"
+    if office == "governor":
+        return f"{cycle} {state_name} gubernatorial election"
+    return None
+
+
+class WikipediaCandidateProvider(BaseProvider):
+    """Democratic + Republican nominees from the English Wikipedia *Infobox election* for each
+    race's article (Senate + Governor, no key).
+
+    All of the run's race articles are pulled in ONE batched ``action=query`` request (Wikimedia's
+    recommended pattern; avoids the anonymous-API 429), so every race in a run shares a single
+    cache entry and a single HTTP call. A stub / unparseable infobox yields no record for that
+    race -- never a guessed name.
+    """
+
+    name = "wikipedia_candidates"
+    kind = CANDIDATE_KIND
+    endpoint_family = "wikipedia:election_infobox"
+
+    def __init__(self, race_configs: dict | None = None, **kw):
+        super().__init__(**kw)
+        # {race_id: cfg}; cfg needs state / cycle / office (canonical_office already applied upstream)
+        self._configs = race_configs or {}
+
+    def _titles_by_race(self, extra: dict | None = None) -> dict[str, str]:
+        out: dict[str, str] = {}
+        for rid, cfg in {**self._configs, **(extra or {})}.items():
+            t = _election_article_title(
+                str(cfg.get("state") or ""), int(cfg.get("cycle") or 0),
+                str(cfg.get("office") or ""),
+            )
+            if t:
+                out[rid] = t
+        return out
+
+    def _cache_params(self, *, race_id: str = "", state: str = "", cycle: int = 0, office: str = "", **kwargs) -> dict:
+        # identical for every race in the run -> one shared cache entry / one HTTP call
+        extra = {race_id: {"state": state, "cycle": cycle, "office": office}} if race_id else None
+        return {"titles": "|".join(sorted(set(self._titles_by_race(extra).values())))}
+
+    def _do_fetch(self, *, race_id: str = "", state: str = "", cycle: int = 0, office: str = "senate", **kwargs):
+        extra = {race_id: {"state": state, "cycle": cycle, "office": office}} if race_id else None
+        titles_by_race = self._titles_by_race(extra)
+        if not titles_by_race:
+            raise ProviderError(f"{self.name}: no state/office to build an election-article title")
+        try:
+            pages = fetch_wikitext_batch(self._http_get_json, list(titles_by_race.values()))
+        except ValueError as exc:
+            raise ProviderError(f"{self.name}: {exc}") from exc
+        by_race = {rid: pages[t] for rid, t in titles_by_race.items() if t in pages}
+        if not by_race:
+            raise ProviderError(f"{self.name}: no election article returned content")
+        return {"by_race": by_race, "titles_by_race": titles_by_race}, WIKI_API, 200
+
+    def _normalize(self, raw: Any, *, race_id: str = "", **kwargs) -> list[CandidateRecord]:
+        if not isinstance(raw, dict):
+            return []
+        wikitext = (raw.get("by_race") or {}).get(race_id)
+        if not wikitext:
+            return []
+        title = (raw.get("titles_by_race") or {}).get(race_id, "")
+        src = f"https://en.wikipedia.org/wiki/{title.replace(' ', '_')}" if title else "https://en.wikipedia.org/"
+        out: list[CandidateRecord] = []
+        for party, info in _parse_election_infobox(str(wikitext)).items():
+            out.append(
+                CandidateRecord(
+                    race_id=race_id,
+                    name=info["name"],
+                    normalized_name=normalize_name(info["name"]),
+                    party=party,
+                    is_incumbent=bool(info.get("is_incumbent")),
+                    candidate_status="presumptive",
+                    provider=self.name,
+                    source_url=src,
+                )
+            )
+        return out
 
 
 class SeedCandidateProvider(BaseProvider):
@@ -206,6 +335,9 @@ def default_candidate_chain(*, race_config: dict | None = None, web_extractor=No
         CANDIDATE_KIND,
         [
             OpenFecCandidateProvider(),
+            # generous retry/backoff: the anonymous MediaWiki API 429s under burst, and the
+            # election-history provider may have just hit it in the same run
+            WikipediaCandidateProvider(race_configs=race_config, max_retries=6, backoff_base_seconds=2.0),
             SeedCandidateProvider(race_config=race_config),
             WebCandidateProvider(extractor=web_extractor),
         ],

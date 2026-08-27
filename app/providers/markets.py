@@ -19,6 +19,7 @@ from typing import Any, Callable, Optional
 
 from app.config import get_settings
 from app.providers.base import BaseProvider, ProviderError
+from app.providers.normalize import STATE_ABBR as _STATES
 from app.providers.normalize import canonical_race_id
 
 MARKET_DISCOVERY_KIND = "market_discovery"
@@ -28,19 +29,6 @@ SUPPORTED_SENATE_CONTROL = "SUPPORTED_SENATE_CONTROL"
 SUPPORTED_HOUSE_CONTROL = "SUPPORTED_HOUSE_CONTROL"
 UNSUPPORTED = "UNSUPPORTED"
 AMBIGUOUS = "AMBIGUOUS"
-
-_STATES = {
-    "alabama": "AL", "alaska": "AK", "arizona": "AZ", "arkansas": "AR", "california": "CA",
-    "colorado": "CO", "connecticut": "CT", "delaware": "DE", "florida": "FL", "georgia": "GA",
-    "hawaii": "HI", "idaho": "ID", "illinois": "IL", "indiana": "IN", "iowa": "IA", "kansas": "KS",
-    "kentucky": "KY", "louisiana": "LA", "maine": "ME", "maryland": "MD", "massachusetts": "MA",
-    "michigan": "MI", "minnesota": "MN", "mississippi": "MS", "missouri": "MO", "montana": "MT",
-    "nebraska": "NE", "nevada": "NV", "new hampshire": "NH", "new jersey": "NJ", "new mexico": "NM",
-    "new york": "NY", "north carolina": "NC", "north dakota": "ND", "ohio": "OH", "oklahoma": "OK",
-    "oregon": "OR", "pennsylvania": "PA", "rhode island": "RI", "south carolina": "SC",
-    "south dakota": "SD", "tennessee": "TN", "texas": "TX", "utah": "UT", "vermont": "VT",
-    "virginia": "VA", "washington": "WA", "west virginia": "WV", "wisconsin": "WI", "wyoming": "WY",
-}
 
 _UNSUPPORTED_PATTERNS = [
     r"\bpardon\b", r"\bindict", r"\bconvict", r"\bimpeach", r"\bresign\b", r"\bcabinet\b",

@@ -114,3 +114,37 @@ def test_blind_disabled_records_skipped_and_unavailable_ensemble(quant_db):
         s.commit()
         assert {st for r in summary.races for st in r.blind_statuses.values()} == {"SKIPPED_PROVIDER"}
         assert all(not r.ensemble_available for r in summary.races)  # never reweighted to Quant alone
+
+
+def test_quant_only_mode_makes_no_blind_calls(quant_db):
+    """blind_mode=None (the default) -> Quant series only: no blind rows at all, ensemble
+    explicitly unavailable, $0 LLM cost."""
+    with quant_db() as s:
+        summary = run_v15_pipeline(s, race_configs=_configs(), run_key=RK, blind_mode=None,
+                                   ingest_kwargs=_offline_kwargs())
+        s.commit()
+        assert summary.status == "OK"
+        assert s.query(QuantForecast).count() == 3
+        assert s.query(BlindBenchmarkForecast).count() == 0  # not even SKIPPED rows -- never called
+        assert all(r.blind_statuses == {} for r in summary.races)
+        for e in s.query(EnsembleForecast):
+            assert e.available is False
+            assert "missing component" in (e.unavailable_reason or "")
+
+
+def test_real_2026_race_seed_parses():
+    import json as _json
+    from pathlib import Path as _Path
+
+    import scripts.run_v15_daily as v15
+
+    seed = _Path(__file__).resolve().parents[1] / "data" / "seed" / "races_2026.json"
+    doc = _json.loads(seed.read_text())
+    assert "ILLUSTRATIVE" not in doc.get("_disclaimer", "").upper()  # these are real races
+    assert doc["election_date"] == "2026-11-03"
+    configs, cycle = v15._race_configs(seed)
+    assert cycle == 2026
+    assert len(configs) == len(doc["races"]) >= 12
+    assert {c["office"] for c in configs} == {"senate", "governor"}
+    assert all(len(c["state"]) == 2 and c["election_date"] == "2026-11-03" for c in configs)
+    assert all(c["source"] == "seed:races_2026" for c in configs)

@@ -40,6 +40,9 @@ def _num(v: Any) -> Optional[float]:
 
 
 def _int(v: Any) -> Optional[int]:
+    # VoteHub returns sample_size as a string, sometimes thousands-separated ("1,024").
+    if isinstance(v, str):
+        v = v.replace(",", "").replace("%", "").strip()
     try:
         return None if v in (None, "") else int(float(v))
     except (TypeError, ValueError):
@@ -71,7 +74,34 @@ def _latest_ts(polls: list[NormalizedGenericBallotPoll]) -> datetime | None:
     return datetime.combine(max(ds), datetime.min.time(), tzinfo=timezone.utc) if ds else None
 
 
+_PARTISAN_WORD = {"REP": "Republican-aligned", "R": "Republican-aligned",
+                  "DEM": "Democratic-aligned", "D": "Democratic-aligned"}
+
+
+def _sponsor_str(row: dict) -> Optional[str]:
+    """VoteHub carries sponsor info as a ``sponsors`` array plus ``internal`` (bool) and
+    ``partisan`` (nullable "REP"/"DEM"). Fold them into one string the ``normalize`` detectors
+    can read (they key off words like "republican"/"internal")."""
+    parts: list[str] = []
+    sponsors = row.get("sponsors")
+    if isinstance(sponsors, list):
+        parts.extend(str(s) for s in sponsors if s)
+    elif isinstance(sponsors, str) and sponsors.strip():
+        parts.append(sponsors.strip())
+    if row.get("sponsor"):
+        parts.append(str(row["sponsor"]))
+    partisan = str(row.get("partisan") or "").strip().upper()
+    if partisan:
+        parts.append(_PARTISAN_WORD.get(partisan, f"{partisan} partisan"))
+    if row.get("internal") is True:
+        parts.append("internal poll")
+    return " / ".join(dict.fromkeys(parts)) or None
+
+
 class VoteHubGenericBallotProvider(BaseProvider):
+    """VoteHub polls API (``https://api.votehub.com/polls``, public, CC-BY-4.0). Filters to
+    ``poll_type=generic-ballot`` for the current cycle; ``answers`` is ``[{choice, pct}]``."""
+
     name = "votehub_generic_ballot"
     kind = GENERIC_BALLOT_KIND
     endpoint_family = "votehub:generic_ballot"
@@ -91,9 +121,16 @@ class VoteHubGenericBallotProvider(BaseProvider):
 
     def _do_fetch(self, **kwargs) -> tuple[Any, str | None, int | None]:
         url = f"{self.base_url}/polls"
+        # No key required today; send it only if the operator configured one.
         headers = {"Authorization": f"Bearer {self.api_key}"} if self.api_key else None
         payload, status = self._http_get_json(
-            url, params={"poll_type": "generic-ballot", "subject": str(self.cycle)}, headers=headers
+            url,
+            params={
+                "poll_type": "generic-ballot",
+                # keep the pull to the current cycle: polls finished on/after the prior Jan 1
+                "from_date": date(self.cycle - 1, 1, 1).isoformat(),
+            },
+            headers=headers,
         )
         rows = payload.get("polls", payload) if isinstance(payload, dict) else payload
         if not isinstance(rows, list):
@@ -130,7 +167,7 @@ class VoteHubGenericBallotProvider(BaseProvider):
                     sample_size=_int(row.get("sample_size") or row.get("sampleSize")),
                     population=normalize_population(row.get("population") or row.get("population_type")),
                     pollster_grade=bucket_pollster_grade(row.get("pollster_grade") or row.get("grade")),
-                    sponsor=row.get("sponsor") or row.get("partisan"),
+                    sponsor=_sponsor_str(row),
                     dem_pct=float(dem),
                     rep_pct=float(rep),
                     source_url=row.get("url") or row.get("source"),
