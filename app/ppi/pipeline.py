@@ -108,18 +108,27 @@ def _upsert_daily_snapshot(
     status: str,
     message: str,
     stale: bool,
+    *,
+    run_key: str,
+    job: JobRun,
 ) -> MarketSnapshot:
+    """One canonical snapshot per (market, run_key). A retry of the same run reuses the row; a
+    different scheduled slot on the same day gets its own row (the 21:00 observation must not
+    overwrite the 09:00 one). ``snapshot_date`` still records the observation day, but no longer
+    identifies the row."""
     today = utcnow().date()
     snap = session.scalar(
         select(MarketSnapshot).where(
             MarketSnapshot.market_id == market.id,
-            MarketSnapshot.snapshot_date == today,
-            MarketSnapshot.snapshot_kind == "daily",
+            MarketSnapshot.run_key == run_key,
         )
     )
     if not snap:
-        snap = MarketSnapshot(market_id=market.id, snapshot_date=today, snapshot_kind="daily")
+        snap = MarketSnapshot(market_id=market.id, snapshot_kind="daily", run_key=run_key)
         session.add(snap)
+    snap.snapshot_date = today
+    snap.job_run_id = job.id
+    snap.trigger_type = job.trigger_type
     book = book or {}
     policy = price_policy(book)
     fv = session.scalar(select(FairValue).where(FairValue.market_id == market.id))
@@ -248,11 +257,12 @@ def _collect_market_evidence(
     return relevant_new, inserted_count
 
 
-def _update_daily_index(session: Session, day: date) -> DailyIndex:
+def _update_daily_index(session: Session, day: date, *, run_key: str, job: JobRun) -> DailyIndex:
+    """One aggregate index observation per canonical run (keyed by run_key), aggregating only
+    THIS run's market snapshots -- so the 09:00 and 21:00 observations are two distinct rows
+    for the same ``index_date``, never one overwriting the other."""
     snapshots = list(
-        session.scalars(
-            select(MarketSnapshot).where(MarketSnapshot.snapshot_date == day, MarketSnapshot.snapshot_kind == "daily")
-        )
+        session.scalars(select(MarketSnapshot).where(MarketSnapshot.run_key == run_key))
     )
     premiums = [s.partisan_premium for s in snapshots if s.partisan_premium is not None and not s.is_stale]
     fresh = [s for s in snapshots if not s.is_stale and s.pipeline_status in {"OK", "PARTIAL"}]
@@ -261,10 +271,13 @@ def _update_daily_index(session: Session, day: date) -> DailyIndex:
         for s in fresh
         if s.partisan_premium is not None and (s.liquidity or 0) > 0
     ]
-    row = session.scalar(select(DailyIndex).where(DailyIndex.index_date == day))
+    row = session.scalar(select(DailyIndex).where(DailyIndex.run_key == run_key))
     if not row:
-        row = DailyIndex(index_date=day)
+        row = DailyIndex(index_date=day, run_key=run_key)
         session.add(row)
+    row.index_date = day
+    row.job_run_id = job.id
+    row.trigger_type = job.trigger_type
     row.tracked_market_count = len(snapshots)
     row.fresh_market_count = len(fresh)
     row.average_signed_premium = sum(premiums) / len(premiums) if premiums else None
@@ -461,7 +474,10 @@ def _run_daily_pipeline_locked(
                 else:
                     status = "OK"
                     message = "No material new evidence. Published fair value unchanged."
-                snap = _upsert_daily_snapshot(session, market, book, evidence, proposals, status, message, stale)
+                snap = _upsert_daily_snapshot(
+                    session, market, book, evidence, proposals, status, message, stale,
+                    run_key=run_key, job=job,
+                )
                 job.snapshots_written += 1
                 if status in {"OK", "PARTIAL"}:
                     job.markets_succeeded += 1
@@ -576,7 +592,7 @@ def _run_daily_pipeline_locked(
                 except Exception as exc:
                     print(f"[ppi] failed to record first-eligible-observation marker: {_safe_error(exc)}")
 
-            _update_daily_index(session, day)
+            _update_daily_index(session, day, run_key=run_key, job=job)
             compute_and_persist_blind_index(session, job, run_key)
             job.status = "OK" if job.error_count == 0 else "PARTIAL"
         except Exception as exc:

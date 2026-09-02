@@ -48,6 +48,18 @@ export function formatShortDate(value: string | null | undefined): string {
   }).format(date);
 }
 
+// Chart x-axis label for a run-aware observation: the date, plus a slot tag so the two runs
+// on the same day (09:00 primary / 21:00 backup) are distinguishable rather than colliding.
+export function formatObservationTick(
+  value: string | null | undefined,
+  slot?: string | null,
+): string {
+  const base = formatShortDate(value);
+  if (base === "—") return base;
+  const tag = slot === "primary" ? " AM" : slot === "backup" ? " PM" : "";
+  return `${base}${tag}`;
+}
+
 export function formatDuration(start: string | null, finish: string | null): string {
   if (!start || !finish) return "—";
   const duration = new Date(finish).getTime() - new Date(start).getTime();

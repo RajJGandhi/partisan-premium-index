@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 
 from sqlalchemy import create_engine, select, text
 from sqlalchemy.orm import sessionmaker
@@ -226,3 +226,80 @@ def test_migrate_adds_job_run_lifecycle_columns_to_a_legacy_table(tmp_path, monk
     assert row.status == "OK"
     assert row.workflow_run_id is None
     assert row.error_stage is None
+
+
+def test_migrate_replaces_date_only_history_uniqueness_with_run_aware(tmp_path, monkeypatch):
+    """A DB created with the OLD date-only uniqueness must, after migrate(): keep every existing
+    row, gain run_key/job_run_id/trigger_type, allow a second (market_id, snapshot_date) row with
+    a different run_key, and still reject two rows sharing (market_id, run_key)."""
+    import pytest
+    from sqlalchemy import inspect
+    from sqlalchemy.exc import IntegrityError
+
+    engine = create_engine(f"sqlite:///{tmp_path / 'legacy_history.db'}")
+    with engine.begin() as conn:
+        conn.execute(
+            text(
+                "CREATE TABLE markets (id INTEGER PRIMARY KEY, platform_market_id VARCHAR, question TEXT, "
+                "active BOOLEAN DEFAULT 1, closed BOOLEAN DEFAULT 0, enabled BOOLEAN DEFAULT 1)"
+            )
+        )
+        conn.execute(text("INSERT INTO markets (id, platform_market_id, question) VALUES (1, 'm1', 'Q?')"))
+        conn.execute(
+            text(
+                "CREATE TABLE market_snapshots (id INTEGER PRIMARY KEY, market_id INTEGER NOT NULL, "
+                "timestamp DATETIME, snapshot_date DATE, snapshot_kind VARCHAR(30) DEFAULT 'intraday' NOT NULL, "
+                "comparison_price FLOAT, pipeline_status VARCHAR(30) DEFAULT 'PENDING' NOT NULL, "
+                "is_stale BOOLEAN DEFAULT 0 NOT NULL, "
+                "CONSTRAINT uq_market_daily_snapshot UNIQUE (market_id, snapshot_date, snapshot_kind))"
+            )
+        )
+        conn.execute(
+            text(
+                "CREATE TABLE daily_index (id INTEGER PRIMARY KEY, index_date DATE, tracked_market_count INTEGER DEFAULT 0, "
+                "fresh_market_count INTEGER DEFAULT 0, generated_at DATETIME, status VARCHAR(30) DEFAULT 'OK', "
+                "methodology_label VARCHAR(100) DEFAULT 'provisional_equal_weight', "
+                "CONSTRAINT uq_daily_index_date UNIQUE (index_date))"
+            )
+        )
+        conn.execute(
+            text(
+                "INSERT INTO market_snapshots (id, market_id, timestamp, snapshot_date, snapshot_kind, comparison_price, pipeline_status) "
+                "VALUES (1, 1, '2026-08-26 14:09:00', '2026-08-26', 'daily', 0.61, 'OK')"
+            )
+        )
+        conn.execute(text("INSERT INTO daily_index (id, index_date, generated_at) VALUES (1, '2026-08-26', '2026-08-26 14:10:00')"))
+    monkeypatch.setattr(migrate_db, "engine", engine)
+
+    migrate_db.migrate()
+
+    snap_cols = {c["name"] for c in inspect(engine).get_columns("market_snapshots")}
+    assert {"run_key", "job_run_id", "trigger_type"} <= snap_cols
+    idx_cols = {c["name"] for c in inspect(engine).get_columns("daily_index")}
+    assert {"run_key", "job_run_id", "trigger_type"} <= idx_cols
+
+    with engine.connect() as conn:
+        s = conn.execute(text("SELECT market_id, snapshot_date, comparison_price, run_key FROM market_snapshots WHERE id=1")).fetchone()
+        assert (s.market_id, str(s.snapshot_date), s.comparison_price, s.run_key) == (1, "2026-08-26", 0.61, None)
+        d = conn.execute(text("SELECT index_date, run_key FROM daily_index WHERE id=1")).fetchone()
+        assert (str(d.index_date), d.run_key) == ("2026-08-26", None)
+
+    Session = sessionmaker(engine, expire_on_commit=False)
+    from app.db.models import DailyIndex, MarketSnapshot
+
+    # a second snapshot for the same (market_id, snapshot_date) but a distinct run_key is allowed
+    with Session.begin() as session:
+        session.add(MarketSnapshot(market_id=1, snapshot_date=date(2026, 8, 26), snapshot_kind="daily",
+                                   run_key="ppi-daily:2026-08-26:backup", comparison_price=0.65))
+        session.add(DailyIndex(index_date=date(2026, 8, 26), run_key="ppi-daily:2026-08-26:backup"))
+    with engine.connect() as conn:
+        assert conn.execute(text("SELECT count(*) FROM market_snapshots WHERE market_id=1 AND snapshot_date='2026-08-26'")).scalar() == 2
+        assert conn.execute(text("SELECT count(*) FROM daily_index WHERE index_date='2026-08-26'")).scalar() == 2
+
+    # but the same (market_id, run_key) is still rejected
+    with pytest.raises(IntegrityError):
+        with Session.begin() as session:
+            session.add(MarketSnapshot(market_id=1, snapshot_date=date(2026, 8, 27), snapshot_kind="daily",
+                                       run_key="ppi-daily:2026-08-26:backup", comparison_price=0.7))
+
+    migrate_db.migrate()  # idempotent second run

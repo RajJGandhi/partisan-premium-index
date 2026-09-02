@@ -202,6 +202,9 @@ const indexHistory = [
   ["2026-07-29", 0.028, 0.044],
 ].map(([date, signed, absolute]) => ({
   date: date as string,
+  timestamp: `${date as string}T13:05:00Z`,
+  slot: "primary",
+  run_key: `ppi-daily:${date as string}:primary`,
   tracked_market_count: 5,
   fresh_market_count: 5,
   average_signed_premium: signed as number,
@@ -312,6 +315,8 @@ const history = [
   observed_at: observed as string,
   snapshot_date: (observed as string).slice(0, 10),
   snapshot_kind: "daily",
+  run_key: `ppi-daily:${(observed as string).slice(0, 10)}:primary`,
+  slot: "primary",
   market_probability: market as number,
   price_type: "midpoint",
   best_bid: (market as number) - 0.01,

@@ -116,17 +116,23 @@ def classification_label(job) -> str:
 
 
 def latest_daily_snapshots(session):
-    day_subq = (
-        select(func.max(MarketSnapshot.snapshot_date)).where(MarketSnapshot.snapshot_kind == "daily").scalar_subquery()
-    )
-    return list(
-        session.scalars(
-            select(MarketSnapshot).where(
-                MarketSnapshot.snapshot_kind == "daily",
-                MarketSnapshot.snapshot_date == day_subq,
-            )
-        )
-    )
+    """The most recent daily snapshot per market, by observation timestamp.
+
+    A twice-daily schedule now writes two daily rows per market per date (one per run), so a
+    "max(snapshot_date)" filter would return both -- take the latest by timestamp instead.
+    """
+    rows = session.scalars(
+        select(MarketSnapshot)
+        .where(MarketSnapshot.snapshot_kind == "daily")
+        .order_by(MarketSnapshot.market_id, MarketSnapshot.timestamp.desc())
+    ).all()
+    seen: set[int] = set()
+    latest = []
+    for row in rows:
+        if row.market_id not in seen:
+            seen.add(row.market_id)
+            latest.append(row)
+    return latest
 
 
 def hero():
@@ -186,7 +192,9 @@ st.sidebar.caption("Public research product · UTC snapshots")
 
 with get_session() as session:
     if page == "Overview":
-        latest_index = session.scalar(select(DailyIndex).order_by(desc(DailyIndex.index_date)).limit(1))
+        latest_index = session.scalar(
+            select(DailyIndex).order_by(desc(DailyIndex.index_date), desc(DailyIndex.generated_at)).limit(1)
+        )
         snapshots = latest_daily_snapshots(session)
         enabled_count = session.scalar(select(func.count(Market.id)).where(Market.enabled.is_(True))) or 0
         stale_count = sum(1 for s in snapshots if s.is_stale)
@@ -362,14 +370,16 @@ with get_session() as session:
                         MarketSnapshot.market_id == market.id,
                         MarketSnapshot.snapshot_kind == "daily",
                     )
-                    .order_by(MarketSnapshot.snapshot_date)
+                    .order_by(MarketSnapshot.timestamp)
                 )
             )
             if history:
+                # Plot the observation timestamp, not the date -- the AM and PM runs on the same
+                # day are two distinct points.
                 fig = go.Figure()
                 fig.add_trace(
                     go.Scatter(
-                        x=[h.snapshot_date for h in history],
+                        x=[h.timestamp for h in history],
                         y=[h.comparison_price for h in history],
                         name="Polymarket",
                         mode="lines+markers",
@@ -377,7 +387,7 @@ with get_session() as session:
                 )
                 fig.add_trace(
                     go.Scatter(
-                        x=[h.snapshot_date for h in history],
+                        x=[h.timestamp for h in history],
                         y=[h.fair_value for h in history],
                         name="PPI fair value",
                         mode="lines+markers",

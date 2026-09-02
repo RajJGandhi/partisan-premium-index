@@ -12,7 +12,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { formatShortDate, labelize } from "../lib/format";
+import { formatObservationTick, labelize } from "../lib/format";
 import type { DailyIndexPoint, FairValueComponent, Snapshot } from "../lib/types";
 import { PremiumTooltip, ProbabilityTooltip } from "./ChartTooltip";
 import { EmptyState } from "./StateViews";
@@ -21,9 +21,11 @@ const axisTick = { fill: "var(--text-muted)", fontSize: 11, fontFamily: "var(--f
 
 export function IndexHistoryChart({ history }: { history: DailyIndexPoint[] }) {
   const data = history
-    .filter((point) => point.date && point.average_signed_premium != null)
+    .filter((point) => (point.timestamp ?? point.date) && point.average_signed_premium != null)
     .map((point) => ({
-      date: formatShortDate(point.date),
+      // Two runs on the same day are two points: label them "… AM" / "… PM" so the axis
+      // does not collapse them onto one tick.
+      date: formatObservationTick(point.timestamp ?? point.date, point.slot),
       premium: point.average_signed_premium,
       absolute: point.average_absolute_premium,
     }));
@@ -65,7 +67,7 @@ export function MarketHistoryChart({ history }: { history: Snapshot[] }) {
   const data = history
     .filter((point) => point.observed_at && point.market_probability != null)
     .map((point) => ({
-      date: formatShortDate(point.observed_at),
+      date: formatObservationTick(point.observed_at, point.slot),
       market: point.market_probability,
       ppi: point.ppi_fair_value,
     }));

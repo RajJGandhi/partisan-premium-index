@@ -101,15 +101,29 @@ class MarketSource(Base):
 class MarketSnapshot(Base):
     __tablename__ = "market_snapshots"
     __table_args__ = (
-        UniqueConstraint("market_id", "snapshot_date", "snapshot_kind", name="uq_market_daily_snapshot"),
+        # Run-aware identity: one canonical snapshot per (market, run), NOT per (market, date).
+        # A twice-daily schedule produces two runs on the same calendar day -- both must survive,
+        # so the 21:00 run cannot upsert over the 09:00 one. `run_key` is NULL for legacy rows and
+        # for the non-canonical intraday / market_price_only kinds; NULLs are distinct in both
+        # SQLite and PostgreSQL, so those rows are unconstrained (as before). See
+        # scripts/migrate_db.py::_make_history_run_aware and migrations/002_run_aware_history.sql.
+        UniqueConstraint("market_id", "run_key", name="uq_market_snapshot_run"),
         Index("ix_market_snapshots_market_date", "market_id", "snapshot_date"),
     )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     market_id: Mapped[int] = mapped_column(ForeignKey("markets.id", ondelete="CASCADE"), index=True)
     timestamp: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, index=True)
+    # `snapshot_date` still records which observation day this belongs to (kept for range
+    # queries and reporting) but no longer *identifies* the row. `timestamp` is the real
+    # observation instant; `run_key` / `job_run_id` / `trigger_type` tie it to its pipeline run.
     snapshot_date: Mapped[Optional[date]] = mapped_column(Date, nullable=True, index=True)
     snapshot_kind: Mapped[str] = mapped_column(String(30), default="intraday")
+    run_key: Mapped[Optional[str]] = mapped_column(String(150), nullable=True, index=True)
+    job_run_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("job_runs.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    trigger_type: Mapped[Optional[str]] = mapped_column(String(30), nullable=True)  # primary | backup | adhoc
     yes_price_displayed: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
     no_price_displayed: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
     yes_best_bid: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
@@ -333,10 +347,20 @@ class MarketResolution(Base):
 
 class DailyIndex(Base):
     __tablename__ = "daily_index"
-    __table_args__ = (UniqueConstraint("index_date", name="uq_daily_index_date"),)
+    # Run-aware identity: one aggregate index observation per canonical run, NOT per calendar
+    # day. `index_date` is retained as the semantic observation day but no longer unique --
+    # a twice-daily schedule writes two rows for the same `index_date`, distinguished by
+    # `run_key` / `trigger_type` / `generated_at`. (Table name stays `daily_index`: it is an
+    # internal legacy name; the public series is exported as "index_history".)
+    __table_args__ = (UniqueConstraint("run_key", name="uq_daily_index_run"),)
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     index_date: Mapped[date] = mapped_column(Date, index=True)
+    run_key: Mapped[Optional[str]] = mapped_column(String(150), nullable=True, index=True)
+    job_run_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("job_runs.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    trigger_type: Mapped[Optional[str]] = mapped_column(String(30), nullable=True)  # primary | backup | adhoc
     tracked_market_count: Mapped[int] = mapped_column(Integer, default=0)
     fresh_market_count: Mapped[int] = mapped_column(Integer, default=0)
     average_signed_premium: Mapped[Optional[float]] = mapped_column(Float, nullable=True)

@@ -63,17 +63,31 @@ def _admin_link() -> str:
     return f"{base}/?{urlencode({'page': 'Administration'})}"
 
 
-def _snapshot_pairs(session: Session, day: date) -> list[tuple[Market, MarketSnapshot, MarketSnapshot | None]]:
-    todays = list(
-        session.scalars(
-            select(MarketSnapshot)
-            .where(
-                MarketSnapshot.snapshot_kind == "daily",
-                MarketSnapshot.snapshot_date == day,
+def _snapshot_pairs(
+    session: Session, job: JobRun, day: date
+) -> list[tuple[Market, MarketSnapshot, MarketSnapshot | None]]:
+    """This run's snapshots, each paired with the market's immediately preceding daily snapshot.
+
+    "This run" = ``job.run_key`` (a twice-daily schedule has two runs on ``day``; the digest
+    describes one of them). "Preceding" is by ``timestamp`` -- so the 21:00 digest compares
+    against the 09:00 observation, not against yesterday. Falls back to the old date-based
+    selection for runs with no ``run_key`` (legacy / ad hoc)."""
+    if job.run_key:
+        todays = list(
+            session.scalars(
+                select(MarketSnapshot)
+                .where(MarketSnapshot.run_key == job.run_key)
+                .order_by(MarketSnapshot.market_id)
             )
-            .order_by(MarketSnapshot.market_id)
         )
-    )
+    else:
+        todays = list(
+            session.scalars(
+                select(MarketSnapshot)
+                .where(MarketSnapshot.snapshot_kind == "daily", MarketSnapshot.snapshot_date == day)
+                .order_by(MarketSnapshot.market_id)
+            )
+        )
     pairs: list[tuple[Market, MarketSnapshot, MarketSnapshot | None]] = []
     for current in todays:
         market = session.get(Market, current.market_id)
@@ -84,9 +98,9 @@ def _snapshot_pairs(session: Session, day: date) -> list[tuple[Market, MarketSna
             .where(
                 MarketSnapshot.market_id == current.market_id,
                 MarketSnapshot.snapshot_kind == "daily",
-                MarketSnapshot.snapshot_date < day,
+                MarketSnapshot.timestamp < current.timestamp,
             )
-            .order_by(desc(MarketSnapshot.snapshot_date), desc(MarketSnapshot.timestamp))
+            .order_by(desc(MarketSnapshot.timestamp))
             .limit(1)
         )
         pairs.append((market, current, previous))
@@ -95,7 +109,7 @@ def _snapshot_pairs(session: Session, day: date) -> list[tuple[Market, MarketSna
 
 def build_daily_digest(session: Session, job: JobRun, day: date) -> tuple[str, dict[str, object]]:
     start, end = _day_bounds(day)
-    pairs = _snapshot_pairs(session, day)
+    pairs = _snapshot_pairs(session, job, day)
 
     movements: list[PriceMovement] = []
     for pair_market, pair_current, pair_previous in pairs:

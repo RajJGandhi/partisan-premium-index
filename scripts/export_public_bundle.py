@@ -170,6 +170,10 @@ def _snapshot_payload(snapshot: MarketSnapshot) -> dict[str, Any]:
         "observed_at": _iso(snapshot.timestamp),
         "snapshot_date": _iso(snapshot.snapshot_date),
         "snapshot_kind": snapshot.snapshot_kind,
+        # Run-aware identity: two observations on the same date are distinct rows with distinct
+        # run_key / slot. `observed_at` is the real x-axis value; `snapshot_date` is the day.
+        "run_key": snapshot.run_key,
+        "slot": snapshot.trigger_type,
         "market_probability": _probability(snapshot.comparison_price),
         "price_type": _text(snapshot.price_type, max_length=50),
         "best_bid": _probability(snapshot.yes_best_bid),
@@ -355,7 +359,13 @@ def _latest_canonical_job(session: Session) -> JobRun | None:
 
 def _daily_index_payload(row: DailyIndex) -> dict[str, Any]:
     return {
+        # `date` is the observation day; `timestamp` (== generated_at) is the observation
+        # instant and the value charts should plot -- two runs on the same date are two entries
+        # here, distinguished by `slot` / `run_key`, not collapsed into one.
         "date": _iso(row.index_date),
+        "timestamp": _iso(row.generated_at),
+        "slot": row.trigger_type,
+        "run_key": row.run_key,
         "tracked_market_count": row.tracked_market_count,
         "fresh_market_count": row.fresh_market_count,
         "average_signed_premium": _number(row.average_signed_premium),
@@ -617,7 +627,10 @@ def build_public_bundle(session: Session, *, generated_at: datetime | None = Non
         sum(1 for value in signed_premiums if value > 0) / len(signed_premiums) if signed_premiums else None
     )
 
-    daily_index_rows = list(session.scalars(select(DailyIndex).order_by(DailyIndex.index_date)))
+    # index_date, then generated_at: two runs on the same day sort AM before PM.
+    daily_index_rows = list(
+        session.scalars(select(DailyIndex).order_by(DailyIndex.index_date, DailyIndex.generated_at))
+    )
     daily_index_history = [_daily_index_payload(row) for row in daily_index_rows]
 
     # Only canonical, non-superseded runs' aggregates are presented as trustworthy history --
