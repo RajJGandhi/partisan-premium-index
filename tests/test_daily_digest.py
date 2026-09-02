@@ -28,15 +28,19 @@ def test_daily_digest_contains_required_sections(tmp_path):
             [
                 MarketSnapshot(
                     market_id=market.id,
+                    timestamp=datetime(2026, 7, 19, 13, tzinfo=UTC),
                     snapshot_date=day - timedelta(days=1),
                     snapshot_kind="daily",
+                    run_key="digest-run-prev",
                     comparison_price=0.50,
                     pipeline_status="OK",
                 ),
                 MarketSnapshot(
                     market_id=market.id,
+                    timestamp=datetime(2026, 7, 20, 13, tzinfo=UTC),
                     snapshot_date=day,
                     snapshot_kind="daily",
+                    run_key="digest-run",
                     comparison_price=0.54,
                     fair_value=0.49,
                     partisan_premium=0.05,

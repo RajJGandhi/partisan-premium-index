@@ -1,0 +1,67 @@
+-- 002 — Run-aware historical persistence (twice-daily series).
+--
+-- The executable migration is scripts/migrate_db.py (SQLite + PostgreSQL from one codebase);
+-- this file documents the scope and the exact down-migration. Back up the database first.
+--
+-- WHY
+--   market_snapshots and daily_index were unique on the calendar DATE, so the 21:00 run of a
+--   twice-daily schedule silently upserted over the 09:00 run -- the product claimed a
+--   twice-daily series while those two tables were effectively once daily. (llm_forecasts and
+--   blind_index_runs were already run-aware and are unchanged.)
+--
+-- WHAT
+--   * add nullable run identity: run_key, job_run_id (FK job_runs.id ON DELETE SET NULL),
+--     trigger_type ('primary' | 'backup' | 'adhoc') to both tables.
+--   * market_snapshots: DROP UNIQUE (market_id, snapshot_date, snapshot_kind)
+--                       ADD  UNIQUE (market_id, run_key)
+--   * daily_index:      DROP UNIQUE (index_date)
+--                       ADD  UNIQUE (run_key)
+--   snapshot_date / index_date are KEPT as the semantic observation day (indexed, not unique).
+--   `timestamp` (market_snapshots) and `generated_at` (daily_index) are the observation instant.
+--
+-- DATA
+--   Every pre-existing row keeps run_key = NULL. No backfill: a run_key is not reconstructed
+--   from timestamps because it cannot be recovered with certainty (see the task brief -- null
+--   legacy identity is preferred over fabricated provenance). NULLs are DISTINCT in a UNIQUE
+--   index in both SQLite and PostgreSQL, so legacy rows -- and the non-canonical intraday /
+--   market_price_only snapshot kinds -- remain valid and unconstrained. The true twice-daily
+--   series begins with the first run after this migration deploys; days that only ever had one
+--   surviving observation keep exactly one.
+--
+-- ============================ UP (PostgreSQL) ============================
+-- ALTER TABLE market_snapshots ADD COLUMN run_key      VARCHAR(150);
+-- ALTER TABLE market_snapshots ADD COLUMN job_run_id   INTEGER REFERENCES job_runs(id) ON DELETE SET NULL;
+-- ALTER TABLE market_snapshots ADD COLUMN trigger_type VARCHAR(30);
+-- ALTER TABLE daily_index      ADD COLUMN run_key      VARCHAR(150);
+-- ALTER TABLE daily_index      ADD COLUMN job_run_id   INTEGER REFERENCES job_runs(id) ON DELETE SET NULL;
+-- ALTER TABLE daily_index      ADD COLUMN trigger_type VARCHAR(30);
+--
+-- ALTER TABLE market_snapshots DROP CONSTRAINT IF EXISTS uq_market_daily_snapshot;
+-- DROP INDEX IF EXISTS uq_market_daily_snapshot_idx;
+-- CREATE UNIQUE INDEX IF NOT EXISTS uq_market_snapshot_run_idx ON market_snapshots(market_id, run_key);
+-- CREATE INDEX        IF NOT EXISTS ix_market_snapshots_run_key ON market_snapshots(run_key);
+--
+-- ALTER TABLE daily_index DROP CONSTRAINT IF EXISTS uq_daily_index_date;
+-- CREATE UNIQUE INDEX IF NOT EXISTS uq_daily_index_run_idx ON daily_index(run_key);
+-- CREATE INDEX        IF NOT EXISTS ix_daily_index_run_key ON daily_index(run_key);
+--
+-- =========================== DOWN (PostgreSQL) ==========================
+-- Reversible. The new columns hold no data for any row that predates the deploy; rows written
+-- after the deploy lose their run identity on downgrade but their values are unaffected, and
+-- the pre-deploy date-only uniqueness is only safe to restore once at most one row per
+-- (market_id, snapshot_date, snapshot_kind) / per (index_date) remains -- de-duplicate first
+-- (keep MAX(timestamp) / MAX(generated_at)) if two runs have already landed.
+--
+-- DROP INDEX IF EXISTS uq_market_snapshot_run_idx;
+-- DROP INDEX IF EXISTS ix_market_snapshots_run_key;
+-- DROP INDEX IF EXISTS uq_daily_index_run_idx;
+-- DROP INDEX IF EXISTS ix_daily_index_run_key;
+-- -- de-duplicate here if necessary --
+-- ALTER TABLE market_snapshots ADD CONSTRAINT uq_market_daily_snapshot UNIQUE (market_id, snapshot_date, snapshot_kind);
+-- ALTER TABLE daily_index      ADD CONSTRAINT uq_daily_index_date       UNIQUE (index_date);
+-- ALTER TABLE market_snapshots DROP COLUMN trigger_type, DROP COLUMN job_run_id, DROP COLUMN run_key;
+-- ALTER TABLE daily_index      DROP COLUMN trigger_type, DROP COLUMN job_run_id, DROP COLUMN run_key;
+--
+-- SQLite: `scripts/migrate_db.py::_make_history_run_aware` rebuilds each table (RENAME ->
+-- CREATE from the model -> INSERT ... SELECT -> DROP) because SQLite cannot ALTER TABLE DROP a
+-- named UNIQUE constraint. The down-migration is the same rebuild against the pre-002 model.

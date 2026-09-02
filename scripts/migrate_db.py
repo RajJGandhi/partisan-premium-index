@@ -35,6 +35,11 @@ ADDITIVE_COLUMNS = {
     "market_snapshots": {
         "snapshot_date": "DATE",
         "snapshot_kind": "VARCHAR(30) DEFAULT 'intraday' NOT NULL",
+        # Run-aware history (see _make_history_run_aware). NULL for legacy rows -- truthful, not
+        # backfilled with a guessed run_key.
+        "run_key": "VARCHAR(150)",
+        "job_run_id": "INTEGER",
+        "trigger_type": "VARCHAR(30)",
         "last_trade_price": "FLOAT",
         "comparison_price": "FLOAT",
         "price_type": "VARCHAR(30)",
@@ -72,6 +77,12 @@ ADDITIVE_COLUMNS = {
         "workflow_run_id": "VARCHAR(64)",
         "git_sha": "VARCHAR(64)",
         "error_stage": "VARCHAR(80)",
+    },
+    "daily_index": {
+        # Run-aware aggregate history (see _make_history_run_aware). NULL for legacy rows.
+        "run_key": "VARCHAR(150)",
+        "job_run_id": "INTEGER",
+        "trigger_type": "VARCHAR(30)",
     },
     "llm_forecasts": {
         "reviewed_status": "VARCHAR(30) DEFAULT 'UNREVIEWED' NOT NULL",
@@ -145,6 +156,66 @@ def _widen_llm_forecast_uniqueness(conn, inspector) -> None:
     print("Rebuilt llm_forecasts (SQLite) with the widened (market_id, run_slot, model_provider) uniqueness.")
 
 
+def _rebuild_sqlite_table_dropping_unique(conn, inspector, table: str, old_unique_cols: set[str]) -> bool:
+    """SQLite can't ALTER TABLE DROP a named UNIQUE constraint baked into CREATE TABLE -- only a
+    full rebuild removes one. Rebuild ``table`` from the current model definition (new constraint,
+    new columns already added by ADDITIVE_COLUMNS) and copy every existing row across, but only
+    if the *old* date-only unique shape is still present. Idempotent: a no-op on an already-
+    migrated DB or a fresh install. Mirrors _widen_llm_forecast_uniqueness."""
+    if table not in inspector.get_table_names():
+        return False
+    old_shape_present = any(
+        set(idx["column_names"]) == old_unique_cols and idx.get("unique")
+        for idx in inspector.get_indexes(table)
+    ) or any(
+        set(uc["column_names"]) == old_unique_cols for uc in inspector.get_unique_constraints(table)
+    )
+    if not old_shape_present:
+        return False
+    cols = ", ".join(c["name"] for c in inspector.get_columns(table))
+    conn.execute(text(f"ALTER TABLE {table} RENAME TO {table}_pre_run_migration"))
+    Base.metadata.tables[table].create(bind=conn)
+    conn.execute(text(f"INSERT INTO {table} ({cols}) SELECT {cols} FROM {table}_pre_run_migration"))
+    conn.execute(text(f"DROP TABLE {table}_pre_run_migration"))
+    print(f"Rebuilt {table} (SQLite) with the run-aware uniqueness; every existing row preserved as-is.")
+    return True
+
+
+def _make_history_run_aware(conn, inspector) -> None:
+    """Replace the date-only uniqueness on market_snapshots and daily_index with a run-aware one
+    so a twice-daily schedule keeps BOTH observations:
+
+        market_snapshots:  (market_id, snapshot_date, snapshot_kind)  ->  (market_id, run_key)
+        daily_index:        (index_date)                               ->  (run_key)
+
+    `run_key` is NULL for every pre-existing row (no fabricated provenance -- see
+    migrations/002_run_aware_history.sql). NULLs are distinct in a UNIQUE index in both SQLite
+    and PostgreSQL, so legacy rows and the non-canonical intraday / market_price_only snapshot
+    kinds stay valid and unconstrained. Idempotent; safe to run on every migrate().
+
+    Back up the database first; see CLAUDE.md's migration rules.
+    """
+    if conn.dialect.name == "postgresql":
+        conn.execute(text("ALTER TABLE market_snapshots DROP CONSTRAINT IF EXISTS uq_market_daily_snapshot"))
+        conn.execute(text("DROP INDEX IF EXISTS uq_market_daily_snapshot_idx"))
+        conn.execute(
+            text(
+                "CREATE UNIQUE INDEX IF NOT EXISTS uq_market_snapshot_run_idx "
+                "ON market_snapshots(market_id, run_key)"
+            )
+        )
+        conn.execute(text("ALTER TABLE daily_index DROP CONSTRAINT IF EXISTS uq_daily_index_date"))
+        conn.execute(text("DROP INDEX IF EXISTS uq_daily_index_date_idx"))
+        conn.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS uq_daily_index_run_idx ON daily_index(run_key)"))
+        return
+
+    _rebuild_sqlite_table_dropping_unique(
+        conn, inspector, "market_snapshots", {"market_id", "snapshot_date", "snapshot_kind"}
+    )
+    inspector = inspect(conn)
+    _rebuild_sqlite_table_dropping_unique(conn, inspector, "daily_index", {"index_date"})
+
+
 def migrate() -> None:
     Base.metadata.create_all(bind=engine)
     inspector = inspect(engine)
@@ -172,13 +243,21 @@ def migrate() -> None:
         # which could see stale pre-transaction state) now that the ADD COLUMNs above have landed.
         inspector = inspect(conn)
         _widen_llm_forecast_uniqueness(conn, inspector)
+        inspector = inspect(conn)
+        _make_history_run_aware(conn, inspector)
 
         # Add indexes/uniqueness safely. NULL snapshot dates remain valid for legacy intraday rows.
         index_statements = [
             "CREATE INDEX IF NOT EXISTS ix_markets_enabled_active ON markets(enabled, active, closed)",
             "CREATE INDEX IF NOT EXISTS ix_market_snapshots_market_date ON market_snapshots(market_id, snapshot_date)",
+            "CREATE INDEX IF NOT EXISTS ix_market_snapshots_run_key ON market_snapshots(run_key)",
+            "CREATE INDEX IF NOT EXISTS ix_daily_index_run_key ON daily_index(run_key)",
             "CREATE UNIQUE INDEX IF NOT EXISTS uq_markets_tracking_id_idx ON markets(tracking_id)",
-            "CREATE UNIQUE INDEX IF NOT EXISTS uq_market_daily_snapshot_idx ON market_snapshots(market_id, snapshot_date, snapshot_kind)",
+            # Run-aware history uniqueness (replaces the old date-only uq_market_daily_snapshot_idx /
+            # uq_daily_index_date) -- see _make_history_run_aware above. NULL run_key rows (legacy
+            # + intraday + market_price_only) are unconstrained because NULLs are distinct.
+            "CREATE UNIQUE INDEX IF NOT EXISTS uq_market_snapshot_run_idx ON market_snapshots(market_id, run_key)",
+            "CREATE UNIQUE INDEX IF NOT EXISTS uq_daily_index_run_idx ON daily_index(run_key)",
             # NOT the old 2-column uq_llm_forecast_market_run_slot_idx -- superseded by
             # _widen_llm_forecast_uniqueness() above, which creates/maintains the 3-column
             # (market_id, run_slot, model_provider) index for both dialects.

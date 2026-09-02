@@ -96,6 +96,11 @@ export interface MarketSummary {
 
 export interface DailyIndexPoint {
   date: string | null;
+  // `timestamp` (the observation instant) is what charts plot -- two runs on the same `date`
+  // are two points, told apart by `slot` (primary | backup) / `run_key`.
+  timestamp?: string | null;
+  slot?: string | null;
+  run_key?: string | null;
   tracked_market_count: number;
   fresh_market_count: number;
   average_signed_premium: NullableNumber;
@@ -173,6 +178,9 @@ export interface Snapshot {
   observed_at: string | null;
   snapshot_date: string | null;
   snapshot_kind: string;
+  // Run identity: two observations on the same `snapshot_date` are distinct rows.
+  run_key?: string | null;
+  slot?: string | null;
   market_probability: NullableNumber;
   price_type: string | null;
   best_bid: NullableNumber;
