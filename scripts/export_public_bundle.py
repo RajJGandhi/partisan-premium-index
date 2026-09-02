@@ -32,6 +32,7 @@ from app.db.models import (
     Prediction,
     SourceRun,
 )
+from app.ppi.job_run_lifecycle import run_status_summary
 from app.ppi.public_forecast import PublicForecast, current_public_forecasts
 
 SCHEMA_VERSION = "1.0"
@@ -328,6 +329,11 @@ def _job_payload(job: JobRun) -> dict[str, Any]:
         "proposals_created": job.proposals_created,
         "snapshots_written": job.snapshots_written,
         "error_count": job.error_count,
+        # Lifecycle observability -- all safe slugs, never a secret. workflow_run_id/git_sha
+        # identify the attempt; error_stage names the coarse stage that failed (null on success).
+        "workflow_run_id": job.workflow_run_id,
+        "git_sha": job.git_sha,
+        "error_stage": job.error_stage,
     }
 
 
@@ -758,6 +764,11 @@ def build_public_bundle(session: Session, *, generated_at: datetime | None = Non
         "latest_canonical_run": _job_payload(latest_canonical_job) if latest_canonical_job else None,
         "recent_runs": [_job_payload(job) for job in jobs],
         "latest_source_runs": source_statuses,
+        # Compact, DB-derived end-to-end lifecycle health: last attempt, last (canonical) success,
+        # last status, markets completed, error stage. Every value comes from job_runs -- never
+        # hardcoded. Lets the frontend show "Last successful canonical run: <date>" and lets an
+        # external check alert when no successful run exists for too long.
+        "run_health": run_status_summary(session, now=generated_at),
         "summary": {
             "tracked_markets": len(market_summaries),
             "fresh_markets": sum(1 for item in market_summaries if not item["is_stale"]),
