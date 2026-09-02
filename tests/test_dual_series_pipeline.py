@@ -134,6 +134,7 @@ def _setup(monkeypatch, tmp_path, *, openrouter_api_key="sk-test", deepseek_stat
         openrouter_api_key=openrouter_api_key,
         openrouter_base_url="https://openrouter.ai/api/v1",
         openrouter_model="deepseek/deepseek-v4-flash-0731",
+        db_preflight_enabled=False,  # unit test: session is mocked, no real preflight
     )
     monkeypatch.setattr(pipeline_module, "get_settings", lambda: settings)
     monkeypatch.setattr("app.ppi.blind_forecast.get_settings", lambda: settings)

@@ -5,7 +5,8 @@ import json
 import os
 from pathlib import Path
 
-from app.db.database import get_session
+from app.db.database import db_diagnostics
+from app.db.retry import run_in_session
 from app.ppi.pipeline import run_daily_pipeline
 from app.ppi.run_health import compute_run_health, render_run_health_markdown
 
@@ -38,10 +39,13 @@ if __name__ == "__main__":
     # LOCKED never created/touched a JobRun row (see run_daily_pipeline's docstring), so there is
     # no run to report health for. Every other status -- including an early strict-mode refusal --
     # has a job_run_id.
+    result["db"] = db_diagnostics()
     job_run_id = result.get("job_run_id")
     if job_run_id is not None:
-        with get_session() as health_session:
-            health = compute_run_health(health_session, job_run_id)
+        jid = int(job_run_id)
+        health = run_in_session(
+            lambda s: compute_run_health(s, jid), description="compute run health"
+        )
         result["run_health"] = health.as_dict()
         summary_path = os.environ.get("GITHUB_STEP_SUMMARY")
         if summary_path:

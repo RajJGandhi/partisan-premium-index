@@ -121,7 +121,7 @@ a hosted runner, no local copy needed:
 
 | Secret | Purpose |
 |---|---|
-| `DATABASE_URL` | Production database connection string. |
+| `DATABASE_URL` | Production database connection string (Supabase Supavisor **session pooler**, `...pooler.supabase.com:5432`). Connection resilience — timeouts, keepalives, `pool_recycle`, bounded retry on transient blips, and the transaction-pooler auto-config for the cloud-runner migration — is documented in `docs/DATABASE_CONNECTIVITY.md`. |
 | `CLOUDFLARE_API_TOKEN` | Deploys the public site via `wrangler`. |
 | `CLOUDFLARE_ACCOUNT_ID` | Same. |
 

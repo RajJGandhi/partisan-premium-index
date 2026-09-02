@@ -158,7 +158,7 @@ def test_run_daily_pipeline_refuses_strict_mode_without_live_provider(tmp_path, 
     from app.ppi import pipeline as pipeline_module
 
     Session = _session_factory(tmp_path)
-    settings = Settings(llm_provider="deterministic")
+    settings = Settings(llm_provider="deterministic", db_preflight_enabled=False)
     monkeypatch.setattr(pipeline_module, "get_settings", lambda: settings)
     monkeypatch.setattr(pipeline_module, "init_db", lambda: None)
     monkeypatch.setattr(pipeline_module, "get_session", lambda: _fake_get_session(Session))
@@ -185,7 +185,7 @@ def test_force_rerun_resets_llm_forecast_counters_not_just_legacy_ones(tmp_path,
     from app.ppi import pipeline as pipeline_module
 
     Session = _session_factory(tmp_path)
-    settings = Settings(llm_provider="deterministic")
+    settings = Settings(llm_provider="deterministic", db_preflight_enabled=False)
     monkeypatch.setattr(pipeline_module, "get_settings", lambda: settings)
     monkeypatch.setattr(pipeline_module, "init_db", lambda: None)
     monkeypatch.setattr(pipeline_module, "get_session", lambda: _fake_get_session(Session))
@@ -237,7 +237,7 @@ def test_compute_and_persist_blind_index_math_and_idempotent_upsert(tmp_path, mo
     # test's forecast fixtures are openrouter/DeepSeek post-cutover.
     monkeypatch.setattr(
         "app.ppi.blind_forecast.get_settings",
-        lambda: Settings(llm_provider="openrouter", openrouter_model="deepseek/deepseek-v4-flash-0731"),
+        lambda: Settings(llm_provider="openrouter", openrouter_model="deepseek/deepseek-v4-flash-0731", db_preflight_enabled=False),
     )
     Session = _session_factory(tmp_path)
     with Session.begin() as session:

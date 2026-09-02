@@ -66,6 +66,22 @@ class Settings(BaseSettings):
     backup_run_hour_utc: int = 1
     scheduler_timezone: str = "America/Toronto"
 
+    # --- Database connectivity resilience (app/db/database.py, app/db/retry.py) --------------
+    # Tuned for a twice-daily *batch* workload against the Supabase Supavisor pooler, where a
+    # pooled/NAT connection can be reaped while a multi-minute pipeline waits on external LLM
+    # calls, or a fresh connect can transiently time out. All have safe defaults; override via
+    # env only to tune. Ignored for a sqlite database_url.
+    db_connect_timeout_seconds: int = 10          # fail a bad connect fast instead of hanging ~2 min
+    db_statement_timeout_ms: int = 60_000         # server-side guard on a hung query; 0 disables
+    db_pool_recycle_seconds: int = 280            # < the ~350s idle cull on Supavisor / cloud NAT
+    db_pool_size: int = 5
+    db_pool_max_overflow: int = 5
+    db_pool_timeout_seconds: int = 30
+    db_keepalives_idle_seconds: int = 30          # TCP keepalive so an idle-mid-run connection survives
+    db_retry_attempts: int = 4                    # 1 try + 3 retries; waits ~1s, 2s, 4s
+    db_retry_max_wait_seconds: int = 8
+    db_preflight_enabled: bool = True             # SELECT 1 at pipeline start (early detection only)
+
     # Existing optional integrations retained.
     kalshi_base_url: str = "https://external-api.kalshi.com/trade-api/v2"
     kalshi_api_key: str = ""
