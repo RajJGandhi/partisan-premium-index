@@ -203,15 +203,6 @@ jobs:
             --git-sha "${{ github.sha }}" \
             $FORCE_FLAG
 
-      # TEMP (remove after verifying the lifecycle backstop): a deliberate pre-pipeline failure to
-      # prove the finalize step turns the RUNNING row into FAILED instead of leaving it stuck.
-      - name: TEMP deliberate pre-pipeline failure
-        id: injectedfail
-        if: steps.slot.outputs.should_run_pipeline == 'true'
-        run: |
-          echo "Intentional failure to exercise the job_runs lifecycle backstop."
-          exit 1
-
       - name: Run database migrations
         id: migrate
         run: |
@@ -360,8 +351,7 @@ jobs:
         shell: bash
         env:
           PPI_ERROR_STAGE: >-
-            ${{ steps.injectedfail.conclusion == 'failure' && 'injected_test_failure'
-             || steps.verifyollama.conclusion == 'failure' && 'provider_check'
+            ${{ steps.verifyollama.conclusion == 'failure' && 'provider_check'
              || steps.migrate.conclusion == 'failure' && 'migrate_db'
              || steps.seedmarkets.conclusion == 'failure' && 'seed_markets'
              || steps.pipeline.conclusion == 'failure' && 'run_pipeline'
