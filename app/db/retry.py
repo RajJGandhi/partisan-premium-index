@@ -163,6 +163,31 @@ def db_retry(fn: Callable[..., T]) -> Callable[..., T]:
     return _retryer()(fn)
 
 
+_FAULT_STATE: dict[str, int] = {}
+
+
+def _maybe_inject_fault(description: str) -> None:
+    """TEMP (remove after the prod connectivity drill): if PPI_DB_FAULT_INJECT="<label>:<n>" and
+    ``label`` is 'any' or a substring of ``description``, raise a synthetic *transient*
+    OperationalError on the next ``n`` attempts, then behave normally."""
+    import os
+
+    spec = os.environ.get("PPI_DB_FAULT_INJECT", "")
+    if not spec or ":" not in spec:
+        return
+    label, _, count = spec.partition(":")
+    if label != "any" and label not in description:
+        return
+    used = _FAULT_STATE.get(spec, 0)
+    if used >= int(count):
+        return
+    _FAULT_STATE[spec] = used + 1
+    print(f"[db-fault-inject] simulating a transient failure on '{description}' ({used + 1}/{count})")
+    raise OperationalError(
+        "SELECT 1", {}, Exception("could not receive data from server: Operation timed out (injected)")
+    )
+
+
 def run_in_session(fn: Callable[[Any], T], *, description: str = "db operation") -> T:
     """Run ``fn(session)`` as a committed unit of work, retried on a transient connectivity blip
     with a **fresh** session each attempt (a failed transaction's writes cannot be replayed on
@@ -173,6 +198,7 @@ def run_in_session(fn: Callable[[Any], T], *, description: str = "db operation")
 
     @_retryer()
     def _attempt() -> T:
+        _maybe_inject_fault(description)  # TEMP fault injection for the prod connectivity drill
         session = SessionLocal()
         try:
             result = fn(session)

@@ -27,6 +27,11 @@ on:
         required: true
         default: true
         type: boolean
+      db_fault_inject:
+        description: "TEMP connectivity drill (remove after): PPI_DB_FAULT_INJECT value, e.g. 'open canonical run:2' or 'preflight:10'"
+        required: false
+        default: ""
+        type: string
 
   schedule:
     # Primary: 09:00 America/Toronto, year-round (GitHub resolves the UTC offset for DST).
@@ -64,6 +69,7 @@ jobs:
     env:
       APP_ENV: production
       DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      PPI_DB_FAULT_INJECT: ${{ inputs.db_fault_inject }}  # TEMP connectivity drill; default "" = off
       # Primary series as of 2026-08-26: DeepSeek V4 Flash 0731 via OpenRouter, not Qwen/Ollama.
       # See docs/research/DEEPSEEK_PRIMARY_CUTOVER_DEVIATION_20260826.md -- a documented deviation
       # from this project's own preregistered decision process, directed explicitly by Raj.
