@@ -188,26 +188,33 @@ jobs:
         run: |
           PYTHONPATH=. python scripts/seed_production_markets.py
 
-      - name: Verify Ollama is reachable, local-only, and has the model
+      - name: Check local Ollama for the Qwen comparison arm (non-blocking)
         if: steps.slot.outputs.should_run_pipeline == 'true'
         shell: bash
+        env:
+          # The now-secondary Qwen/Ollama comparison arm reads app/config.py's ollama_model
+          # default. The primary series is OpenRouter/DeepSeek (see the job env above) and does
+          # NOT depend on local Ollama, so a problem here is a warning, never a hard failure --
+          # a comparison-arm failure must never block the primary series or the deploy
+          # (docs/research/PPI_DEEPSEEK_VS_QWEN_PREREGISTRATION.md). Before the 2026-08-26 cutover
+          # this step read ${LLM_MODEL}, which the cutover removed from the job env -- under
+          # `set -u` that made this step (and every scheduled run) fail with "LLM_MODEL: unbound
+          # variable", halting collection.
+          OLLAMA_MODEL: qwen3:8b
         run: |
           set -euo pipefail
-          # Ollama must never be exposed beyond localhost. OLLAMA_HOST is unset by default,
-          # which binds to 127.0.0.1 only; refuse to proceed if it has been widened.
+          # Security guardrail (still hard): Ollama must never be exposed beyond localhost.
           if [ -n "${OLLAMA_HOST:-}" ] && [[ "$OLLAMA_HOST" != "127.0.0.1"* ]] && [[ "$OLLAMA_HOST" != "localhost"* ]]; then
             echo "::error::OLLAMA_HOST='$OLLAMA_HOST' is not localhost-only. Refusing to run the canonical pipeline."
             exit 1
           fi
           if ! curl -sf --max-time 5 http://127.0.0.1:11434/api/tags > /dev/null; then
-            echo "::error::Ollama is not reachable at http://127.0.0.1:11434. Is 'ollama serve' running? See docs/SELF_HOSTED_RUNNER.md."
-            exit 1
+            echo "::warning::Ollama not reachable at http://127.0.0.1:11434 -- the Qwen comparison arm will record provider failures; the primary OpenRouter/DeepSeek series is unaffected."
+          elif ! curl -s http://127.0.0.1:11434/api/tags | grep -q "${OLLAMA_MODEL}"; then
+            echo "::warning::Ollama model ${OLLAMA_MODEL} not pulled (run: ollama pull ${OLLAMA_MODEL}) -- Qwen comparison arm degraded; primary series unaffected."
+          else
+            echo "Ollama reachable at localhost with ${OLLAMA_MODEL} available."
           fi
-          if ! curl -s http://127.0.0.1:11434/api/tags | grep -q "${LLM_MODEL}"; then
-            echo "::error::${LLM_MODEL} is not pulled. Run: ollama pull ${LLM_MODEL}"
-            exit 1
-          fi
-          echo "Ollama reachable at localhost with ${LLM_MODEL} available."
 
       - name: Run canonical strict-LLM-only pipeline
         if: steps.slot.outputs.should_run_pipeline == 'true'
