@@ -11,7 +11,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.config import get_settings
-from app.db.database import get_session, init_db
+from app.db.database import db_preflight, get_session, init_db
 from app.db.models import (
     DailyIndex,
     EvidenceItem,
@@ -354,6 +354,11 @@ def _run_daily_pipeline_locked(
     init_db()
     day = run_date or utcnow().date()
     run_key = derive_run_key(trigger_type, day)
+    # Early detection: one retried SELECT 1. A sustained outage raises here (before any JobRun
+    # write) -> the run fails cleanly and the workflow's if:always() finalize step records it as
+    # FAILED, so the >18h stale alert can fire. A transient blip is absorbed by the retry.
+    if get_settings().db_preflight_enabled:
+        db_preflight()
     with get_session() as session:
         # One shared run record. If the workflow already opened this run_key as RUNNING (its
         # start step, before migrations / the provider check), open_run re-attaches to that same
@@ -481,6 +486,14 @@ def _run_daily_pipeline_locked(
                 job.snapshots_written += 1
                 if status in {"OK", "PARTIAL"}:
                     job.markets_succeeded += 1
+
+                # Commit the market-metadata / evidence / snapshot unit NOW, before the two
+                # multi-second LLM provider calls below. Shorter-lived transactions: the pooled
+                # connection is returned to the pool (kept warm by TCP keepalives) instead of
+                # holding an open transaction across ~1-2 min of external network waits where a
+                # reaped connection would otherwise lose the whole market. `snap` stays usable
+                # after commit (expire_on_commit=False).
+                session.commit()
 
                 # Primary blind-LLM (DeepSeek V4 Flash 0731, via OpenRouter) forecast series.
                 # CUTOVER (2026-08-26): this was the Qwen/Ollama series until this date -- see

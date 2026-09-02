@@ -33,7 +33,7 @@ def _fake_get_session(session_factory):
 def _patched_pipeline_module(monkeypatch, Session):
     from app.ppi import pipeline as pipeline_module
 
-    settings = Settings(llm_provider="deterministic")
+    settings = Settings(llm_provider="deterministic", db_preflight_enabled=False)
     monkeypatch.setattr(pipeline_module, "get_settings", lambda: settings)
     monkeypatch.setattr(pipeline_module, "init_db", lambda: None)
     monkeypatch.setattr(pipeline_module, "get_session", lambda: _fake_get_session(Session))

@@ -30,7 +30,9 @@ import os
 import sys
 from datetime import date
 
-from app.db.database import get_session
+from sqlalchemy.orm import Session
+
+from app.db.retry import run_in_session
 from app.ppi.job_run_lifecycle import (
     derive_run_key,
     ensure_lifecycle_columns,
@@ -60,7 +62,8 @@ def cmd_start(args: argparse.Namespace) -> int:
     ensure_lifecycle_columns()
     run_key = _resolve_run_key(args)
     pipeline_mode = "strict_llm_only" if args.strict_llm_only else "standard_mixed_fallback_allowed"
-    with get_session() as session:
+
+    def _open(session: Session) -> dict[str, object]:
         job, outcome = open_run(
             session,
             run_key=run_key,
@@ -70,14 +73,10 @@ def cmd_start(args: argparse.Namespace) -> int:
             git_sha=args.git_sha or None,
             force=args.force,
         )
-        payload = {
-            "command": "start",
-            "run_key": job.run_key,
-            "job_run_id": job.id,
-            "outcome": outcome,
-            "status": job.status,
-        }
-    _github_output(run_key=payload["run_key"], job_run_id=payload["job_run_id"], outcome=outcome)
+        return {"run_key": job.run_key, "job_run_id": job.id, "outcome": outcome, "status": job.status}
+
+    payload = {"command": "start", **run_in_session(_open, description="open canonical run record")}
+    _github_output(run_key=payload["run_key"], job_run_id=payload["job_run_id"], outcome=payload["outcome"])
     print(json.dumps(payload, indent=2))
     return 0
 
@@ -90,15 +89,17 @@ def cmd_finalize(args: argparse.Namespace) -> int:
         if run_key.rsplit(":", 1)[-1] in {"none", ""}:
             print(json.dumps({"command": "finalize", "action": "noop_not_a_pipeline_run", "run_key": run_key}))
             return 0
-        with get_session() as session:
-            result = finalize_run(
+        result = run_in_session(
+            lambda session: finalize_run(
                 session,
                 run_key=run_key,
                 workflow_conclusion=args.workflow_conclusion,
                 error_stage=args.error_stage or None,
                 workflow_run_id=args.workflow_run_id or None,
                 git_sha=args.git_sha or None,
-            )
+            ),
+            description="finalize canonical run record",
+        )
         result["command"] = "finalize"
         print(json.dumps(result, indent=2))
         return 0
@@ -110,8 +111,11 @@ def cmd_finalize(args: argparse.Namespace) -> int:
 def cmd_summary(args: argparse.Namespace) -> int:
     """Print the DB-derived run-health block (same one the public export embeds). Handy for
     operators and for the failure-alerting check."""
-    with get_session() as session:
-        print(json.dumps(run_status_summary(session), indent=2))
+    from app.db.database import db_diagnostics
+
+    summary = run_in_session(run_status_summary, description="run-health summary")
+    summary["db"] = db_diagnostics()
+    print(json.dumps(summary, indent=2, default=str))
     return 0
 
 
