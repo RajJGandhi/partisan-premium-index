@@ -67,6 +67,11 @@ ADDITIVE_COLUMNS = {
         "pipeline_mode": "VARCHAR(40) DEFAULT 'standard_mixed_fallback_allowed' NOT NULL",
         "run_classification": "VARCHAR(30) DEFAULT 'adhoc' NOT NULL",
         "superseded_by_id": "INTEGER",
+        # End-to-end lifecycle observability (app.ppi.job_run_lifecycle). Nullable, no default:
+        # existing rows predate the workflow-opened lifecycle and legitimately have none.
+        "workflow_run_id": "VARCHAR(64)",
+        "git_sha": "VARCHAR(64)",
+        "error_stage": "VARCHAR(80)",
     },
     "llm_forecasts": {
         "reviewed_status": "VARCHAR(30) DEFAULT 'UNREVIEWED' NOT NULL",

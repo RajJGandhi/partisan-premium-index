@@ -406,6 +406,56 @@ def test_public_export_handles_empty_database(tmp_path):
     assert bundle["overview"]["latest_run"] is None
     assert bundle["track_record"]["summary"]["resolved_predictions"] == 0
     assert bundle["system_status"]["status"] == "NO_RUNS"
+    assert bundle["system_status"]["run_health"]["last_status"] == "NO_RUNS"
+    assert bundle["system_status"]["run_health"]["last_canonical_success"] is None
+
+
+def test_public_export_run_health_is_db_derived_and_sanitized(tmp_path):
+    engine = create_engine(f"sqlite:///{tmp_path / 'runhealth.db'}")
+    Base.metadata.create_all(engine)
+    Session = sessionmaker(engine, expire_on_commit=False)
+    now = datetime(2026, 9, 2, 18, 0, tzinfo=timezone.utc)
+
+    with Session.begin() as session:
+        session.add(
+            JobRun(
+                run_key="ppi-daily:2026-09-02:primary", job_name="daily_pipeline", trigger_type="primary",
+                started_at=now - timedelta(hours=5), finished_at=now - timedelta(hours=5) + timedelta(minutes=7),
+                status="OK", pipeline_mode="strict_llm_only", run_classification="canonical",
+                markets_attempted=12, markets_succeeded=12, workflow_run_id="555/1", git_sha="cafe1234",
+            )
+        )
+        session.add(
+            JobRun(
+                run_key="ppi-daily:2026-09-02:backup", job_name="daily_pipeline", trigger_type="backup",
+                started_at=now - timedelta(hours=1), finished_at=now - timedelta(hours=1),
+                status="FAILED", pipeline_mode="strict_llm_only", run_classification="failed",
+                error_stage="provider_check", error_count=1,
+                sanitized_error="Workflow failure at stage 'provider_check' before the pipeline finalized its own run record.",
+            )
+        )
+
+    with Session() as session:
+        bundle = build_public_bundle(session, generated_at=now)
+
+    # write_public_bundle runs assert_public_bundle_safe -- this must not raise.
+    write_public_bundle(bundle, tmp_path / "data")
+
+    health = bundle["system_status"]["run_health"]
+    assert health["last_status"] == "FAILED"
+    assert health["last_error_stage"] == "provider_check"
+    assert health["last_canonical_success_run_key"] == "ppi-daily:2026-09-02:primary"
+    assert health["markets_completed"] == 12
+    assert health["hours_since_canonical_success"] == 4.88
+    assert health["consecutive_failed_attempts"] == 1
+
+    # the workflow-context slugs are surfaced on the run payloads, and are not secrets
+    latest = bundle["system_status"]["latest_run"]
+    assert latest["error_stage"] == "provider_check"
+    canonical = bundle["system_status"]["latest_canonical_run"]
+    assert canonical["workflow_run_id"] == "555/1"
+    assert canonical["git_sha"] == "cafe1234"
+    assert "sanitized_error" not in latest  # raw error text never enters the public payload
 
 
 def test_canonical_ok_forecast_publishes_publicly_without_any_manual_review(tmp_path):

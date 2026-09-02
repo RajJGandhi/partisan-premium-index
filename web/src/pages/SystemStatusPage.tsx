@@ -17,9 +17,12 @@ export function SystemStatusPage() {
   if (error || !data) return <div className="shell-width page-space"><ErrorState error={error ?? new Error("System status unavailable")} /></div>;
 
   const latest = data.latest_run;
+  const health = data.run_health;
   const successRate = latest?.markets_attempted
     ? latest.markets_succeeded / latest.markets_attempted
     : null;
+  const staleSuccess =
+    health?.hours_since_canonical_success != null && health.hours_since_canonical_success > 18;
 
   return (
     <div className="shell-width page-space">
@@ -37,10 +40,43 @@ export function SystemStatusPage() {
       </section>
 
       <section className="metrics-grid metrics-grid--four page-section--compact">
+        <MetricCard
+          label="Last successful canonical run"
+          value={health?.last_canonical_success ? formatDateTime(health.last_canonical_success) : "None yet"}
+          detail={
+            health?.last_canonical_success
+              ? `${health.markets_completed} markets · ${health.hours_since_canonical_success ?? "?"}h ago`
+              : "No canonical run has completed"
+          }
+          icon={Clock3}
+          tone={staleSuccess ? "negative" : "accent"}
+        />
+        <MetricCard
+          label="Last attempt"
+          value={health?.last_status ?? "NO_RUNS"}
+          detail={
+            health?.last_attempt
+              ? `${formatDateTime(health.last_attempt)}${health.last_error_stage ? ` · failed at ${health.last_error_stage}` : ""}`
+              : "No attempt recorded"
+          }
+          icon={Activity}
+          tone={health && health.last_status !== "OK" ? "negative" : "default"}
+        />
+        <MetricCard
+          label="Consecutive failed attempts"
+          value={health?.consecutive_failed_attempts ?? 0}
+          detail={health?.consecutive_failed_attempts ? "Every attempt is recorded, even pre-pipeline failures" : "Healthy"}
+          icon={TriangleAlert}
+          tone={health?.consecutive_failed_attempts ? "negative" : "default"}
+        />
+        <MetricCard label="Snapshots written" value={latest?.snapshots_written ?? 0} detail={`${latest?.evidence_relevant ?? 0} relevant evidence items`} icon={FileCheck2} />
+      </section>
+
+      <section className="metrics-grid metrics-grid--four page-section--compact">
         <MetricCard label="Fresh markets" value={`${data.summary.fresh_markets}/${data.summary.tracked_markets}`} detail={successRate == null ? "No run data" : `${Math.round(successRate * 100)}% latest run success`} icon={Database} tone="accent" />
         <MetricCard label="Stale markets" value={data.summary.stale_markets} detail="Require a new valid observation" icon={Clock3} tone={data.summary.stale_markets ? "negative" : "default"} />
         <MetricCard label="Source failures" value={data.summary.latest_source_failures} detail="In the latest published run" icon={TriangleAlert} tone={data.summary.latest_source_failures ? "negative" : "default"} />
-        <MetricCard label="Snapshots written" value={latest?.snapshots_written ?? 0} detail={`${latest?.evidence_relevant ?? 0} relevant evidence items`} icon={FileCheck2} />
+        <MetricCard label="Errors (latest run)" value={latest?.error_count ?? 0} detail={latest?.error_stage ? `Stage: ${latest.error_stage}` : "No error stage recorded"} icon={FileCheck2} tone={latest?.error_count ? "negative" : "default"} />
       </section>
 
       <section className="page-section two-column-section two-column-section--balanced">
@@ -79,11 +115,12 @@ export function SystemStatusPage() {
         {data.recent_runs.length ? (
           <div className="table-scroll">
             <table className="data-table">
-              <thead><tr><th>Run</th><th>Status</th><th>Finished</th><th>Duration</th><th>Markets</th><th>Evidence</th><th>Snapshots</th><th>Errors</th></tr></thead>
+              <thead><tr><th>Run</th><th>Status</th><th>Failed stage</th><th>Finished</th><th>Duration</th><th>Markets</th><th>Evidence</th><th>Snapshots</th><th>Errors</th></tr></thead>
               <tbody>{data.recent_runs.map((run) => (
                 <tr key={run.run_key}>
                   <td><strong>{run.trigger_type}</strong><span>{run.run_key}</span></td>
                   <td><StatusPill status={run.status} compact /></td>
+                  <td>{run.error_stage ?? "—"}</td>
                   <td>{formatDateTime(run.finished_at)}</td>
                   <td>{formatDuration(run.started_at, run.finished_at)}</td>
                   <td>{run.markets_succeeded}/{run.markets_attempted}</td>

@@ -18,6 +18,27 @@ export interface JobRun {
   proposals_created: number;
   snapshots_written: number;
   error_count: number;
+  // End-to-end lifecycle observability. The workflow opens this row before its fragile steps
+  // and an always() finalizer guarantees a terminal status, so a pre-pipeline failure is still
+  // an auditable FAILED row. All slugs, never secrets.
+  workflow_run_id?: string | null;
+  git_sha?: string | null;
+  error_stage?: string | null;
+}
+
+// Compact DB-derived run-health block. Every value comes from job_runs, never hardcoded.
+export interface RunHealthSummary {
+  last_attempt: string | null;
+  last_attempt_run_key: string | null;
+  last_status: string;
+  last_error_stage: string | null;
+  error_count: number;
+  last_success: string | null;
+  last_canonical_success: string | null;
+  last_canonical_success_run_key: string | null;
+  markets_completed: number;
+  hours_since_canonical_success: number | null;
+  consecutive_failed_attempts: number;
 }
 
 // One of: OK, ABSTAINED, ERROR, FLAGGED, NONE. OK is the only status with real
@@ -299,6 +320,7 @@ export interface SystemStatusData {
   latest_canonical_run: JobRun | null;
   recent_runs: JobRun[];
   latest_source_runs: SourceRun[];
+  run_health: RunHealthSummary;
   summary: {
     tracked_markets: number;
     fresh_markets: number;

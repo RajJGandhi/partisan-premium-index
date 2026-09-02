@@ -395,6 +395,18 @@ class JobRun(Base):
     superseded_by_id: Mapped[Optional[int]] = mapped_column(
         ForeignKey("job_runs.id", ondelete="SET NULL"), nullable=True, index=True
     )
+    # End-to-end lifecycle observability (app.ppi.job_run_lifecycle). The row is opened as
+    # RUNNING by the workflow itself -- before migrations / provider checks / the pipeline --
+    # so a failure in any prerequisite step still leaves an auditable FAILED row instead of no
+    # row at all. These three are set from GitHub Actions context and never contain a secret.
+    #   workflow_run_id: "<github.run_id>/<github.run_attempt>" (or a manual label). Null for
+    #     purely local runs.
+    #   git_sha: the commit the attempt ran against.
+    #   error_stage: the coarse pipeline stage that failed (e.g. "provider_check", "migrate_db",
+    #     "run_pipeline", "deploy"). Null on success. A slug, never raw error text.
+    workflow_run_id: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    git_sha: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    error_stage: Mapped[Optional[str]] = mapped_column(String(80), nullable=True)
 
 
 class SourceRun(Base):

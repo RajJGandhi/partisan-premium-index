@@ -186,3 +186,43 @@ def test_migrate_on_a_fresh_database_is_a_pure_create(tmp_path, monkeypatch):
     with Session() as session:
         rows = list(session.scalars(select(LLMForecast).where(LLMForecast.market_id == market.id)))
     assert {r.model_provider for r in rows} == {"ollama", "openrouter"}
+
+
+def test_migrate_adds_job_run_lifecycle_columns_to_a_legacy_table(tmp_path, monkeypatch):
+    """A job_runs table created before the lifecycle-observability change (no workflow_run_id /
+    git_sha / error_stage) must get them via ADDITIVE_COLUMNS, additively and non-destructively."""
+    from sqlalchemy import inspect
+
+    engine = create_engine(f"sqlite:///{tmp_path / 'legacy_jobruns.db'}")
+    with engine.begin() as conn:
+        conn.execute(
+            text(
+                "CREATE TABLE job_runs (id INTEGER PRIMARY KEY, run_key VARCHAR(150) UNIQUE, "
+                "job_name VARCHAR(100), trigger_type VARCHAR(30), started_at DATETIME, "
+                "finished_at DATETIME, status VARCHAR(30) DEFAULT 'RUNNING', "
+                "markets_attempted INTEGER DEFAULT 0, markets_succeeded INTEGER DEFAULT 0, "
+                "evidence_discovered INTEGER DEFAULT 0, evidence_relevant INTEGER DEFAULT 0, "
+                "proposals_created INTEGER DEFAULT 0, snapshots_written INTEGER DEFAULT 0, "
+                "error_count INTEGER DEFAULT 0)"
+            )
+        )
+        conn.execute(
+            text(
+                "INSERT INTO job_runs (id, run_key, job_name, trigger_type, status) "
+                "VALUES (1, 'ppi-daily:2026-08-26:primary', 'daily_pipeline', 'primary', 'OK')"
+            )
+        )
+    monkeypatch.setattr(migrate_db, "engine", engine)
+
+    migrate_db.migrate()
+
+    cols = {c["name"] for c in inspect(engine).get_columns("job_runs")}
+    assert {"workflow_run_id", "git_sha", "error_stage"} <= cols
+    with engine.connect() as conn:
+        row = conn.execute(
+            text("SELECT run_key, status, workflow_run_id, error_stage FROM job_runs WHERE id = 1")
+        ).fetchone()
+    assert row.run_key == "ppi-daily:2026-08-26:primary"  # existing row untouched
+    assert row.status == "OK"
+    assert row.workflow_run_id is None
+    assert row.error_stage is None

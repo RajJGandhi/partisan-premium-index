@@ -180,15 +180,41 @@ jobs:
           python -m pip install --upgrade pip --break-system-packages
           pip install -r requirements.txt --break-system-packages
 
+      # ------------------------------------------------------------------------------------------
+      # Open the one canonical job_runs record NOW -- after checkout + Python are ready and
+      # DATABASE_URL is in scope, but BEFORE the provider check, migrations, seeding, and the
+      # pipeline. If any of those fails, the "Finalize canonical run record" step (if: always(),
+      # at the very end) still closes this row as FAILED with an error_stage, so a pre-pipeline
+      # failure can never again look like "nothing even attempted to run" in the database.
+      # run_ppi_daily.py re-attaches to this exact row by run_key and fills in the counters and
+      # its own terminal status; the finalizer only writes a status if nothing else already did.
+      - name: Open canonical run record
+        id: startrec
+        if: steps.slot.outputs.should_run_pipeline == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          FORCE_FLAG=""
+          if [ "${{ inputs.force }}" = "true" ]; then FORCE_FLAG="--force"; fi
+          PYTHONPATH=. python scripts/job_run_lifecycle.py start \
+            --trigger "${{ steps.slot.outputs.slot }}" \
+            --strict-llm-only \
+            --workflow-run-id "${{ github.run_id }}/${{ github.run_attempt }}" \
+            --git-sha "${{ github.sha }}" \
+            $FORCE_FLAG
+
       - name: Run database migrations
+        id: migrate
         run: |
           PYTHONPATH=. python scripts/migrate_db.py
 
       - name: Seed production market definitions
+        id: seedmarkets
         run: |
           PYTHONPATH=. python scripts/seed_production_markets.py
 
       - name: Check local Ollama for the Qwen comparison arm (non-blocking)
+        id: verifyollama
         if: steps.slot.outputs.should_run_pipeline == 'true'
         shell: bash
         env:
@@ -217,6 +243,7 @@ jobs:
           fi
 
       - name: Run canonical strict-LLM-only pipeline
+        id: pipeline
         if: steps.slot.outputs.should_run_pipeline == 'true'
         shell: bash
         run: |
@@ -231,6 +258,7 @@ jobs:
             $FORCE_FLAG
 
       - name: Export sanitized public data (canonical runs only)
+        id: exportpublic
         run: |
           PYTHONPATH=. python scripts/export_public_bundle.py
 
@@ -247,10 +275,12 @@ jobs:
         run: npm ci
 
       - name: Validate and build public website
+        id: frontendbuild
         working-directory: web
         run: npm run build
 
       - name: Scan deployable files for obvious secrets
+        id: secretscan
         shell: bash
         run: |
           set -euo pipefail
@@ -265,6 +295,7 @@ jobs:
           echo "Public build secret scan passed."
 
       - name: Deploy to Cloudflare Pages
+        id: deploy
         working-directory: web
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -309,3 +340,32 @@ jobs:
             reports/ppi_daily_digest_latest.md
           retention-days: 14
           if-no-files-found: ignore
+
+      # The always() backstop for the lifecycle record. If the pipeline reached its own
+      # finalization this is a no-op; if the job died in a prerequisite step (or was cancelled),
+      # this transitions the RUNNING row opened above to FAILED with the coarse stage that broke.
+      # It never flips a status the application already set, and the script always exits 0 so this
+      # step can never itself fail the job.
+      - name: Finalize canonical run record
+        if: always() && steps.startrec.outcome == 'success'
+        shell: bash
+        env:
+          PPI_ERROR_STAGE: >-
+            ${{ steps.verifyollama.conclusion == 'failure' && 'provider_check'
+             || steps.migrate.conclusion == 'failure' && 'migrate_db'
+             || steps.seedmarkets.conclusion == 'failure' && 'seed_markets'
+             || steps.pipeline.conclusion == 'failure' && 'run_pipeline'
+             || steps.exportpublic.conclusion == 'failure' && 'export_public'
+             || steps.frontendbuild.conclusion == 'failure' && 'frontend_build'
+             || steps.secretscan.conclusion == 'failure' && 'secret_scan'
+             || steps.deploy.conclusion == 'failure' && 'deploy'
+             || '' }}
+        run: |
+          set -uo pipefail
+          PYTHONPATH=. python scripts/job_run_lifecycle.py finalize \
+            --run-key "${{ steps.startrec.outputs.run_key }}" \
+            --trigger "${{ steps.slot.outputs.slot }}" \
+            --workflow-conclusion "${{ job.status }}" \
+            --error-stage "${PPI_ERROR_STAGE}" \
+            --workflow-run-id "${{ github.run_id }}/${{ github.run_attempt }}" \
+            --git-sha "${{ github.sha }}" || true

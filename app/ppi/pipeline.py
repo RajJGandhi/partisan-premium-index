@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Any
 
 import requests
-from sqlalchemy import delete, select
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.config import get_settings
@@ -35,6 +35,7 @@ from app.ppi.blind_forecast import (
 from app.ppi.digest import write_daily_digest
 from app.ppi.evidence import adapter_for, insert_and_classify_candidate
 from app.ppi.experiment_metadata import record_first_eligible_observation
+from app.ppi.job_run_lifecycle import derive_run_key, open_run
 from app.ppi.lock import PipelineLockedError, pipeline_lock
 from app.ppi.methodology import DEFAULT_WEIGHTS, compute_weighted_fair_value, partisan_premium
 from app.ppi.polymarket import TrackedPolymarketClient, price_policy, save_raw_response, update_market_from_gamma
@@ -323,7 +324,7 @@ def run_daily_pipeline(
     ``tmp_path``-scoped path instead of touching actual repository state.
     """
     day = run_date or utcnow().date()
-    run_key = f"ppi-daily:{day.isoformat()}:{trigger_type}"
+    run_key = derive_run_key(trigger_type, day)
     try:
         with pipeline_lock(lock_path) if lock_path else pipeline_lock():
             return _run_daily_pipeline_locked(trigger_type, force, run_date, strict_llm_only)
@@ -339,38 +340,22 @@ def _run_daily_pipeline_locked(
 ) -> dict[str, Any]:
     init_db()
     day = run_date or utcnow().date()
-    run_key = f"ppi-daily:{day.isoformat()}:{trigger_type}"
+    run_key = derive_run_key(trigger_type, day)
     with get_session() as session:
-        existing = session.scalar(select(JobRun).where(JobRun.run_key == run_key))
-        if existing and existing.status == "OK" and not force:
-            return {"status": "ALREADY_COMPLETE", "run_key": run_key, "job_run_id": existing.id}
-        if existing:
-            job = existing
-            session.execute(delete(SourceRun).where(SourceRun.job_run_id == job.id))
-            job.status = "RUNNING"
-            job.started_at = utcnow()
-            job.finished_at = None
-            job.sanitized_error = None
-            job.markets_attempted = 0
-            job.markets_succeeded = 0
-            job.evidence_discovered = 0
-            job.evidence_relevant = 0
-            job.evidence_classification_failed = 0
-            job.llm_fallback_count = 0
-            job.proposals_created = 0
-            job.snapshots_written = 0
-            job.error_count = 0
-            job.metadata_json = None
-            job.llm_forecasts_attempted = 0
-            job.llm_forecasts_succeeded = 0
-            job.llm_forecasts_abstained = 0
-            job.llm_forecasts_failed = 0
-            job.llm_forecasts_skipped = 0
-        else:
-            job = JobRun(run_key=run_key, job_name="daily_pipeline", trigger_type=trigger_type)
-            session.add(job)
-            session.flush()
-        job.pipeline_mode = "strict_llm_only" if strict_llm_only else "standard_mixed_fallback_allowed"
+        # One shared run record. If the workflow already opened this run_key as RUNNING (its
+        # start step, before migrations / the provider check), open_run re-attaches to that same
+        # row and preserves its started_at; otherwise it creates or resets one. This is also the
+        # idempotency guarantee -- an already-OK slot short-circuits unless force is set.
+        job, outcome = open_run(
+            session,
+            run_key=run_key,
+            trigger_type=trigger_type,
+            pipeline_mode="strict_llm_only" if strict_llm_only else "standard_mixed_fallback_allowed",
+            force=force,
+            now=utcnow(),
+        )
+        if outcome == "already_complete":
+            return {"status": "ALREADY_COMPLETE", "run_key": run_key, "job_run_id": job.id}
 
         # Canonical blind-Qwen series requires a real model backend for every classification and
         # forecast. Refuse to run at all rather than silently producing SKIPPED_PROVIDER/fallback
